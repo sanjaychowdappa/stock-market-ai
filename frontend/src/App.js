@@ -8,6 +8,7 @@ import StopLossReport from './components/StopLossReport';
 import Watchlist from './components/Watchlist';
 import AgentDashboard from './components/AgentDashboard';
 import LiveTicker from './components/LiveTicker';
+import NewsReport from './components/NewsReport';
 import './App.css';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
@@ -149,6 +150,7 @@ function App() {
           { id: 'patterns', label: 'Patterns' },
           { id: 'prediction', label: 'Prediction' },
           { id: 'stoploss', label: 'Stop Loss' },
+          { id: 'news', label: 'News & Reports' },
           { id: 'agent', label: 'Agent Dashboard' },
         ].map((tab) => (
           <button
@@ -192,6 +194,10 @@ function App() {
 
         {activeTab === 'stoploss' && (
           <StopLossReport report={stopLoss} symbol={symbol} />
+        )}
+
+        {activeTab === 'news' && (
+          <NewsReport symbol={symbol} />
         )}
 
         {activeTab === 'agent' && (
