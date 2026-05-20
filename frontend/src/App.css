@@ -387,8 +387,41 @@ body {
   color: var(--text-muted);
 }
 
+/* Dual chart layout (Live + Predicted side by side) */
+.dual-chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.dual-chart-pane {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 14px;
+  min-height: 480px;
+}
+.dual-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.dual-chart-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
 @media (max-width: 900px) {
   .chart-layout { grid-template-columns: 1fr; }
+  .dual-chart-grid { grid-template-columns: 1fr; }
   .header { flex-wrap: wrap; }
   .prediction-candle { flex-wrap: wrap; }
   .live-ticker { display: none; }
