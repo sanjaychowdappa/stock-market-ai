@@ -24,17 +24,9 @@ function App() {
   const [patterns, setPatterns] = useState(null);
   const [stopLoss, setStopLoss] = useState(null);
   const [fullAnalysis, setFullAnalysis] = useState(null);
-  const [livePrice, setLivePrice] = useState(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('chart');
   const [error, setError] = useState(null);
-
-  const fetchLivePrice = useCallback(async (sym) => {
-    try {
-      const res = await axios.get(`${API}/stocks/${sym}/live`);
-      setLivePrice(res.data);
-    } catch (e) { /* silent */ }
-  }, []);
 
   const fetchAllData = useCallback(async (sym) => {
     setLoading(true);
@@ -63,11 +55,9 @@ function App() {
 
   useEffect(() => {
     fetchAllData(symbol);
-    fetchLivePrice(symbol);
     const dataTimer = setInterval(() => fetchAllData(symbol), 30000);
-    const liveTimer = setInterval(() => fetchLivePrice(symbol), 15000);
-    return () => { clearInterval(dataTimer); clearInterval(liveTimer); };
-  }, [symbol, fetchAllData, fetchLivePrice]);
+    return () => clearInterval(dataTimer);
+  }, [symbol, fetchAllData]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -112,7 +102,7 @@ function App() {
           />
           <button type="submit" className="search-btn">Analyze</button>
         </form>
-        <LiveTicker data={livePrice} />
+        <LiveTicker symbol={symbol} />
         <div className="header-right">
           <select value={period} onChange={(e) => handlePeriodChange(e.target.value)} className="select">
             <option value="1d">Today</option>

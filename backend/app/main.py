@@ -1,10 +1,12 @@
-from fastapi import FastAPI
+import asyncio
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.routes import stocks, predictions, signals, patterns, news
 from app.services.cache import redis_client
+from app.services.live_streamer import streamer
 from app.agents.market_agent import MarketAgent
 
 scheduler = AsyncIOScheduler()
@@ -41,3 +43,18 @@ app.include_router(news.router, prefix="/api/news", tags=["news"])
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "agent_active": scheduler.running}
+
+
+@app.websocket("/ws/live/{symbol}")
+async def websocket_live(websocket: WebSocket, symbol: str):
+    await websocket.accept()
+    symbol = symbol.upper()
+    q = streamer.subscribe(symbol)
+    try:
+        while True:
+            tick = await asyncio.wait_for(q.get(), timeout=10)
+            await websocket.send_json(tick)
+    except (WebSocketDisconnect, asyncio.TimeoutError, Exception):
+        pass
+    finally:
+        streamer.unsubscribe(symbol, q)
