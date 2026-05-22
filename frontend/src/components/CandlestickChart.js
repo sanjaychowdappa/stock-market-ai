@@ -15,11 +15,10 @@ function parseTime(dateStr, isIntraday) {
 /* ── Left pane: Live chart with real-time WebSocket updates ─────── */
 function LiveChart({ data, patterns, symbol, interval }) {
   const containerRef = useRef(null);
-  const chartObjRef = useRef(null);     // { chart, candleSeries, volumeSeries, lineSeries }
+  const chartObjRef = useRef(null);
   const wsRef = useRef(null);
   const dataRef = useRef([]);
 
-  // Build chart once
   useEffect(() => {
     if (!data || data.length === 0 || !containerRef.current) return;
 
@@ -65,7 +64,6 @@ function LiveChart({ data, patterns, symbol, interval }) {
       }))
     );
 
-    // Overlay lines
     if (data[0]?.SMA_20) {
       const s = chart.addLineSeries({ color: '#eab308', lineWidth: 1 });
       s.setData(data.filter(d => d.SMA_20).map(d => ({ time: parseTime(d.Date, isIntraday), value: d.SMA_20 })));
@@ -77,7 +75,6 @@ function LiveChart({ data, patterns, symbol, interval }) {
       l.setData(data.filter(d => d.BB_Lower).map(d => ({ time: parseTime(d.Date, isIntraday), value: d.BB_Lower })));
     }
 
-    // Pattern markers
     if (patterns && patterns.length > 0) {
       const seen = new Set();
       const markers = patterns
@@ -112,11 +109,10 @@ function LiveChart({ data, patterns, symbol, interval }) {
     };
   }, [data, patterns, interval]);
 
-  // WebSocket: push live ticks into the chart every second
   useEffect(() => {
     if (!symbol) return;
     const isIntraday = ['1m', '5m', '15m', '1h'].includes(interval);
-    if (!isIntraday) return; // only live-update intraday charts
+    if (!isIntraday) return;
 
     let reconnectTimer;
     const connect = () => {
@@ -129,7 +125,6 @@ function LiveChart({ data, patterns, symbol, interval }) {
         if (!obj || !tick.last_candle) return;
 
         const now = Math.floor(Date.now() / 1000);
-        // Round to current interval bucket
         let bucket;
         if (interval === '1m') bucket = now - (now % 60);
         else if (interval === '5m') bucket = now - (now % 300);
@@ -168,26 +163,39 @@ function LiveChart({ data, patterns, symbol, interval }) {
   return <div ref={containerRef} />;
 }
 
-/* ── Right pane: Predicted chart with multi-step forecast ───────── */
-function PredictionChart({ symbol, prediction }) {
+/* ── Right pane: Kronos Foundation Model Prediction ───────────── */
+function KronosPredictionChart({ symbol, prediction }) {
   const containerRef = useRef(null);
-  const [multiPred, setMultiPred] = useState(null);
+  const [kronosPred, setKronosPred] = useState(null);
+  const [kronosLoading, setKronosLoading] = useState(false);
+  const [kronosError, setKronosError] = useState(null);
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchKronos = async () => {
+      setKronosLoading(true);
+      setKronosError(null);
       try {
-        const res = await axios.get(`${API}/predictions/${symbol}/multi?steps=7`);
-        setMultiPred(res.data.predictions || []);
-      } catch (e) { /* */ }
+        const res = await axios.get(`${API}/predictions/${symbol}/kronos?steps=7`);
+        if (res.data.error) {
+          setKronosError(res.data.error);
+          setKronosPred(null);
+        } else {
+          setKronosPred(res.data);
+        }
+      } catch (e) {
+        setKronosError('Failed to fetch Kronos predictions');
+      }
+      setKronosLoading(false);
     };
-    fetch();
-    const timer = setInterval(fetch, 30000);
+    fetchKronos();
+    const timer = setInterval(fetchKronos, 60000); // refresh every 60s
     return () => clearInterval(timer);
   }, [symbol]);
 
+  // Render chart when data arrives
   useEffect(() => {
-    if (!multiPred || multiPred.length === 0 || !containerRef.current) return;
-    if (!prediction || prediction.error) return;
+    if (!kronosPred || !kronosPred.predictions || kronosPred.predictions.length === 0) return;
+    if (!containerRef.current) return;
 
     const container = containerRef.current;
     let disposed = false;
@@ -202,29 +210,26 @@ function PredictionChart({ symbol, prediction }) {
       height: 420,
     });
 
-    // Build predicted candles starting from tomorrow
     const today = new Date();
     const predCandles = [];
     const closeLine = [];
-    let d = new Date(today);
 
-    // Add current price as starting point
+    // Current price anchor
     predCandles.push({
       time: today.toISOString().split('T')[0],
-      open: prediction.current_close,
-      high: prediction.current_close,
-      low: prediction.current_close,
-      close: prediction.current_close,
+      open: kronosPred.current_close,
+      high: kronosPred.current_close,
+      low: kronosPred.current_close,
+      close: kronosPred.current_close,
     });
     closeLine.push({
       time: today.toISOString().split('T')[0],
-      value: prediction.current_close,
+      value: kronosPred.current_close,
     });
 
-    for (const p of multiPred) {
-      d.setDate(d.getDate() + 1);
-      while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
-      const dateStr = d.toISOString().split('T')[0];
+    // Predicted candles
+    for (const p of kronosPred.predictions) {
+      const dateStr = p.date;
       predCandles.push({
         time: dateStr,
         open: p.predicted_open,
@@ -236,23 +241,21 @@ function PredictionChart({ symbol, prediction }) {
     }
 
     const candleSeries = chart.addCandlestickSeries({
-      upColor: 'rgba(34,197,94,0.6)', downColor: 'rgba(239,68,68,0.6)',
-      borderUpColor: '#22c55e', borderDownColor: '#ef4444',
-      wickUpColor: '#22c55e', wickDownColor: '#ef4444',
+      upColor: 'rgba(168,85,247,0.6)', downColor: 'rgba(239,68,68,0.6)',
+      borderUpColor: '#a855f7', borderDownColor: '#ef4444',
+      wickUpColor: '#a855f7', wickDownColor: '#ef4444',
     });
     candleSeries.setData(predCandles);
 
-    // Trend line overlay
     const trendLine = chart.addLineSeries({
-      color: '#3b82f6', lineWidth: 2, lineStyle: 2,
+      color: '#a855f7', lineWidth: 2, lineStyle: 2,
     });
     trendLine.setData(closeLine);
 
-    // Mark today
     candleSeries.setMarkers([{
       time: today.toISOString().split('T')[0],
       position: 'belowBar',
-      color: '#3b82f6',
+      color: '#a855f7',
       shape: 'circle',
       text: 'NOW',
     }]);
@@ -270,45 +273,54 @@ function PredictionChart({ symbol, prediction }) {
       try { chart.remove(); } catch (e) { /* */ }
       while (container.firstChild) container.removeChild(container.firstChild);
     };
-  }, [multiPred, prediction, symbol]);
+  }, [kronosPred]);
 
-  const pctChange = prediction && !prediction.error
-    ? prediction.change_percent : 0;
-  const direction = prediction && !prediction.error
-    ? prediction.direction : 'neutral';
+  const direction = kronosPred ? kronosPred.direction : 'neutral';
+  const totalChange = kronosPred ? kronosPred.total_change_percent : 0;
 
   return (
     <div>
+      {/* Summary bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
-            fontSize: '1.5rem',
-            color: direction === 'bullish' ? '#22c55e' : '#ef4444',
-          }}>
-            {direction === 'bullish' ? '▲' : '▼'}
-          </span>
-          <span style={{
-            fontSize: '1.1rem', fontWeight: 700,
-            color: direction === 'bullish' ? '#22c55e' : '#ef4444',
-          }}>
-            {pctChange > 0 ? '+' : ''}{pctChange}%
-          </span>
+          {kronosLoading ? (
+            <span style={{ fontSize: '0.85rem', color: '#a855f7' }}>Loading Kronos model...</span>
+          ) : kronosError ? (
+            <span style={{ fontSize: '0.85rem', color: '#ef4444' }}>{kronosError}</span>
+          ) : kronosPred ? (
+            <>
+              <span style={{
+                fontSize: '1.5rem',
+                color: direction === 'bullish' ? '#22c55e' : '#ef4444',
+              }}>
+                {direction === 'bullish' ? '▲' : '▼'}
+              </span>
+              <span style={{
+                fontSize: '1.1rem', fontWeight: 700,
+                color: direction === 'bullish' ? '#22c55e' : '#ef4444',
+              }}>
+                {totalChange > 0 ? '+' : ''}{totalChange}%
+              </span>
+            </>
+          ) : null}
         </div>
-        {prediction && !prediction.error && (
+        {kronosPred && (
           <div style={{ display: 'flex', gap: 12, fontSize: '0.75rem', color: '#64748b' }}>
-            <span>O: ${prediction.predicted_open}</span>
-            <span style={{ color: '#22c55e' }}>H: ${prediction.predicted_high}</span>
-            <span style={{ color: '#ef4444' }}>L: ${prediction.predicted_low}</span>
-            <span style={{ fontWeight: 600, color: direction === 'bullish' ? '#22c55e' : '#ef4444' }}>
-              C: ${prediction.predicted_close}
+            <span>Now: ${kronosPred.current_close}</span>
+            <span style={{ color: direction === 'bullish' ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
+              Target: ${kronosPred.final_predicted_close}
             </span>
           </div>
         )}
       </div>
+
+      {/* Chart */}
       <div ref={containerRef} />
-      {multiPred && multiPred.length > 0 && (
+
+      {/* Per-day change chips */}
+      {kronosPred && kronosPred.predictions && kronosPred.predictions.length > 0 && (
         <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
-          {multiPred.map((p, i) => (
+          {kronosPred.predictions.map((p, i) => (
             <div key={i} style={{
               flex: 1, textAlign: 'center', padding: '4px 2px',
               background: p.direction === 'bullish' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
@@ -323,6 +335,18 @@ function PredictionChart({ symbol, prediction }) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Model info badge */}
+      {kronosPred && (
+        <div style={{
+          marginTop: 8, padding: '6px 10px', borderRadius: 4,
+          background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)',
+          fontSize: '0.7rem', color: '#a855f7', display: 'flex', justifyContent: 'space-between',
+        }}>
+          <span>{kronosPred.model}</span>
+          <span>T={kronosPred.parameters?.temperature} | top_p={kronosPred.parameters?.top_p} | samples={kronosPred.parameters?.sample_count}</span>
         </div>
       )}
     </div>
@@ -349,13 +373,13 @@ function CandlestickChart({ data, patterns, prediction, symbol, interval }) {
         <div className="dual-chart-pane">
           <div className="dual-chart-header">
             <span className="dual-chart-title" style={{ color: '#a855f7' }}>
-              PREDICTED — 7 Day Forecast
+              KRONOS AI — 7 Day Forecast
             </span>
             <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
-              XGBoost + GradientBoost + RandomForest
+              Foundation Model — 12B K-lines pre-trained
             </span>
           </div>
-          <PredictionChart symbol={symbol} prediction={prediction} />
+          <KronosPredictionChart symbol={symbol} prediction={prediction} />
         </div>
       </div>
     </div>

@@ -10,6 +10,7 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379
       - PYTHONUNBUFFERED=1
+      - HF_HOME=/app/model_cache
     depends_on:
       - redis
     volumes:

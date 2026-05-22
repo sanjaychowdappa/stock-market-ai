@@ -1,9 +1,40 @@
 from fastapi import APIRouter, Query
 from app.services.stock_data import fetch_stock_data
 from app.services.predictor import predict_next_candle, predict_multi_step
+from app.services.kronos_predictor import kronos_predict, kronos_status
 from app.services.cache import redis_client
 
 router = APIRouter()
+
+
+@router.get("/kronos/status")
+async def get_kronos_status():
+    """Check if the Kronos foundation model is loaded and ready."""
+    return kronos_status()
+
+
+@router.get("/{symbol}/kronos")
+async def get_kronos_prediction(symbol: str, steps: int = Query(7, ge=1, le=14)):
+    """Get Kronos foundation model prediction for a symbol."""
+    symbol = symbol.upper()
+    cached = await redis_client.get_json(f"kronos:{symbol}:{steps}")
+    if cached:
+        return cached
+
+    try:
+        df = await fetch_stock_data(symbol, period="1y", interval="1d")
+        if df.empty:
+            return {"error": "No data available", "symbol": symbol}
+
+        result = kronos_predict(df, steps=steps)
+        result["symbol"] = symbol
+
+        if "error" not in result:
+            await redis_client.set_json(f"kronos:{symbol}:{steps}", result, ttl=300)
+
+        return result
+    except Exception as e:
+        return {"error": str(e), "symbol": symbol}
 
 
 @router.get("/{symbol}")
