@@ -419,9 +419,38 @@ body {
   color: var(--text-secondary);
 }
 
+/* Live Trading page — full-height split view */
+.live-trading-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.live-trading-pane {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 14px;
+  min-height: 560px;
+  display: flex;
+  flex-direction: column;
+}
+.live-trading-pane .dual-chart-header {
+  flex-shrink: 0;
+}
+.live-trading-pane > div:nth-child(2) {
+  flex: 1;
+}
+
+/* Active live-trading tab highlight */
+.tab.active[data-tab="live-trading"] {
+  color: #a855f7;
+  border-bottom-color: #a855f7;
+}
+
 @media (max-width: 900px) {
   .chart-layout { grid-template-columns: 1fr; }
   .dual-chart-grid { grid-template-columns: 1fr; }
+  .live-trading-grid { grid-template-columns: 1fr; }
   .header { flex-wrap: wrap; }
   .prediction-candle { flex-wrap: wrap; }
   .live-ticker { display: none; }

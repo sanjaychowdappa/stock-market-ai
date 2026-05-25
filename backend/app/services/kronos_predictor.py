@@ -2,6 +2,7 @@
 Kronos Foundation Model integration for stock prediction.
 Uses the Kronos pre-trained model (decoder-only transformer) for
 financial candlestick forecasting with hierarchical tokenization.
+Supports loading NVDA-finetuned model when available.
 """
 
 import sys
@@ -24,16 +25,19 @@ _model = None
 _predictor = None
 _load_error = None
 _loading = False
+_model_source = "base"  # "base" or "finetuned"
 
 # Model configuration
 KRONOS_TOKENIZER_ID = "NeoQuasar/Kronos-Tokenizer-base"
 KRONOS_MODEL_ID = "NeoQuasar/Kronos-small"  # 24.7M params, good for CPU
+FINETUNED_DIR = "/app/model_cache/finetuned_nvda"
 MAX_CONTEXT = 512
 
 
 def _load_kronos():
-    """Lazy-load Kronos model on first prediction request."""
-    global _tokenizer, _model, _predictor, _load_error, _loading
+    """Lazy-load Kronos model on first prediction request.
+    Prefers fine-tuned NVDA model if available."""
+    global _tokenizer, _model, _predictor, _load_error, _loading, _model_source
 
     if _predictor is not None:
         return True
@@ -47,14 +51,31 @@ def _load_kronos():
         import torch
         from model import KronosTokenizer, Kronos, KronosPredictor
 
-        logger.info("Loading Kronos tokenizer from %s...", KRONOS_TOKENIZER_ID)
-        _tokenizer = KronosTokenizer.from_pretrained(KRONOS_TOKENIZER_ID)
+        ft_tok_path = os.path.join(FINETUNED_DIR, "tokenizer")
+        ft_pred_path = os.path.join(FINETUNED_DIR, "predictor")
 
-        logger.info("Loading Kronos model from %s...", KRONOS_MODEL_ID)
-        _model = Kronos.from_pretrained(KRONOS_MODEL_ID)
+        # Try fine-tuned model first
+        if os.path.exists(ft_tok_path) and os.path.exists(ft_pred_path):
+            logger.info("Loading NVDA fine-tuned Kronos tokenizer from %s...", ft_tok_path)
+            _tokenizer = KronosTokenizer.from_pretrained(ft_tok_path)
+
+            logger.info("Loading NVDA fine-tuned Kronos model from %s...", ft_pred_path)
+            _model = Kronos.from_pretrained(ft_pred_path)
+
+            _model_source = "finetuned-nvda"
+            logger.info("Loaded NVDA fine-tuned Kronos model")
+        else:
+            logger.info("Loading base Kronos tokenizer from %s...", KRONOS_TOKENIZER_ID)
+            _tokenizer = KronosTokenizer.from_pretrained(KRONOS_TOKENIZER_ID)
+
+            logger.info("Loading base Kronos model from %s...", KRONOS_MODEL_ID)
+            _model = Kronos.from_pretrained(KRONOS_MODEL_ID)
+
+            _model_source = "base"
+            logger.info("Loaded base Kronos model (no fine-tuned NVDA model found)")
 
         _predictor = KronosPredictor(_model, _tokenizer, max_context=MAX_CONTEXT)
-        logger.info("Kronos model loaded successfully (device: %s)", _predictor.device)
+        logger.info("Kronos model ready (device: %s, source: %s)", _predictor.device, _model_source)
         _loading = False
         return True
     except Exception as e:
@@ -159,10 +180,13 @@ def kronos_predict(df: pd.DataFrame, steps: int = 7) -> dict:
         final_close = float(pred_df.iloc[-1]["close"])
         total_change = round((final_close - current_close) / current_close * 100, 2)
 
+        model_label = "Kronos-small NVDA Fine-tuned" if _model_source == "finetuned-nvda" else "Kronos-small (24.7M params)"
+
         return {
-            "model": "Kronos-small (24.7M params)",
+            "model": model_label,
             "model_type": "Foundation Model — Decoder-only Transformer",
-            "pre_training": "12B K-lines from 45+ global exchanges",
+            "model_source": _model_source,
+            "pre_training": "12B K-lines from 45+ exchanges" + (" + NVDA fine-tuned" if _model_source == "finetuned-nvda" else ""),
             "current_close": round(current_close, 2),
             "final_predicted_close": round(final_close, 2),
             "total_change_percent": total_change,
@@ -184,9 +208,28 @@ def kronos_predict(df: pd.DataFrame, steps: int = 7) -> dict:
 def kronos_status() -> dict:
     """Check Kronos model loading status."""
     if _predictor is not None:
-        return {"status": "ready", "model": KRONOS_MODEL_ID, "device": str(_predictor.device)}
+        ft_exists = os.path.exists(os.path.join(FINETUNED_DIR, "predictor"))
+        return {
+            "status": "ready",
+            "model": KRONOS_MODEL_ID,
+            "model_source": _model_source,
+            "device": str(_predictor.device),
+            "finetuned_available": ft_exists,
+        }
     if _loading:
         return {"status": "loading", "model": KRONOS_MODEL_ID}
     if _load_error:
         return {"status": "error", "error": _load_error}
     return {"status": "not_loaded", "model": KRONOS_MODEL_ID}
+
+
+def reload_kronos():
+    """Force reload Kronos model (e.g., after fine-tuning completes)."""
+    global _tokenizer, _model, _predictor, _load_error, _loading, _model_source
+    _tokenizer = None
+    _model = None
+    _predictor = None
+    _load_error = None
+    _loading = False
+    _model_source = "base"
+    return _load_kronos()

@@ -9,6 +9,7 @@ import Watchlist from './components/Watchlist';
 import AgentDashboard from './components/AgentDashboard';
 import LiveTicker from './components/LiveTicker';
 import NewsReport from './components/NewsReport';
+import LiveTrading from './components/LiveTrading';
 import './App.css';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
@@ -25,7 +26,7 @@ function App() {
   const [stopLoss, setStopLoss] = useState(null);
   const [fullAnalysis, setFullAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('chart');
+  const [activeTab, setActiveTab] = useState('live-trading');
   const [error, setError] = useState(null);
 
   const fetchAllData = useCallback(async (sym) => {
@@ -136,6 +137,7 @@ function App() {
 
       <nav className="tabs">
         {[
+          { id: 'live-trading', label: 'Live Trading' },
           { id: 'chart', label: 'Chart & Signals' },
           { id: 'patterns', label: 'Patterns' },
           { id: 'prediction', label: 'Prediction' },
@@ -155,6 +157,10 @@ function App() {
 
       <main className="main-content">
         {loading && <div className="loading-overlay"><div className="spinner" /></div>}
+
+        {activeTab === 'live-trading' && (
+          <LiveTrading symbol={symbol} />
+        )}
 
         {activeTab === 'chart' && (
           <div className="chart-layout">

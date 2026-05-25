@@ -4,9 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from app.routes import stocks, predictions, signals, patterns, news
+from app.routes import stocks, predictions, signals, patterns, news, realtime
 from app.services.cache import redis_client
-from app.services.live_streamer import streamer
+from app.services.realtime_engine import get_engine
 from app.agents.market_agent import MarketAgent
 
 scheduler = AsyncIOScheduler()
@@ -38,6 +38,7 @@ app.include_router(predictions.router, prefix="/api/predictions", tags=["predict
 app.include_router(signals.router, prefix="/api/signals", tags=["signals"])
 app.include_router(patterns.router, prefix="/api/patterns", tags=["patterns"])
 app.include_router(news.router, prefix="/api/news", tags=["news"])
+app.include_router(realtime.router, prefix="/api/realtime", tags=["realtime"])
 
 
 @app.get("/api/health")
@@ -47,14 +48,40 @@ async def health():
 
 @app.websocket("/ws/live/{symbol}")
 async def websocket_live(websocket: WebSocket, symbol: str):
+    """
+    Live tick stream — uses the engine's simulated ticks so prices
+    move even when the market is closed.
+    """
     await websocket.accept()
     symbol = symbol.upper()
-    q = streamer.subscribe(symbol)
+    engine = get_engine(symbol)
+    q = engine.subscribe_ticks()
     try:
         while True:
-            tick = await asyncio.wait_for(q.get(), timeout=10)
+            tick = await asyncio.wait_for(q.get(), timeout=5)
             await websocket.send_json(tick)
     except (WebSocketDisconnect, asyncio.TimeoutError, Exception):
         pass
     finally:
-        streamer.unsubscribe(symbol, q)
+        engine.unsubscribe_ticks(q)
+
+
+@app.websocket("/ws/predict/{symbol}")
+async def websocket_predict(websocket: WebSocket, symbol: str):
+    """
+    Per-second prediction stream — zero delay.
+    Instant snapshot on connect, then event-driven updates.
+    """
+    await websocket.accept()
+    symbol = symbol.upper()
+    engine = get_engine(symbol)
+    q = engine.subscribe()
+    # subscribe() already pushes last_payload into q for instant first frame
+    try:
+        while True:
+            data = await asyncio.wait_for(q.get(), timeout=5)
+            await websocket.send_json(data)
+    except (WebSocketDisconnect, asyncio.TimeoutError, Exception):
+        pass
+    finally:
+        engine.unsubscribe(q)

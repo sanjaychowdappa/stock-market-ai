@@ -11,11 +11,19 @@ services:
       - REDIS_URL=redis://redis:6379
       - PYTHONUNBUFFERED=1
       - HF_HOME=/app/model_cache
+      - NVIDIA_VISIBLE_DEVICES=all
     depends_on:
       - redis
     volumes:
       - model_data:/app/model_cache
       - ./backend/app:/app/app
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     restart: unless-stopped
 
   frontend:

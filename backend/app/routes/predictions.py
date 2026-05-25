@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query
 from app.services.stock_data import fetch_stock_data
 from app.services.predictor import predict_next_candle, predict_multi_step
-from app.services.kronos_predictor import kronos_predict, kronos_status
+from app.services.kronos_predictor import kronos_predict, kronos_status, reload_kronos
 from app.services.cache import redis_client
 
 router = APIRouter()
@@ -11,6 +11,15 @@ router = APIRouter()
 async def get_kronos_status():
     """Check if the Kronos foundation model is loaded and ready."""
     return kronos_status()
+
+
+@router.post("/kronos/reload")
+async def reload_kronos_model():
+    """Reload Kronos model (picks up fine-tuned weights if available)."""
+    success = reload_kronos()
+    status = kronos_status()
+    status["reloaded"] = success
+    return status
 
 
 @router.get("/{symbol}/kronos")

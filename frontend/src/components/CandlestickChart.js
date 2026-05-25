@@ -7,9 +7,29 @@ const API = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 function parseTime(dateStr, isIntraday) {
   if (isIntraday && dateStr.includes('T')) {
-    return Math.floor(new Date(dateStr + ':00Z').getTime() / 1000);
+    // Handle both "2026-05-22T15:30" and "2026-05-22T15:30:00" formats
+    const d = dateStr.endsWith('Z') ? dateStr : dateStr + (dateStr.length <= 16 ? ':00Z' : 'Z');
+    return Math.floor(new Date(d).getTime() / 1000);
   }
   return dateStr.split('T')[0].split(' ')[0];
+}
+
+/** Deduplicate and sort chart data by time — lightweight-charts requires strictly ascending unique times */
+function dedup(arr) {
+  if (!arr.length) return arr;
+  const seen = new Map();
+  for (const item of arr) {
+    const existing = seen.get(item.time);
+    if (!existing) {
+      seen.set(item.time, item);
+    } else {
+      // merge: keep latest values (last-write-wins)
+      seen.set(item.time, { ...existing, ...item });
+    }
+  }
+  const out = Array.from(seen.values());
+  out.sort((a, b) => typeof a.time === 'number' ? a.time - b.time : (a.time < b.time ? -1 : 1));
+  return out;
 }
 
 /* ── Left pane: Live chart with real-time WebSocket updates ─────── */
@@ -42,12 +62,12 @@ function LiveChart({ data, patterns, symbol, interval }) {
       wickUpColor: '#22c55e', wickDownColor: '#ef4444',
     });
 
-    const chartData = data
+    const chartData = dedup(data
       .filter(d => d.Date && d.Open && d.Close)
       .map(d => ({
         time: parseTime(d.Date, isIntraday),
         open: d.Open, high: d.High, low: d.Low, close: d.Close,
-      }));
+      })));
 
     dataRef.current = chartData;
     candleSeries.setData(chartData);
@@ -56,23 +76,23 @@ function LiveChart({ data, patterns, symbol, interval }) {
       color: '#3b82f6', priceFormat: { type: 'volume' }, priceScaleId: 'volume',
     });
     chart.priceScale('volume').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
-    volumeSeries.setData(
+    volumeSeries.setData(dedup(
       data.filter(d => d.Date && d.Volume).map(d => ({
         time: parseTime(d.Date, isIntraday),
         value: d.Volume,
         color: d.Close >= d.Open ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)',
       }))
-    );
+    ));
 
     if (data[0]?.SMA_20) {
       const s = chart.addLineSeries({ color: '#eab308', lineWidth: 1 });
-      s.setData(data.filter(d => d.SMA_20).map(d => ({ time: parseTime(d.Date, isIntraday), value: d.SMA_20 })));
+      s.setData(dedup(data.filter(d => d.SMA_20).map(d => ({ time: parseTime(d.Date, isIntraday), value: d.SMA_20 }))));
     }
     if (data[0]?.BB_Upper) {
       const u = chart.addLineSeries({ color: 'rgba(59,130,246,0.4)', lineWidth: 1, lineStyle: 2 });
       const l = chart.addLineSeries({ color: 'rgba(59,130,246,0.4)', lineWidth: 1, lineStyle: 2 });
-      u.setData(data.filter(d => d.BB_Upper).map(d => ({ time: parseTime(d.Date, isIntraday), value: d.BB_Upper })));
-      l.setData(data.filter(d => d.BB_Lower).map(d => ({ time: parseTime(d.Date, isIntraday), value: d.BB_Lower })));
+      u.setData(dedup(data.filter(d => d.BB_Upper).map(d => ({ time: parseTime(d.Date, isIntraday), value: d.BB_Upper }))));
+      l.setData(dedup(data.filter(d => d.BB_Lower).map(d => ({ time: parseTime(d.Date, isIntraday), value: d.BB_Lower }))));
     }
 
     if (patterns && patterns.length > 0) {
@@ -210,34 +230,40 @@ function KronosPredictionChart({ symbol, prediction }) {
       height: 420,
     });
 
-    const today = new Date();
-    const predCandles = [];
     const closeLine = [];
 
-    // Current price anchor
-    predCandles.push({
-      time: today.toISOString().split('T')[0],
-      open: kronosPred.current_close,
-      high: kronosPred.current_close,
-      low: kronosPred.current_close,
-      close: kronosPred.current_close,
-    });
-    closeLine.push({
-      time: today.toISOString().split('T')[0],
-      value: kronosPred.current_close,
-    });
+    // Build prediction candles only (no anchor that could duplicate first date)
+    const predDates = new Set();
+    const predCandles = [];
 
-    // Predicted candles
     for (const p of kronosPred.predictions) {
-      const dateStr = p.date;
+      if (predDates.has(p.date)) continue; // skip any duplicates from API
+      predDates.add(p.date);
       predCandles.push({
-        time: dateStr,
+        time: p.date,
         open: p.predicted_open,
         high: p.predicted_high,
         low: p.predicted_low,
         close: p.predicted_close,
       });
-      closeLine.push({ time: dateStr, value: p.predicted_close });
+      closeLine.push({ time: p.date, value: p.predicted_close });
+    }
+
+    // Add current-price anchor ONLY if its date doesn't collide with any prediction
+    const todayStr = new Date().toISOString().split('T')[0];
+    const anchorDate = predDates.has(todayStr)
+      ? null  // skip anchor, first pred candle already covers today
+      : todayStr;
+
+    if (anchorDate) {
+      predCandles.unshift({
+        time: anchorDate,
+        open: kronosPred.current_close,
+        high: kronosPred.current_close,
+        low: kronosPred.current_close,
+        close: kronosPred.current_close,
+      });
+      closeLine.unshift({ time: anchorDate, value: kronosPred.current_close });
     }
 
     const candleSeries = chart.addCandlestickSeries({
@@ -252,8 +278,9 @@ function KronosPredictionChart({ symbol, prediction }) {
     });
     trendLine.setData(closeLine);
 
+    const markerDate = anchorDate || kronosPred.predictions[0]?.date;
     candleSeries.setMarkers([{
-      time: today.toISOString().split('T')[0],
+      time: markerDate,
       position: 'belowBar',
       color: '#a855f7',
       shape: 'circle',
