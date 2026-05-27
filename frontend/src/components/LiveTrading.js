@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createChart } from 'lightweight-charts';
 import axios from 'axios';
+import PaperTradingPanel from './PaperTradingPanel';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:8000';
@@ -386,8 +387,8 @@ function LiveTrading({ symbol }) {
       {/* Pattern signal bar */}
       <PatternSignalBar pattern={predData?.pattern} atr={predData?.atr} kronosAge={predData?.kronos_age_seconds} />
 
-      {/* Dual chart layout */}
-      <div className="live-trading-grid" style={{ marginTop: 8 }}>
+      {/* Triple layout: Live Chart | Prediction Chart | Paper Trading */}
+      <div className="live-trading-triple" style={{ marginTop: 8 }}>
         <div className="live-trading-pane">
           <div className="dual-chart-header">
             <span className="dual-chart-title">
@@ -427,6 +428,10 @@ function LiveTrading({ symbol }) {
               <span>Kronos: {predData.kronos_age_seconds?.toFixed(0)}s ago | ATR: {predData.atr?.toFixed(4)}</span>
             </div>
           )}
+        </div>
+
+        <div className="live-trading-pane paper-pane">
+          <PaperTradingPanel />
         </div>
       </div>
     </div>
