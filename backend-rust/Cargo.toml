@@ -1,0 +1,55 @@
+[package]
+name = "stock-market-ai"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+onnx = ["ort"]
+
+[dependencies]
+# Web framework
+axum = { version = "0.8", features = ["ws"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# ONNX Runtime (optional — GPU inference)
+ort = { version = "2.0.0-rc.12", features = ["cuda"], optional = true }
+ndarray = "0.16"
+
+# HTTP client (replaces yfinance)
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+
+# Time / scheduling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Random (OU process + sampling)
+rand = "0.8"
+rand_distr = "0.4"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Concurrency
+dashmap = "6"
+parking_lot = "0.12"
+
+# Environment
+dotenvy = "0.15"
+
+# Futures utilities
+futures = "0.3"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true

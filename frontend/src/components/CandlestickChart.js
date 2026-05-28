@@ -116,7 +116,9 @@ function LiveChart({ data, patterns, symbol, interval }) {
     chartObjRef.current = { chart, candleSeries, volumeSeries };
 
     const ro = new ResizeObserver(() => {
-      if (!disposed) chart.applyOptions({ width: container.clientWidth });
+      if (!disposed) requestAnimationFrame(() => {
+        if (!disposed) chart.applyOptions({ width: container.clientWidth });
+      });
     });
     ro.observe(container);
 
@@ -290,7 +292,9 @@ function KronosPredictionChart({ symbol, prediction }) {
     chart.timeScale().fitContent();
 
     const ro = new ResizeObserver(() => {
-      if (!disposed) chart.applyOptions({ width: container.clientWidth });
+      if (!disposed) requestAnimationFrame(() => {
+        if (!disposed) chart.applyOptions({ width: container.clientWidth });
+      });
     });
     ro.observe(container);
 

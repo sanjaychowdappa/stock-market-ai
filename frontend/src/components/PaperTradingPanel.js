@@ -224,13 +224,13 @@ function TradeLog({ trades }) {
               <span style={{ color: '#475569', flex: 1 }}>
                 {t.shares}×${t.price}
               </span>
-              {t.pnl !== undefined && (
+              {t.pnl != null && (
                 <span style={{ fontWeight: 700, color: t.pnl >= 0 ? '#22c55e' : '#ef4444', minWidth: 50, textAlign: 'right' }}>
-                  {t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(3)}
+                  {t.pnl >= 0 ? '+' : ''}${(t.pnl ?? 0).toFixed(3)}
                 </span>
               )}
-              {t.pnl === undefined && (
-                <span style={{ color: '#334155', minWidth: 50, textAlign: 'right' }}>${t.total.toFixed(2)}</span>
+              {t.pnl == null && (
+                <span style={{ color: '#334155', minWidth: 50, textAlign: 'right' }}>${(t.total ?? 0).toFixed(2)}</span>
               )}
               <span style={{ color: '#1e293b', fontSize: '0.5rem', minWidth: 48, textAlign: 'right' }}>{time}</span>
             </div>

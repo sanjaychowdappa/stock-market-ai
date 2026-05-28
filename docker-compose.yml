@@ -1,12 +1,57 @@
 version: "3.9"
 
 services:
+  # ── Rust Backend (high-performance) ──────────────────────────
   backend:
+    build:
+      context: ./backend-rust
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - RUST_LOG=stock_market_ai=info
+      - NVIDIA_VISIBLE_DEVICES=all
+    depends_on:
+      - redis
+    volumes:
+      - model_data:/app/model_cache
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # ── Python Fine-Tune Sidecar (GPU, wakes at EOD) ────────────
+  finetune-sidecar:
+    build:
+      context: ./backend-rust/finetune-sidecar
+      dockerfile: Dockerfile
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - HF_HOME=/app/model_cache
+    volumes:
+      - model_data:/app/model_cache
+      - ./backend-rust/scripts:/app/scripts
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # ── Python Backend (legacy, kept for fallback) ───────────────
+  backend-python:
     build:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
       - REDIS_URL=redis://redis:6379
       - PYTHONUNBUFFERED=1
@@ -25,6 +70,7 @@ services:
               count: 1
               capabilities: [gpu]
     restart: unless-stopped
+    profiles: ["legacy"]
 
   frontend:
     build:

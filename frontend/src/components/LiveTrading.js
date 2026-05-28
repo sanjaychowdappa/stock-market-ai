@@ -120,7 +120,9 @@ function LiveSecondChart({ symbol, onTick }) {
     connect();
 
     const ro = new ResizeObserver(() => {
-      if (!disposed) chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+      if (!disposed) requestAnimationFrame(() => {
+        if (!disposed) chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+      });
     });
     ro.observe(container);
 
@@ -227,7 +229,9 @@ function PredictedSecondChart({ symbol, onPredUpdate }) {
     connect();
 
     const ro = new ResizeObserver(() => {
-      if (!disposed) chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+      if (!disposed) requestAnimationFrame(() => {
+        if (!disposed) chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+      });
     });
     ro.observe(container);
 
@@ -254,19 +258,20 @@ function PatternSignalBar({ pattern, atr, kronosAge }) {
   const color = direction === 'bullish' ? '#22c55e' : direction === 'bearish' ? '#ef4444' : '#eab308';
 
   const MiniBar = ({ val, label, maxVal = 1 }) => {
-    const pct = Math.abs(val) / maxVal * 100;
-    const c = val > 0.01 ? '#22c55e' : val < -0.01 ? '#ef4444' : '#475569';
+    const v = val ?? 0;
+    const pct = Math.abs(v) / maxVal * 100;
+    const c = v > 0.01 ? '#22c55e' : v < -0.01 ? '#ef4444' : '#475569';
     return (
       <div style={{ flex: 1, minWidth: 80 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#64748b', marginBottom: 1 }}>
           <span>{label}</span>
-          <span style={{ color: c, fontWeight: 600 }}>{val > 0 ? '+' : ''}{val.toFixed(3)}</span>
+          <span style={{ color: c, fontWeight: 600 }}>{v > 0 ? '+' : ''}{v.toFixed(3)}</span>
         </div>
         <div style={{ height: 4, background: '#1e293b', borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
           <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: '#334155' }} />
           <div style={{
             position: 'absolute',
-            left: val >= 0 ? '50%' : `${50 - pct / 2}%`,
+            left: v >= 0 ? '50%' : `${50 - pct / 2}%`,
             width: `${pct / 2}%`,
             top: 0, bottom: 0, background: c, borderRadius: 2,
           }} />
@@ -283,7 +288,7 @@ function PatternSignalBar({ pattern, atr, kronosAge }) {
     }}>
       <div style={{ textAlign: 'center', minWidth: 70 }}>
         <div style={{ fontSize: '1.4rem', color }}>{direction === 'bullish' ? '▲' : direction === 'bearish' ? '▼' : '◆'}</div>
-        <div style={{ fontSize: '0.85rem', fontWeight: 700, color }}>{signal > 0 ? '+' : ''}{signal.toFixed(3)}</div>
+        <div style={{ fontSize: '0.85rem', fontWeight: 700, color }}>{(signal ?? 0) > 0 ? '+' : ''}{(signal ?? 0).toFixed(3)}</div>
         <div style={{ fontSize: '0.6rem', color: '#64748b' }}>Score</div>
       </div>
       <div style={{ flex: 1, display: 'flex', gap: 10 }}>
@@ -306,7 +311,7 @@ function PatternSignalBar({ pattern, atr, kronosAge }) {
    ───────────────────────────────────────────────────────────────── */
 function PredictionChips({ predictions, currentPrice }) {
   if (!predictions || predictions.length === 0) return null;
-  const keySeconds = [1, 5, 10, 15, 20, 30];
+  const keySeconds = [5, 10, 30, 60];
   const chips = keySeconds.map(s => predictions.find(p => p.seconds_ahead === s)).filter(Boolean);
 
   return (
@@ -320,10 +325,10 @@ function PredictionChips({ predictions, currentPrice }) {
         }}>
           <div style={{ fontSize: '0.6rem', color: '#475569' }}>+{p.seconds_ahead}s</div>
           <div style={{ fontSize: '0.8rem', fontWeight: 700, color: p.direction === 'bullish' ? '#22c55e' : '#ef4444' }}>
-            ${p.predicted_price.toFixed(2)}
+            ${(p.predicted_price ?? 0).toFixed(2)}
           </div>
           <div style={{ fontSize: '0.65rem', fontWeight: 600, color: p.direction === 'bullish' ? '#22c55e' : '#ef4444' }}>
-            {p.change_percent > 0 ? '+' : ''}{p.change_percent.toFixed(3)}%
+            {(p.change_percent ?? 0) > 0 ? '+' : ''}{(p.change_percent ?? 0).toFixed(3)}%
           </div>
         </div>
       ))}
