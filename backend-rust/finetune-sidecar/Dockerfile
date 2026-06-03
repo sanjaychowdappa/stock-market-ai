@@ -1,5 +1,8 @@
 FROM nvidia/cuda:12.8.1-runtime-ubuntu22.04
 
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common && \
     add-apt-repository ppa:deadsnakes/ppa && \
@@ -24,4 +27,4 @@ COPY . .
 
 EXPOSE 8001
 
-CMD ["python", "finetune_server.py"]
+CMD ["python", "kronos_server.py"]

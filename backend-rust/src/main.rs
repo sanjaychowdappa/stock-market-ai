@@ -17,9 +17,21 @@ mod state;
 
 use crate::config::TOP_SYMBOLS;
 use crate::state::AppState;
+use chrono::{Datelike, Timelike};
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::{info, error};
+
+/// Get current US Eastern time components from UTC.
+fn et_now() -> (u32, u32, u32) {
+    let utc = chrono::Utc::now();
+    let month = utc.month();
+    let offset: i64 = if month >= 3 && month <= 10 { 4 } else { 5 };
+    let hour = (utc.hour() as i64 - offset).rem_euclid(24) as u32;
+    let minute = utc.minute();
+    let weekday = utc.weekday().num_days_from_monday();
+    (hour, minute, weekday)
+}
 
 #[tokio::main]
 async fn main() {
@@ -74,6 +86,9 @@ fn spawn_orchestrator(state: Arc<AppState>) {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
         let mut eod_counter = 0u32;
         let mut save_counter = 0u32;
+        let mut eod_report_published = false;
+        let mut saw_market_open = false;  // Must see market open before triggering EOD
+        let mut market_ticks = 0u32;      // Count ticks during market hours
 
         loop {
             interval.tick().await;
@@ -114,10 +129,119 @@ fn spawn_orchestrator(state: Arc<AppState>) {
                 tracker.feed_portfolio(&payload);
             }
 
+            // Track if we've seen market hours (needed to gate EOD)
+            {
+                let (et_h, et_m, wd) = et_now();
+                let mins = et_h * 60 + et_m;
+                let is_open = wd < 5 && mins >= 9 * 60 + 30 && mins < 16 * 60;
+                if is_open {
+                    saw_market_open = true;
+                    market_ticks += 1;
+                }
+            }
+
             // EOD check every 60 seconds
             eod_counter += 1;
             if eod_counter >= 60 {
                 eod_counter = 0;
+
+                // Auto-publish EOD report at 4:05 PM ET
+                // GUARD: Only fire if we actually traded during market hours this session.
+                // This prevents immediate firing when restarting after 4:05 PM.
+                if !eod_report_published && saw_market_open && market_ticks > 60 {
+                    let (et_h, et_m, _wd) = et_now();
+                    if (et_h == 16 && et_m >= 5) || et_h > 16 {
+                        eod_report_published = true;
+                        info!("=== EOD PIPELINE STARTING ===");
+
+                        // Step 1: Generate and save EOD report
+                        info!("[EOD 1/3] Publishing EOD report...");
+                        let report = {
+                            let trader = state.trader.lock();
+                            let tracker = state.tracker.lock();
+                            crate::services::eod_publisher::generate_report(&trader, &tracker)
+                        };
+                        let text = crate::services::eod_publisher::generate_text_summary(&report);
+                        match crate::services::eod_publisher::save_report(&report, &text).await {
+                            Ok(path) => info!("  EOD report saved to {:?}", path),
+                            Err(e) => error!("  Failed to save EOD report: {}", e),
+                        }
+
+                        // Step 2: Record day in performance ledger + calculate net profit
+                        info!("[EOD 2/3] Recording performance & calculating net profit...");
+                        let mut ledger = crate::services::performance_ledger::PerformanceLedger::load().await;
+                        let today_str = chrono::Local::now().format("%Y-%m-%d").to_string();
+
+                        // Extract stats from report
+                        let gross_pnl = report["portfolio"]["total_pnl"].as_f64().unwrap_or(0.0);
+                        let total_trades = report["trading_stats"]["total_trades"].as_u64().unwrap_or(0) as u32;
+                        let winning_trades = report["trading_stats"]["winning_trades"].as_u64().unwrap_or(0) as u32;
+                        let avg_hold = report["trading_stats"]["avg_hold_seconds"].as_u64().unwrap_or(0);
+                        let avg_pnl = report["trading_stats"]["avg_pnl_per_trade"].as_f64().unwrap_or(0.0);
+                        let portfolio_value = report["portfolio"]["total_value"].as_f64().unwrap_or(100.0);
+
+                        // Estimate total shares traded & sell value from trade count
+                        let avg_trade_value = portfolio_value * 0.8; // ~80% position size
+                        let avg_price = 300.0; // rough avg across our symbols
+                        let total_shares = (total_trades as f64) * (avg_trade_value / avg_price);
+                        let total_sell_value = (total_trades as f64 / 2.0) * avg_trade_value;
+
+                        let day_record = ledger.record_day(
+                            &today_str, gross_pnl, total_trades, winning_trades,
+                            avg_hold, avg_pnl, total_shares, total_sell_value, portfolio_value,
+                        );
+
+                        info!("  Gross P&L: ${:.4}", day_record.gross_pnl);
+                        info!("  Total Fees: ${:.4} (spread=${:.4} + SEC=${:.4} + TAF=${:.4} + PFOF=${:.4})",
+                            day_record.total_fees, day_record.spread_cost,
+                            day_record.sec_fee, day_record.taf_fee, day_record.pfof_cost);
+                        info!("  Tax (24%): ${:.4}", day_record.tax);
+                        info!("  >>> NET P&L: ${:.4} <<<", day_record.net_pnl);
+                        info!("  Efficiency Score: {:.1}/100", day_record.efficiency_score);
+
+                        // Day comparison
+                        let comparison = ledger.compare_days();
+                        let improved = comparison["comparison"]["improved"].as_bool().unwrap_or(true);
+                        if let Some(verdict) = comparison["comparison"]["verdict"].as_str() {
+                            info!("  Verdict: {}", verdict);
+                        }
+
+                        // Step 3: Auto-tune if not improved
+                        info!("[EOD 3/3] Strategy analysis...");
+                        if !improved {
+                            info!("  Performance DEGRADED — running auto-tuner...");
+                            let (tuned, tune_report) = crate::services::strategy_tuner::analyze_and_tune(&ledger);
+
+                            if let Some(diags) = tune_report["diagnosis"].as_array() {
+                                for d in diags {
+                                    info!("  Diagnosis: {}", d.as_str().unwrap_or("?"));
+                                }
+                            }
+                            if let Some(acts) = tune_report["actions"].as_array() {
+                                for a in acts {
+                                    info!("  Action: {}", a.as_str().unwrap_or("?"));
+                                }
+                            }
+
+                            crate::services::strategy_tuner::save_tuned_params(&tuned).await;
+                            info!("  Tuned params saved — will take effect on next restart");
+                        } else {
+                            info!("  Performance OK — keeping current strategy");
+                        }
+
+                        // Save ledger
+                        ledger.save().await;
+                        info!("  Performance ledger saved ({} days)", ledger.days.len());
+
+                        // Save comparison report
+                        let perf_report = serde_json::to_string_pretty(&comparison).unwrap_or_default();
+                        let perf_path = format!("/app/reports/performance_{}.json", today_str);
+                        let _ = tokio::fs::write(&perf_path, perf_report).await;
+
+                        info!("=== EOD PIPELINE COMPLETE ===");
+                    }
+                }
+
                 let should_finetune = {
                     let mut tracker = state.tracker.lock();
                     tracker.check_eod()

@@ -1,9 +1,9 @@
-//! Real-time prediction engine — orchestrates OU simulation,
-//! pattern detection, Kronos inference, and per-second prediction blending.
+//! Real-time prediction engine — uses Alpaca real-time data,
+//! pattern detection, and Kronos inference for per-second predictions.
 
 use crate::config::*;
 use crate::models::Candle;
-use crate::services::{candle_buffer::CandleBuffer, kronos_onnx, ou_simulator::OuSimulator, pattern_scorer};
+use crate::services::{alpaca_stream, candle_buffer::CandleBuffer, kronos_onnx, pattern_scorer};
 use parking_lot::Mutex;
 use serde_json::json;
 use std::sync::Arc;
@@ -11,33 +11,25 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::broadcast;
 use tracing::{debug, error, info, warn};
 
-/// Shared engine state behind Arc for thread safety.
 pub struct RealtimeEngine {
     pub symbol: String,
     inner: Mutex<EngineInner>,
-    /// Prediction updates (subscribers get latest per-second payload).
     pub pred_tx: broadcast::Sender<serde_json::Value>,
-    /// Raw tick stream for live chart.
     pub tick_tx: broadcast::Sender<serde_json::Value>,
-    /// Kronos ONNX session (shared across all engines).
     kronos: kronos_onnx::SharedKronos,
 }
 
 struct EngineInner {
-    sim: OuSimulator,
     buffer: CandleBuffer,
-    // Yahoo Finance cache
-    yf_price: f64,
-    yf_atr: f64,
-    yf_change: f64,
-    yf_change_pct: f64,
-    yf_volume: f64,
+    // Live market data from Alpaca
+    live_price: f64,
+    live_atr: f64,
+    live_volume: f64,
+    prev_close: f64,
     // Kronos predictions cache
     kronos_predictions: Option<Vec<Candle>>,
     kronos_timestamp: f64,
-    // Last broadcast payload (for instant snapshot on subscribe)
     last_payload: Option<serde_json::Value>,
-    running: bool,
 }
 
 impl RealtimeEngine {
@@ -48,87 +40,117 @@ impl RealtimeEngine {
         let engine = Arc::new(Self {
             symbol: symbol.to_string(),
             inner: Mutex::new(EngineInner {
-                sim: OuSimulator::new(100.0, 1.0), // Placeholder until YF data arrives
                 buffer: CandleBuffer::new(),
-                yf_price: 0.0,
-                yf_atr: 0.0,
-                yf_change: 0.0,
-                yf_change_pct: 0.0,
-                yf_volume: 0.0,
+                live_price: 0.0,
+                live_atr: 0.0,
+                live_volume: 0.0,
+                prev_close: 0.0,
                 kronos_predictions: None,
                 kronos_timestamp: 0.0,
                 last_payload: None,
-                running: true,
             }),
             pred_tx,
             tick_tx,
             kronos,
         });
 
-        // Spawn background tasks
+        // Fetch initial snapshot from Alpaca
         let e = engine.clone();
-        tokio::spawn(async move { e.yf_loop().await });
-        let e = engine.clone();
-        tokio::spawn(async move { e.sim_loop().await });
+        tokio::spawn(async move { e.init_snapshot().await });
+
+        // Spawn Kronos prediction loop
         let e = engine.clone();
         tokio::spawn(async move { e.kronos_loop().await });
+
+        // Spawn prediction builder loop (1 Hz)
+        let e = engine.clone();
+        tokio::spawn(async move { e.prediction_loop().await });
 
         engine
     }
 
-    /// Subscribe to prediction stream. Returns a receiver.
+    /// Feed a real-time trade tick from Alpaca stream.
+    pub fn feed_tick(&self, price: f64, size: f64, timestamp: f64) {
+        let mut inner = self.inner.lock();
+
+        if inner.live_price == 0.0 {
+            inner.prev_close = price;
+        }
+        inner.live_price = price;
+
+        // Feed into candle buffer
+        let vol = inner.live_volume;
+        inner.buffer.feed(price, vol + size, timestamp);
+        inner.live_volume = vol + size;
+
+        // Broadcast raw tick
+        let change = price - inner.prev_close;
+        let change_pct = if inner.prev_close > 0.0 { change / inner.prev_close * 100.0 } else { 0.0 };
+        let tick = json!({
+            "symbol": self.symbol,
+            "price": price,
+            "size": size,
+            "timestamp": timestamp,
+            "change": change,
+            "change_pct": change_pct,
+            "change_percent": change_pct,
+            "volume": inner.live_volume,
+            "high": price + inner.live_atr,
+            "low": price - inner.live_atr,
+            "atr": inner.live_atr,
+            "source": "alpaca-realtime",
+        });
+        let _ = self.tick_tx.send(tick);
+    }
+
+    /// Feed a 1-minute bar from Alpaca stream.
+    pub fn feed_bar(&self, open: f64, high: f64, low: f64, close: f64, volume: f64, _ts: f64) {
+        let mut inner = self.inner.lock();
+        // Update ATR from bar range
+        let bar_range = high - low;
+        inner.live_atr = inner.live_atr * 0.9 + bar_range * 0.1; // EMA of ranges
+        inner.live_price = close;
+        inner.live_volume = volume;
+    }
+
     pub fn subscribe_predictions(&self) -> broadcast::Receiver<serde_json::Value> {
         let rx = self.pred_tx.subscribe();
-        // Push last payload immediately for instant first frame
         if let Some(payload) = self.inner.lock().last_payload.clone() {
             let _ = self.pred_tx.send(payload);
         }
         rx
     }
 
-    /// Subscribe to raw tick stream.
     pub fn subscribe_ticks(&self) -> broadcast::Receiver<serde_json::Value> {
         self.tick_tx.subscribe()
     }
 
-    /// Get last known price.
     pub fn current_price(&self) -> f64 {
-        self.inner.lock().sim.current_price()
+        self.inner.lock().live_price
     }
 
-    // ── Background loops ──────────────────────────────────────────
+    // ── Background tasks ──────────────────────────────────────
 
-    /// Fetch Yahoo Finance data every YF_REFRESH_SECS.
-    async fn yf_loop(self: Arc<Self>) {
-        loop {
-            match fetch_yahoo_price(&self.symbol).await {
-                Ok((price, atr, change, change_pct, volume)) => {
-                    let mut inner = self.inner.lock();
-                    if inner.yf_price == 0.0 {
-                        // First fetch — initialize simulator
-                        inner.sim = OuSimulator::new(price, atr);
-                        info!("{}: initialized at ${:.2} ATR={:.4}", self.symbol, price, atr);
-                    } else {
-                        inner.sim.update_mu(price, atr);
-                    }
-                    inner.yf_price = price;
-                    inner.yf_atr = atr;
-                    inner.yf_change = change;
-                    inner.yf_change_pct = change_pct;
-                    inner.yf_volume = volume;
-                }
-                Err(e) => {
-                    warn!("{}: Yahoo fetch failed: {}", self.symbol, e);
-                }
+    /// Fetch initial price snapshot from Alpaca REST.
+    async fn init_snapshot(self: Arc<Self>) {
+        match alpaca_stream::fetch_snapshot(&self.symbol).await {
+            Ok((price, atr, volume)) => {
+                let mut inner = self.inner.lock();
+                inner.live_price = price;
+                inner.live_atr = atr;
+                inner.live_volume = volume;
+                inner.prev_close = price;
+                info!("{}: Alpaca snapshot ${:.2} ATR={:.4}", self.symbol, price, atr);
             }
-            tokio::time::sleep(tokio::time::Duration::from_secs(YF_REFRESH_SECS)).await;
+            Err(e) => {
+                warn!("{}: Alpaca snapshot failed: {} — will init from first tick", self.symbol, e);
+            }
         }
     }
 
-    /// Generate ticks at 1 Hz, build candles, compute fast predictions.
-    async fn sim_loop(self: Arc<Self>) {
-        // Wait for YF data
-        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+    /// Build and broadcast prediction payload at 1 Hz.
+    async fn prediction_loop(self: Arc<Self>) {
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
 
@@ -141,50 +163,36 @@ impl RealtimeEngine {
                 .as_secs_f64();
 
             let maybe_payload = {
-                let mut inner = self.inner.lock();
-                if inner.yf_price == 0.0 {
-                    None // No data yet
+                let inner = self.inner.lock();
+                let price = inner.live_price;
+                if price <= 0.0 {
+                    None
                 } else {
-                    let price = inner.sim.tick();
-                    let vol = inner.yf_volume;
-                    inner.buffer.feed(price, vol, now);
-
-                    // Broadcast tick
-                    let tick = json!({
-                        "symbol": self.symbol,
-                        "price": price,
-                        "timestamp": now,
-                        "change": inner.yf_change,
-                        "change_pct": inner.yf_change_pct,
-                        "change_percent": inner.yf_change_pct,
-                        "volume": inner.yf_volume,
-                        "high": inner.yf_price + inner.yf_atr,
-                        "low": inner.yf_price - inner.yf_atr,
-                        "atr": inner.yf_atr,
-                    });
-                    let _ = self.tick_tx.send(tick);
-
-                    // Build prediction payload
                     let candles: Vec<Candle> = inner.buffer.candles().iter().copied().collect();
-                    if candles.len() < 10 {
+                    if candles.len() < 5 {
                         None
                     } else {
-                        // Fast pattern signal
                         let pattern = pattern_scorer::compute(&candles);
-                        let atr = inner.buffer.atr(14);
+                        let atr = inner.live_atr.max(price * 0.001);
 
-                        // Blend Kronos + pattern into per-second predictions
                         let predictions = build_predictions(
                             price, atr, &pattern,
                             &inner.kronos_predictions,
                             now - inner.kronos_timestamp,
                         );
 
-                        let payload = json!({
+                        let change = price - inner.prev_close;
+                        let change_pct = if inner.prev_close > 0.0 {
+                            change / inner.prev_close * 100.0
+                        } else { 0.0 };
+
+                        Some(json!({
                             "symbol": self.symbol,
                             "current_price": price,
                             "timestamp": now,
                             "atr": atr,
+                            "change_pct": change_pct,
+                            "change_percent": change_pct,
                             "pattern": {
                                 "signal": pattern.signal,
                                 "direction": pattern.direction,
@@ -196,58 +204,96 @@ impl RealtimeEngine {
                             "predictions": predictions,
                             "micro_candles": candles.len(),
                             "kronos_age_seconds": now - inner.kronos_timestamp,
-                        });
-
-                        inner.last_payload = Some(payload.clone());
-                        Some(payload)
+                            "source": "alpaca-realtime",
+                        }))
                     }
                 }
             };
 
             if let Some(payload) = maybe_payload {
-                let _ = self.pred_tx.send(payload);
+                let _ = self.pred_tx.send(payload.clone());
+                self.inner.lock().last_payload = Some(payload);
             }
         }
     }
 
-    /// Run Kronos ONNX inference every KRONOS_INTERVAL_SECS.
+    /// Fetch Alpaca historical bars and send to Kronos sidecar.
     async fn kronos_loop(self: Arc<Self>) {
-        // Wait for enough candle data
         tokio::time::sleep(tokio::time::Duration::from_secs(15)).await;
 
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .unwrap();
+
+        let sidecar_url = "http://finetune-sidecar:8001";
+
+        match client.get(format!("{}/health", sidecar_url)).send().await {
+            Ok(resp) if resp.status().is_success() => {
+                info!("{}: Kronos sidecar connected!", self.symbol);
+            }
+            _ => {
+                warn!("{}: Kronos sidecar not available", self.symbol);
+            }
+        }
+
         loop {
-            let candles_1min = {
-                let inner = self.inner.lock();
-                inner.buffer.to_1min_candles()
-            };
+            // Fetch real 1-min bars from Alpaca (last 500 bars)
+            match alpaca_stream::fetch_historical_bars(&self.symbol, 500).await {
+                Ok(candle_data) if candle_data.len() >= 30 => {
+                    let symbol = self.symbol.clone();
+                    let body = json!({
+                        "symbol": symbol,
+                        "candles": candle_data,
+                        "steps": 5,
+                    });
 
-            if candles_1min.len() >= 60 {
-                let kronos = self.kronos.clone();
-                let symbol = self.symbol.clone();
+                    match client.post(format!("{}/predict", sidecar_url))
+                        .json(&body)
+                        .send()
+                        .await
+                    {
+                        Ok(resp) if resp.status().is_success() => {
+                            if let Ok(data) = resp.json::<serde_json::Value>().await {
+                                if data.get("error").is_none() {
+                                    if let Some(preds) = data["predictions"].as_array() {
+                                        let predicted: Vec<Candle> = preds.iter().filter_map(|p| {
+                                            Some(Candle {
+                                                time: 0.0,
+                                                open: p["open"].as_f64()?,
+                                                high: p["high"].as_f64()?,
+                                                low: p["low"].as_f64()?,
+                                                close: p["close"].as_f64()?,
+                                                volume: 0.0,
+                                            })
+                                        }).collect();
 
-                // Run on blocking thread (ONNX calls are synchronous)
-                let result = tokio::task::spawn_blocking(move || {
-                    kronos_onnx::predict(&kronos, &candles_1min, 5, 0.8, 0.9)
-                })
-                .await;
-
-                match result {
-                    Ok(Some(predicted)) => {
-                        let now = SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap()
-                            .as_secs_f64();
-                        let mut inner = self.inner.lock();
-                        inner.kronos_predictions = Some(predicted);
-                        inner.kronos_timestamp = now;
-                        debug!("{}: Kronos prediction updated", symbol);
+                                        if !predicted.is_empty() {
+                                            let now = SystemTime::now()
+                                                .duration_since(UNIX_EPOCH)
+                                                .unwrap()
+                                                .as_secs_f64();
+                                            let mut inner = self.inner.lock();
+                                            inner.kronos_predictions = Some(predicted);
+                                            inner.kronos_timestamp = now;
+                                            let src = data["model_source"].as_str().unwrap_or("?");
+                                            let dir = data["direction"].as_str().unwrap_or("?");
+                                            let change = data["total_change_pct"].as_f64().unwrap_or(0.0);
+                                            info!("{}: Kronos {} ({}) change={:.3}% [{}bars]",
+                                                symbol, dir, src, change, candle_data.len());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        _ => {}
                     }
-                    Ok(None) => {
-                        debug!("{}: Kronos returned no prediction", self.symbol);
-                    }
-                    Err(e) => {
-                        error!("{}: Kronos inference error: {}", self.symbol, e);
-                    }
+                }
+                Ok(candles) => {
+                    debug!("{}: Only {} bars from Alpaca, need 30+", self.symbol, candles.len());
+                }
+                Err(e) => {
+                    debug!("{}: Alpaca bars fetch failed: {}", self.symbol, e);
                 }
             }
 
@@ -256,7 +302,7 @@ impl RealtimeEngine {
     }
 }
 
-/// Build blended per-second predictions from pattern + Kronos signals.
+/// Build blended predictions from pattern + Kronos signals.
 fn build_predictions(
     current_price: f64,
     atr: f64,
@@ -268,13 +314,10 @@ fn build_predictions(
     let mut predictions = Vec::new();
 
     for &secs in &horizons {
-        // Pattern-based prediction
         let pattern_move = pattern.signal * atr * 0.1 * (secs / 10.0);
 
-        // Kronos prediction (if available and fresh)
         let kronos_price = if kronos_age < KRONOS_MAX_AGE_SECS {
             kronos.as_ref().and_then(|preds| {
-                // Map seconds to 1-min candle index
                 let idx = ((secs / 60.0).ceil() as usize).saturating_sub(1);
                 preds.get(idx).map(|c| c.close)
             })
@@ -282,11 +325,8 @@ fn build_predictions(
             None
         };
 
-        // Blend
         let predicted_price = if let Some(kp) = kronos_price {
-            let kronos_weight = 0.65;
-            let pattern_weight = 0.35;
-            kronos_weight * kp + pattern_weight * (current_price + pattern_move)
+            0.65 * kp + 0.35 * (current_price + pattern_move)
         } else {
             current_price + pattern_move
         };
@@ -306,72 +346,4 @@ fn build_predictions(
     }
 
     predictions
-}
-
-/// Fetch current price, ATR, change from Yahoo Finance v8 API.
-async fn fetch_yahoo_price(symbol: &str) -> Result<(f64, f64, f64, f64, f64), String> {
-    let url = format!(
-        "https://query1.finance.yahoo.com/v8/finance/chart/{}?interval=1m&range=2d",
-        symbol
-    );
-
-    let resp = reqwest::Client::new()
-        .get(&url)
-        .header("User-Agent", "Mozilla/5.0")
-        .send()
-        .await
-        .map_err(|e| format!("HTTP error: {e}"))?;
-
-    let data: serde_json::Value = resp.json().await.map_err(|e| format!("JSON error: {e}"))?;
-
-    let result = &data["chart"]["result"][0];
-    let meta = &result["meta"];
-
-    let price = meta["regularMarketPrice"]
-        .as_f64()
-        .ok_or("no price")?;
-    let prev_close = meta["chartPreviousClose"]
-        .as_f64()
-        .unwrap_or(price);
-
-    let change = price - prev_close;
-    let change_pct = if prev_close > 0.0 { change / prev_close * 100.0 } else { 0.0 };
-
-    // Compute ATR from recent candles
-    let quotes = &result["indicators"]["quote"][0];
-    let highs: Vec<f64> = quotes["high"]
-        .as_array()
-        .map(|a| a.iter().filter_map(|v| v.as_f64()).collect())
-        .unwrap_or_default();
-    let lows: Vec<f64> = quotes["low"]
-        .as_array()
-        .map(|a| a.iter().filter_map(|v| v.as_f64()).collect())
-        .unwrap_or_default();
-    let closes: Vec<f64> = quotes["close"]
-        .as_array()
-        .map(|a| a.iter().filter_map(|v| v.as_f64()).collect())
-        .unwrap_or_default();
-    let volumes: Vec<f64> = quotes["volume"]
-        .as_array()
-        .map(|a| a.iter().filter_map(|v| v.as_f64()).collect())
-        .unwrap_or_default();
-
-    let volume = volumes.last().copied().unwrap_or(0.0);
-
-    // Simple ATR from last 14 bars
-    let n = highs.len().min(lows.len()).min(closes.len());
-    let atr = if n >= 15 {
-        let mut tr_sum = 0.0;
-        for i in (n - 14)..n {
-            let tr = (highs[i] - lows[i])
-                .max((highs[i] - closes[i.saturating_sub(1)]).abs())
-                .max((lows[i] - closes[i.saturating_sub(1)]).abs());
-            tr_sum += tr;
-        }
-        tr_sum / 14.0
-    } else {
-        price * 0.005 // Fallback: 0.5% of price
-    };
-
-    Ok((price, atr, change, change_pct, volume))
 }

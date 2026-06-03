@@ -9,3 +9,7 @@ pub mod paper_trader;
 pub mod daily_tracker;
 pub mod stock_data;
 pub mod signal_generator;
+pub mod eod_publisher;
+pub mod performance_ledger;
+pub mod strategy_tuner;
+pub mod alpaca_stream;

@@ -8,6 +8,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       - REDIS_URL=redis://redis:6379
       - RUST_LOG=stock_market_ai=info
@@ -16,6 +18,7 @@ services:
       - redis
     volumes:
       - model_data:/app/model_cache
+      - ./reports:/app/reports
     deploy:
       resources:
         reservations:

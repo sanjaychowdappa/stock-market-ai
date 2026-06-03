@@ -1,7 +1,8 @@
-//! Shared application state — engines, trader, tracker, Kronos.
+//! Shared application state — engines, trader, tracker, Kronos, Alpaca stream.
 
 use crate::config::TOP_SYMBOLS;
 use crate::services::{
+    alpaca_stream,
     daily_tracker::DailyTracker,
     kronos_onnx::{self, SharedKronos},
     paper_trader::PaperTrader,
@@ -12,13 +13,9 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 pub struct AppState {
-    /// Per-symbol real-time engines.
-    engines: DashMap<String, Arc<RealtimeEngine>>,
-    /// Shared Kronos ONNX session.
+    pub engines: DashMap<String, Arc<RealtimeEngine>>,
     pub kronos: SharedKronos,
-    /// Paper trading engine.
     pub trader: Mutex<PaperTrader>,
-    /// Daily prediction tracker.
     pub tracker: Mutex<DailyTracker>,
 }
 
@@ -26,9 +23,8 @@ impl AppState {
     pub fn new() -> Arc<Self> {
         let kronos = kronos_onnx::create_shared();
 
-        // Try to load ONNX models (non-fatal if missing)
         if let Err(e) = kronos_onnx::load_models(&kronos) {
-            tracing::warn!("Kronos ONNX not loaded: {} — running pattern-only mode", e);
+            tracing::warn!("Kronos ONNX not loaded: {}", e);
         }
 
         let state = Arc::new(Self {
@@ -38,16 +34,46 @@ impl AppState {
             tracker: Mutex::new(DailyTracker::new()),
         });
 
-        // Pre-create engines for all tracked symbols
+        // Create engines for all symbols
         for &sym in TOP_SYMBOLS {
             let engine = RealtimeEngine::new(sym, kronos.clone());
             state.engines.insert(sym.to_string(), engine);
         }
 
+        // Spawn Alpaca real-time stream and feed ticks into engines
+        let state2 = state.clone();
+        tokio::spawn(async move {
+            // Give engines a moment to init
+            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+
+            let (tick_tx, bar_tx) = alpaca_stream::spawn_stream(TOP_SYMBOLS);
+            let mut tick_rx = tick_tx.subscribe();
+            let mut bar_rx = bar_tx.subscribe();
+
+            tracing::info!("Alpaca stream dispatcher started — feeding real-time ticks to engines");
+
+            loop {
+                tokio::select! {
+                    Ok(tick) = tick_rx.recv() => {
+                        if let Some(engine) = state2.engines.get(&tick.symbol) {
+                            engine.feed_tick(tick.price, tick.size, tick.timestamp);
+                        }
+                    }
+                    Ok(bar) = bar_rx.recv() => {
+                        if let Some(engine) = state2.engines.get(&bar.symbol) {
+                            engine.feed_bar(bar.open, bar.high, bar.low, bar.close, bar.volume, bar.timestamp);
+                        }
+                    }
+                    else => {
+                        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+                    }
+                }
+            }
+        });
+
         state
     }
 
-    /// Get or create an engine for the given symbol.
     pub fn get_engine(&self, symbol: &str) -> Arc<RealtimeEngine> {
         self.engines
             .entry(symbol.to_string())

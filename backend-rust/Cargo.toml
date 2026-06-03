@@ -48,6 +48,9 @@ dotenvy = "0.15"
 # Futures utilities
 futures = "0.3"
 
+# WebSocket client (Alpaca real-time stream)
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
+
 [profile.release]
 opt-level = 3
 lto = "thin"
