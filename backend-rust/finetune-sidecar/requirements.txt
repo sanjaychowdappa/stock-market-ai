@@ -8,3 +8,4 @@ einops
 scipy
 scikit-learn
 onnx
+httpx
