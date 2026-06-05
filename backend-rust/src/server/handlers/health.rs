@@ -38,6 +38,43 @@ pub async fn eod_report(State(state): State<Arc<AppState>>) -> Json<serde_json::
     }))
 }
 
+pub async fn institutional(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    let cot = state.institutional.cot.lock().clone();
+    let mut symbols = serde_json::Map::new();
+    for sym in crate::config::TOP_SYMBOLS {
+        let gex = state.institutional.gex.get(*sym);
+        let vp = state.institutional.volume_profiles.get(*sym);
+        let engine = state.get_engine(sym);
+        let last_payload = engine.get_last_payload();
+        let cvd_json = last_payload.as_ref()
+            .and_then(|p| p["cvd"].as_object().cloned())
+            .unwrap_or_default();
+        let kalman_json = last_payload.as_ref()
+            .and_then(|p| p["kalman"].as_object().cloned())
+            .unwrap_or_default();
+
+        symbols.insert(sym.to_string(), serde_json::json!({
+            "gex": gex.as_ref().map(|g| serde_json::json!({
+                "level": g.gex_level, "regime": g.regime,
+                "flip_price": g.flip_price, "signal": g.signal,
+                "vix": g.vix_level, "put_call_ratio": g.put_call_ratio,
+            })),
+            "volume_profile": vp.as_ref().map(|v| serde_json::json!({
+                "poc": v.poc_price, "va_high": v.va_high, "va_low": v.va_low,
+                "position": v.position, "signal": v.signal,
+            })),
+            "cvd": cvd_json,
+            "kalman": kalman_json,
+        }));
+    }
+    Json(serde_json::json!({
+        "cot": { "report_date": cot.report_date, "commercial_net": cot.commercial_net,
+                 "speculator_net": cot.speculator_net, "signal": cot.signal, "extreme": cot.extreme },
+        "symbols": symbols,
+        "focus": state.daily_focus.lock().to_json(),
+    }))
+}
+
 pub async fn performance(State(_state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     let ledger = crate::services::performance_ledger::PerformanceLedger::load().await;
     let comparison = ledger.compare_days();

@@ -130,14 +130,35 @@ fn spawn_orchestrator(state: Arc<AppState>) {
                 tracker.feed_portfolio(&payload);
             }
 
-            // Sync daily focus rankings into paper trader (every 30s)
+            // Sync daily focus + institutional signals into paper trader (every 30s)
             focus_sync_counter += 1;
             if focus_sync_counter >= 30 {
                 focus_sync_counter = 0;
+
+                // Sync Kronos daily bias
                 let focus = state.daily_focus.lock();
                 let mut trader = state.trader.lock();
                 for r in &focus.rankings {
                     trader.set_kronos_bias(&r.symbol, r.predicted_change_pct);
+                }
+                drop(focus);
+
+                // Sync GEX, Volume Profile, COT into paper trader
+                let cot_signal = state.institutional.cot.lock().signal;
+                for sym in crate::config::TOP_SYMBOLS {
+                    let gex = state.institutional.gex.get(*sym);
+                    let vp = state.institutional.volume_profiles.get(*sym);
+
+                    let (gex_sig, gex_reg) = gex.as_ref()
+                        .map(|g| (g.signal, g.regime.clone()))
+                        .unwrap_or((0.0, "neutral".to_string()));
+                    let (vp_sig, vp_pos) = vp.as_ref()
+                        .map(|v| (v.signal, v.position.clone()))
+                        .unwrap_or((0.0, "unknown".to_string()));
+
+                    trader.set_institutional_signals(
+                        sym, gex_sig, &gex_reg, vp_sig, &vp_pos, cot_signal,
+                    );
                 }
             }
 

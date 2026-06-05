@@ -57,6 +57,12 @@ struct MarketSnapshot {
     // CVD signals
     cvd_signal: f64,
     cvd_buy_sell_ratio: f64,
+    // Institutional signals (updated every 30s from orchestrator)
+    gex_signal: f64,
+    gex_regime: String,    // "long_gamma", "short_gamma", "neutral"
+    vp_signal: f64,
+    vp_position: String,   // "above_value", "below_value", "at_poc", "in_value"
+    cot_signal: f64,
     session_high: f64,
     session_low: f64,
 }
@@ -105,6 +111,23 @@ impl PaperTrader {
     pub fn set_kronos_bias(&mut self, symbol: &str, bias: f64) {
         self.kronos_daily_bias.insert(symbol.to_string(), bias);
         self.kronos_bias_ema.insert(symbol.to_string(), bias);
+    }
+
+    /// Set institutional signals for a symbol (GEX regime, VP position, COT).
+    /// Called every 30s from the orchestrator.
+    pub fn set_institutional_signals(
+        &mut self, symbol: &str,
+        gex_signal: f64, gex_regime: &str,
+        vp_signal: f64, vp_position: &str,
+        cot_signal: f64,
+    ) {
+        if let Some(snap) = self.market_data.get_mut(symbol) {
+            snap.gex_signal = gex_signal;
+            snap.gex_regime = gex_regime.to_string();
+            snap.vp_signal = vp_signal;
+            snap.vp_position = vp_position.to_string();
+            snap.cot_signal = cot_signal;
+        }
     }
 
     pub fn tick(&mut self, symbol: &str, data: &serde_json::Value) {
@@ -184,6 +207,11 @@ impl PaperTrader {
             kalman_direction: kalman_direction.to_string(),
             cvd_signal,
             cvd_buy_sell_ratio,
+            gex_signal: self.market_data.get(symbol).map(|d| d.gex_signal).unwrap_or(0.0),
+            gex_regime: self.market_data.get(symbol).map(|d| d.gex_regime.clone()).unwrap_or("neutral".to_string()),
+            vp_signal: self.market_data.get(symbol).map(|d| d.vp_signal).unwrap_or(0.0),
+            vp_position: self.market_data.get(symbol).map(|d| d.vp_position.clone()).unwrap_or("unknown".to_string()),
+            cot_signal: self.market_data.get(symbol).map(|d| d.cot_signal).unwrap_or(0.0),
             session_high: prev_high.max(price),
             session_low: if prev_low == 0.0 { price } else { prev_low.min(price) },
         });
@@ -310,15 +338,33 @@ impl PaperTrader {
             if !momentum_confirmed { continue; }
 
             // 5. CVD must not be showing strong sell pressure
-            if data.cvd_signal < -0.3 { continue; } // Sellers dominating → skip
+            if data.cvd_signal < -0.3 { continue; }
 
-            // 6. Composite score — Kalman + pattern + CVD + momentum
-            let score = 0.25 * data.kalman_momentum.max(0.0).min(1.0)  // Kalman true momentum
-                + 0.25 * data.pattern_signal                            // Pattern strength
-                + 0.15 * data.kalman_trend_strength.min(3.0) / 3.0     // Signal-to-noise ratio
-                + 0.15 * data.cvd_signal.max(0.0)                      // Buy pressure (CVD)
-                + 0.10 * data.micro_momentum.max(0.0)                  // Pattern momentum
-                + 0.10 * data.kalman_confidence;                        // Kalman confidence
+            // 6. Volume Profile: don't buy at resistance (above value area)
+            if data.vp_position == "above_value" && data.vp_signal < -0.2 { continue; }
+
+            // 7. GEX regime affects strategy:
+            //    Long gamma = mean-revert → need stronger signal to enter
+            //    Short gamma = trending → momentum signals more reliable
+            let gex_boost = if data.gex_regime == "short_gamma" {
+                0.05 // Trending regime — slightly easier entry
+            } else if data.gex_regime == "long_gamma" {
+                -0.02 // Mean-reverting — need more conviction
+            } else {
+                0.0
+            };
+
+            // 8. Composite score — ALL layers weighted
+            let score = 0.20 * data.kalman_momentum.max(0.0).min(1.0)  // Kalman true momentum
+                + 0.20 * data.pattern_signal                            // Pattern strength
+                + 0.12 * data.kalman_trend_strength.min(3.0) / 3.0     // Signal-to-noise ratio
+                + 0.12 * data.cvd_signal.max(0.0)                      // Buy pressure (CVD)
+                + 0.08 * data.micro_momentum.max(0.0)                  // Pattern momentum
+                + 0.08 * data.kalman_confidence                         // Kalman confidence
+                + 0.08 * data.vp_signal.max(0.0)                       // Volume profile support
+                + 0.06 * data.gex_signal.max(0.0)                      // GEX signal
+                + 0.06 * data.cot_signal.max(0.0)                      // COT smart money
+                + gex_boost;                                            // Regime adjustment
 
             if score > MIN_BUY_SIGNAL {
                 candidates.push((sym.clone(), score));

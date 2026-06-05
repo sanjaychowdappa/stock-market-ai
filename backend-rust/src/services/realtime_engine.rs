@@ -138,6 +138,10 @@ impl RealtimeEngine {
         self.inner.lock().live_price
     }
 
+    pub fn get_last_payload(&self) -> Option<serde_json::Value> {
+        self.inner.lock().last_payload.clone()
+    }
+
     // ── Background tasks ──────────────────────────────────────
 
     /// Fetch initial price snapshot from Alpaca REST.
