@@ -86,9 +86,10 @@ fn spawn_orchestrator(state: Arc<AppState>) {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
         let mut eod_counter = 0u32;
         let mut save_counter = 0u32;
+        let mut focus_sync_counter = 0u32;
         let mut eod_report_published = false;
-        let mut saw_market_open = false;  // Must see market open before triggering EOD
-        let mut market_ticks = 0u32;      // Count ticks during market hours
+        let mut saw_market_open = false;
+        let mut market_ticks = 0u32;
 
         loop {
             interval.tick().await;
@@ -127,6 +128,17 @@ fn spawn_orchestrator(state: Arc<AppState>) {
             {
                 let mut tracker = state.tracker.lock();
                 tracker.feed_portfolio(&payload);
+            }
+
+            // Sync daily focus rankings into paper trader (every 30s)
+            focus_sync_counter += 1;
+            if focus_sync_counter >= 30 {
+                focus_sync_counter = 0;
+                let focus = state.daily_focus.lock();
+                let mut trader = state.trader.lock();
+                for r in &focus.rankings {
+                    trader.set_kronos_bias(&r.symbol, r.predicted_change_pct);
+                }
             }
 
             // Track if we've seen market hours (needed to gate EOD)

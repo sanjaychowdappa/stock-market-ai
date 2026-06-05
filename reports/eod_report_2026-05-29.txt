@@ -1,0 +1,38 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-05-29
+  Generated:  2026-05-29T21:31:28.523447949+00:00
+  Uptime:     0h 1m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $100.00
+  Current Value:    $100.00
+  Cash:             $100.00
+  Positions Value:  $-0.00
+  Total P&L:        0.0000 (0.00%)
+  Realized P&L:     $0.0000
+  Challenge:        $100 → $150 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     0
+  Winning Trades:   0
+  Win Rate:         0.0%
+  Avg Hold Time:    0s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $211.15     neutral     0.003    —
+  AAPL     $312.08     neutral     0.023    —
+  MSFT     $450.25     bullish     0.106    —
+  GOOGL    $380.35     bearish     -0.102   —
+  AMZN     $270.63     neutral     -0.018   —
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

@@ -1,0 +1,114 @@
+{
+  "data_quality": {
+    "finetune_triggered": false,
+    "snapshots": 60,
+    "tracker": {
+      "AAPL": {
+        "predictions": 56,
+        "ticks": 56,
+        "trades": 0
+      },
+      "AMZN": {
+        "predictions": 57,
+        "ticks": 57,
+        "trades": 0
+      },
+      "GOOGL": {
+        "predictions": 56,
+        "ticks": 56,
+        "trades": 0
+      },
+      "MSFT": {
+        "predictions": 56,
+        "ticks": 56,
+        "trades": 0
+      },
+      "NVDA": {
+        "predictions": 56,
+        "ticks": 56,
+        "trades": 0
+      }
+    }
+  },
+  "portfolio": {
+    "cash": 100.0,
+    "drawdown_pct": 0.0,
+    "initial_capital": 100.0,
+    "positions_value": -0.0,
+    "realized_pnl": 0.0,
+    "target": {
+      "goal": "$100 → $150 challenge",
+      "progress_pct": 0.0,
+      "target_value": 150.0
+    },
+    "total_pnl": 0.0,
+    "total_pnl_pct": 0.0,
+    "total_value": 100.0
+  },
+  "positions": [],
+  "recent_trades": [],
+  "report": {
+    "date": "2026-06-01",
+    "generated_at": "2026-06-01T21:08:53.606026060+00:00",
+    "market_session": {
+      "close": "16:00 ET",
+      "open": "09:30 ET",
+      "status": "closed"
+    },
+    "type": "end_of_day"
+  },
+  "symbols": [
+    {
+      "direction": "bearish",
+      "in_position": false,
+      "last_price": 224.36936338248609,
+      "position_pnl": 0.0,
+      "signal_strength": -0.3193045291732608,
+      "symbol": "NVDA"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 306.31827642142474,
+      "position_pnl": 0.0,
+      "signal_strength": 0.026322037788567756,
+      "symbol": "AAPL"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 460.4926266099146,
+      "position_pnl": 0.0,
+      "signal_strength": -0.03133248650753273,
+      "symbol": "MSFT"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 376.362534979867,
+      "position_pnl": 0.0,
+      "signal_strength": -0.009889532013032633,
+      "symbol": "GOOGL"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 261.24745085109043,
+      "position_pnl": 0.0,
+      "signal_strength": 0.001643656920688074,
+      "symbol": "AMZN"
+    }
+  ],
+  "trading_stats": {
+    "avg_hold_seconds": 0,
+    "open_positions": 0,
+    "total_trades": 0,
+    "uptime_seconds": 69,
+    "win_rate": 0.0,
+    "winning_trades": 0
+  },
+  "value_history": [
+    100.0,
+    100.0
+  ]
+}

@@ -92,6 +92,12 @@ impl PaperTrader {
         self.tx.subscribe()
     }
 
+    /// Set the daily Kronos bias for a symbol (called by daily_stock_picker).
+    pub fn set_kronos_bias(&mut self, symbol: &str, bias: f64) {
+        self.kronos_daily_bias.insert(symbol.to_string(), bias);
+        self.kronos_bias_ema.insert(symbol.to_string(), bias);
+    }
+
     pub fn tick(&mut self, symbol: &str, data: &serde_json::Value) {
         let price = data["current_price"].as_f64().unwrap_or(0.0);
         if price <= 0.0 { return; }
@@ -238,13 +244,14 @@ impl PaperTrader {
                 if cd.elapsed().as_secs() < TRADE_COOLDOWN_SECS { continue; }
             }
 
-            // ── KRONOS AS DAILY BIAS FILTER (not trade trigger) ──
-            // If Kronos is active, only trade in the direction of the daily bias
-            // If Kronos says bearish for the day → skip this stock entirely
+            // ── KRONOS DAILY FOCUS FILTER ──
+            // Skip stocks that Kronos ranked as bearish for today
+            // The daily_stock_picker runs Kronos once at market open
+            // and updates the kronos_daily_bias EMA
             if data.kronos_active {
                 let bias = *self.kronos_daily_bias.get(sym).unwrap_or(&0.0);
                 if bias < -0.02 {
-                    continue; // Kronos daily bias is bearish → don't buy
+                    continue; // Kronos says skip this stock today
                 }
             }
 

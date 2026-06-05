@@ -3,6 +3,7 @@
 use crate::config::TOP_SYMBOLS;
 use crate::services::{
     alpaca_stream,
+    daily_stock_picker::{self, SharedDailyFocus},
     daily_tracker::DailyTracker,
     kronos_onnx::{self, SharedKronos},
     paper_trader::PaperTrader,
@@ -17,6 +18,7 @@ pub struct AppState {
     pub kronos: SharedKronos,
     pub trader: Mutex<PaperTrader>,
     pub tracker: Mutex<DailyTracker>,
+    pub daily_focus: SharedDailyFocus,
 }
 
 impl AppState {
@@ -27,11 +29,32 @@ impl AppState {
             tracing::warn!("Kronos ONNX not loaded: {}", e);
         }
 
+        let daily_focus = daily_stock_picker::create_shared();
+
         let state = Arc::new(Self {
             engines: DashMap::new(),
             kronos: kronos.clone(),
             trader: Mutex::new(PaperTrader::new()),
             tracker: Mutex::new(DailyTracker::new()),
+            daily_focus: daily_focus.clone(),
+        });
+
+        // Spawn Kronos daily ranking (runs at startup + midday refresh)
+        let focus2 = daily_focus.clone();
+        tokio::spawn(async move {
+            // Wait for sidecar to be ready
+            tokio::time::sleep(tokio::time::Duration::from_secs(20)).await;
+
+            // Initial ranking
+            daily_stock_picker::run_kronos_ranking(&focus2).await;
+
+            // Midday refresh loop (every 2 hours)
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(7200));
+            loop {
+                interval.tick().await;
+                tracing::info!("Running midday Kronos re-ranking...");
+                daily_stock_picker::run_kronos_ranking(&focus2).await;
+            }
         });
 
         // Create engines for all symbols

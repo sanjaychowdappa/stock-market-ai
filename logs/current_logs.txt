@@ -1,0 +1,7 @@
+﻿docker : Error response from daemon: No such container: stock-market-ai-backend-1
+At line:1 char:1
++ docker logs stock-market-ai-backend-1 2>&1 | Out-File -Encoding utf8  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Error response ...et-ai-backend-1:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

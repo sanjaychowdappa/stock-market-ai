@@ -1,0 +1,67 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-06-03
+  Generated:  2026-06-03T21:30:01.632910965+00:00
+  Uptime:     1h 31m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $100.00
+  Current Value:    $99.83
+  Cash:             $19.97
+  Positions Value:  $79.86
+  Total P&L:        -0.1700 (-0.17%)
+  Realized P&L:     $-0.1689
+  Challenge:        $100 → $150 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     113
+  Winning Trades:   52
+  Win Rate:         46.0%
+  Avg Hold Time:    48s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $215.70     bullish     0.427    —
+  AAPL     $310.07     bullish     0.421    —
+  MSFT     $424.71     neutral     0.096    OPEN
+  GOOGL    $360.67     bearish     -0.361   —
+  AMZN     $248.66     bearish     -0.209   —
+
+─────────────── OPEN POSITIONS ───────────────
+
+  MSFT — 0.1880 shares @ $424.72 → $424.71  P&L: $-0.0013 (-0.00%)
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  16:56:21  BUY    MSFT     $424.72    $79.87   $0.0000    MOMENTUM(s=0.200)
+  16:56:21  SELL   GOOGL    $360.64    $79.88   $0.0617    PATTERN_REVERSAL(sig=-0.286)
+  16:55:16  BUY    GOOGL    $360.36    $79.82   $0.0000    MOMENTUM(s=0.126)
+  16:55:16  SELL   MSFT     $424.62    $79.82   $0.0341    PATTERN_REVERSAL(sig=-0.365)
+  16:54:14  BUY    MSFT     $424.44    $79.79   $0.0000    MOMENTUM(s=0.168)
+  16:54:14  SELL   GOOGL    $360.73    $79.78   $-0.0608   KRONOS_EXIT(dir=-0.036%,streak=10)
+  16:53:33  BUY    GOOGL    $361.01    $79.84   $0.0000    MOMENTUM(s=0.141)
+  16:53:33  SELL   NVDA     $215.61    $79.83   $-0.0182   KRONOS_EXIT(dir=-0.034%,streak=31)
+  16:53:02  BUY    NVDA     $215.66    $79.85   $0.0000    MOMENTUM(s=0.156)
+  16:53:02  SELL   MSFT     $424.71    $79.86   $0.0254    PATTERN_REVERSAL(sig=-0.346)
+  16:52:02  BUY    MSFT     $424.58    $79.83   $0.0000    MOMENTUM(s=0.220)
+  16:52:02  SELL   AAPL     $309.94    $79.83   $-0.0281   PATTERN_REVERSAL(sig=-0.321)
+  16:50:58  BUY    AAPL     $310.05    $79.85   $0.0000    MOMENTUM(s=0.162)
+  16:50:58  SELL   MSFT     $424.85    $79.86   $0.0327    PATTERN_REVERSAL(sig=-0.273)
+  16:49:57  BUY    MSFT     $424.67    $79.83   $0.0000    MOMENTUM(s=0.084)
+  16:49:57  SELL   AAPL     $309.85    $79.83   $-0.0041   PATTERN_REVERSAL(sig=-0.335)
+  16:48:56  BUY    AAPL     $309.86    $79.83   $0.0000    MOMENTUM(s=0.169)
+  16:48:56  SELL   MSFT     $425.07    $79.84   $0.0209    PATTERN_REVERSAL(sig=-0.285)
+  16:47:48  BUY    MSFT     $424.96    $79.81   $0.0000    MOMENTUM(s=0.083)
+  16:47:48  SELL   AAPL     $310.00    $79.81   $-0.0136   PATTERN_REVERSAL(sig=-0.219)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

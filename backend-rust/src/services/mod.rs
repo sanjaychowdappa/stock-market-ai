@@ -13,3 +13,4 @@ pub mod eod_publisher;
 pub mod performance_ledger;
 pub mod strategy_tuner;
 pub mod alpaca_stream;
+pub mod daily_stock_picker;
