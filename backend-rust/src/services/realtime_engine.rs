@@ -3,7 +3,7 @@
 
 use crate::config::*;
 use crate::models::Candle;
-use crate::services::{alpaca_stream, candle_buffer::CandleBuffer, kronos_onnx, pattern_scorer};
+use crate::services::{alpaca_stream, candle_buffer::CandleBuffer, kalman_filter::PriceKalmanFilter, kronos_onnx, pattern_scorer};
 use parking_lot::Mutex;
 use serde_json::json;
 use std::sync::Arc;
@@ -21,6 +21,7 @@ pub struct RealtimeEngine {
 
 struct EngineInner {
     buffer: CandleBuffer,
+    kalman: PriceKalmanFilter,
     // Live market data from Alpaca
     live_price: f64,
     live_atr: f64,
@@ -41,6 +42,7 @@ impl RealtimeEngine {
             symbol: symbol.to_string(),
             inner: Mutex::new(EngineInner {
                 buffer: CandleBuffer::new(),
+                kalman: PriceKalmanFilter::new(1.0, 0.01, 0.05),
                 live_price: 0.0,
                 live_atr: 0.0,
                 live_volume: 0.0,
@@ -75,8 +77,12 @@ impl RealtimeEngine {
 
         if inner.live_price == 0.0 {
             inner.prev_close = price;
+            inner.kalman = PriceKalmanFilter::default_for_stock(price);
         }
         inner.live_price = price;
+
+        // Feed Kalman filter with every tick
+        inner.kalman.process_tick(price);
 
         // Feed into candle buffer
         let vol = inner.live_volume;
@@ -174,6 +180,7 @@ impl RealtimeEngine {
                     } else {
                         let pattern = pattern_scorer::compute(&candles);
                         let atr = inner.live_atr.max(price * 0.001);
+                        let ks = inner.kalman.state();
 
                         let predictions = build_predictions(
                             price, atr, &pattern,
@@ -200,6 +207,22 @@ impl RealtimeEngine {
                                 "momentum": pattern.momentum_score,
                                 "trend": pattern.repeat_score,
                                 "reversion": pattern.sr_score,
+                            },
+                            "kalman": {
+                                "filtered_price": ks.price,
+                                "velocity": ks.velocity,
+                                "acceleration": ks.acceleration,
+                                "momentum": ks.momentum,
+                                "momentum_change": ks.momentum_change,
+                                "trend_strength": ks.trend_strength,
+                                "direction": ks.direction,
+                                "confidence": ks.confidence(),
+                                "price_5s": ks.price_5s,
+                                "price_30s": ks.price_30s,
+                                "price_60s": ks.price_60s,
+                                "strong_trend": ks.has_strong_trend(),
+                                "momentum_building": ks.momentum_building(),
+                                "momentum_fading": ks.momentum_fading(),
                             },
                             "predictions": predictions,
                             "micro_candles": candles.len(),

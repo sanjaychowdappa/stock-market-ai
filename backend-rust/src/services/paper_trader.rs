@@ -47,7 +47,13 @@ struct MarketSnapshot {
     trend: f64,
     kronos_active: bool,
     kronos_direction: f64,
-    /// Peak price since entry (for trailing profit lock)
+    // Kalman filter signals
+    kalman_momentum: f64,
+    kalman_trend_strength: f64,
+    kalman_confidence: f64,
+    kalman_momentum_building: bool,
+    kalman_momentum_fading: bool,
+    kalman_direction: String,
     session_high: f64,
     session_low: f64,
 }
@@ -129,6 +135,16 @@ impl PaperTrader {
         let trend = (pred_30s - price) / price;
         let kronos_direction = (pred_60s - price) / price * 100.0;
 
+        // Kalman filter signals (mathematically optimal state estimation)
+        let kalman = &data["kalman"];
+        let kalman_momentum = kalman["momentum"].as_f64().unwrap_or(0.0);
+        let kalman_trend_strength = kalman["trend_strength"].as_f64().unwrap_or(0.0);
+        let kalman_confidence = kalman["confidence"].as_f64().unwrap_or(0.0);
+        let kalman_strong_trend = kalman["strong_trend"].as_bool().unwrap_or(false);
+        let kalman_momentum_building = kalman["momentum_building"].as_bool().unwrap_or(false);
+        let kalman_momentum_fading = kalman["momentum_fading"].as_bool().unwrap_or(false);
+        let kalman_direction = kalman["direction"].as_str().unwrap_or("neutral");
+
         // Update Kronos daily bias with EMA smoothing (alpha=0.05)
         // This smooths out the 8-second oscillations into a stable daily view
         if kronos_active {
@@ -151,6 +167,12 @@ impl PaperTrader {
             trend,
             kronos_active,
             kronos_direction,
+            kalman_momentum,
+            kalman_trend_strength,
+            kalman_confidence,
+            kalman_momentum_building,
+            kalman_momentum_fading,
+            kalman_direction: kalman_direction.to_string(),
             session_high: prev_high.max(price),
             session_low: if prev_low == 0.0 { price } else { prev_low.min(price) },
         });
@@ -180,14 +202,16 @@ impl PaperTrader {
                 let drawdown = pos.trailing_drawdown_pct();
                 let data = self.market_data.get(symbol);
                 let signal = data.map(|d| d.pattern_signal).unwrap_or(0.0);
-                let momentum = data.map(|d| d.micro_momentum).unwrap_or(0.0);
+                let k_fading = data.map(|d| d.kalman_momentum_fading).unwrap_or(false);
+                let k_momentum = data.map(|d| d.kalman_momentum).unwrap_or(0.0);
+                let k_dir_str = data.map(|d| d.kalman_direction.clone()).unwrap_or("neutral".to_string());
 
-                // Check if momentum has reversed using signal history
-                let momentum_dead = self.signal_history.get(symbol).map_or(false, |hist| {
-                    if hist.len() < 5 { return false; }
-                    // Last 5 signals all negative = momentum exhausted
-                    hist.iter().rev().take(5).all(|&s| s < -0.05)
-                });
+                // Kalman says momentum is dying + pattern confirms
+                let momentum_dead = (k_fading && k_momentum.abs() < 0.01)
+                    || self.signal_history.get(symbol).map_or(false, |hist| {
+                        if hist.len() < 5 { return false; }
+                        hist.iter().rev().take(5).all(|&s| s < -0.05)
+                    });
 
                 // 1. HARD STOP — protect capital, immediate
                 if pnl_pct <= HARD_STOP_PCT {
@@ -203,7 +227,7 @@ impl PaperTrader {
                 }
                 // 4. MOMENTUM EXHAUSTION — pattern signals all turned negative
                 else if momentum_dead && pos.hold_seconds > 30 {
-                    Some(format!("MOMENTUM_DEAD(sig={:.2},mom={:.2})", signal, momentum))
+                    Some(format!("MOMENTUM_DEAD(sig={:.2},kmom={:.2})", signal, k_momentum))
                 }
                 // 5. PROFIT PROTECTION — was profitable, now giving it back
                 else if pos.hold_seconds > 60 && pnl_pct < -0.02 && pos.high_price > pos.entry_price * 1.0005 {
@@ -255,28 +279,31 @@ impl PaperTrader {
                 }
             }
 
-            // ── PATTERN-DRIVEN ENTRY (the actual trade signal) ──
+            // ── KALMAN + PATTERN DRIVEN ENTRY ──
 
-            // 1. Pattern signal must be positive
-            if data.pattern_signal < 0.02 { continue; }
+            // 1. Kalman filter must show bullish direction with confidence
+            if data.kalman_direction != "bullish" || data.kalman_confidence < 0.3 { continue; }
 
-            // 2. Momentum confirmation: recent signals trending up
+            // 2. Pattern signal must be positive
+            if data.pattern_signal < 0.01 { continue; }
+
+            // 3. Momentum must be building (not fading)
+            if data.kalman_momentum_fading { continue; }
+
+            // 4. Pattern history confirmation
             let momentum_confirmed = self.signal_history.get(sym).map_or(false, |hist| {
                 if hist.len() < 5 { return false; }
-                // At least 3 of last 5 signals positive
-                let pos_count = hist.iter().rev().take(5).filter(|&&s| s > 0.01).count();
-                // And the trend is rising (latest > average of earlier)
-                let recent_avg: f64 = hist.iter().rev().take(3).sum::<f64>() / 3.0;
-                let older_avg: f64 = hist.iter().rev().skip(3).take(3).sum::<f64>() / 3.0f64.max(1.0);
-                pos_count >= 3 && recent_avg > older_avg
+                let pos_count = hist.iter().rev().take(5).filter(|&&s| s > 0.005).count();
+                pos_count >= 3
             });
             if !momentum_confirmed { continue; }
 
-            // 3. Composite score — pattern + momentum weighted
-            let score = 0.40 * data.pattern_signal            // Pattern strength
-                + 0.30 * data.micro_momentum.max(0.0)         // Momentum
-                + 0.20 * data.trend.max(0.0) * 100.0          // Price trend
-                + 0.10 * data.pattern_confidence;              // Pattern confidence
+            // 5. Composite score — Kalman + pattern + momentum
+            let score = 0.30 * data.kalman_momentum.max(0.0).min(1.0) // Kalman true momentum
+                + 0.25 * data.pattern_signal                           // Pattern strength
+                + 0.20 * data.kalman_trend_strength.min(3.0) / 3.0    // Signal-to-noise ratio
+                + 0.15 * data.micro_momentum.max(0.0)                 // Pattern momentum
+                + 0.10 * data.kalman_confidence;                       // Kalman confidence
 
             if score > MIN_BUY_SIGNAL {
                 candidates.push((sym.clone(), score));
