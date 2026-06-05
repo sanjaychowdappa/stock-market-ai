@@ -15,3 +15,4 @@ pub mod strategy_tuner;
 pub mod alpaca_stream;
 pub mod daily_stock_picker;
 pub mod kalman_filter;
+pub mod institutional_signals;

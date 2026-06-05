@@ -3,7 +3,7 @@
 
 use crate::config::*;
 use crate::models::Candle;
-use crate::services::{alpaca_stream, candle_buffer::CandleBuffer, kalman_filter::PriceKalmanFilter, kronos_onnx, pattern_scorer};
+use crate::services::{alpaca_stream, candle_buffer::CandleBuffer, institutional_signals, kalman_filter::PriceKalmanFilter, kronos_onnx, pattern_scorer};
 use parking_lot::Mutex;
 use serde_json::json;
 use std::sync::Arc;
@@ -22,6 +22,7 @@ pub struct RealtimeEngine {
 struct EngineInner {
     buffer: CandleBuffer,
     kalman: PriceKalmanFilter,
+    cvd: institutional_signals::CvdTracker,
     // Live market data from Alpaca
     live_price: f64,
     live_atr: f64,
@@ -43,6 +44,7 @@ impl RealtimeEngine {
             inner: Mutex::new(EngineInner {
                 buffer: CandleBuffer::new(),
                 kalman: PriceKalmanFilter::new(1.0, 0.01, 0.05),
+                cvd: institutional_signals::CvdTracker::new(),
                 live_price: 0.0,
                 live_atr: 0.0,
                 live_volume: 0.0,
@@ -81,8 +83,9 @@ impl RealtimeEngine {
         }
         inner.live_price = price;
 
-        // Feed Kalman filter with every tick
+        // Feed Kalman filter and CVD tracker with every tick
         inner.kalman.process_tick(price);
+        inner.cvd.process_tick(price, size);
 
         // Feed into candle buffer
         let vol = inner.live_volume;
@@ -181,6 +184,7 @@ impl RealtimeEngine {
                         let pattern = pattern_scorer::compute(&candles);
                         let atr = inner.live_atr.max(price * 0.001);
                         let ks = inner.kalman.state();
+                        let cvd_state = inner.cvd.state(price, ks.price_30s);
 
                         let predictions = build_predictions(
                             price, atr, &pattern,
@@ -223,6 +227,14 @@ impl RealtimeEngine {
                                 "strong_trend": ks.has_strong_trend(),
                                 "momentum_building": ks.momentum_building(),
                                 "momentum_fading": ks.momentum_fading(),
+                            },
+                            "cvd": {
+                                "delta": cvd_state.cvd,
+                                "direction": cvd_state.direction,
+                                "momentum": cvd_state.cvd_momentum,
+                                "buy_sell_ratio": cvd_state.buy_sell_ratio,
+                                "divergence": cvd_state.divergence,
+                                "signal": cvd_state.signal,
                             },
                             "predictions": predictions,
                             "micro_candles": candles.len(),

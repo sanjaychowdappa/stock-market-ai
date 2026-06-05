@@ -54,6 +54,9 @@ struct MarketSnapshot {
     kalman_momentum_building: bool,
     kalman_momentum_fading: bool,
     kalman_direction: String,
+    // CVD signals
+    cvd_signal: f64,
+    cvd_buy_sell_ratio: f64,
     session_high: f64,
     session_low: f64,
 }
@@ -135,6 +138,12 @@ impl PaperTrader {
         let trend = (pred_30s - price) / price;
         let kronos_direction = (pred_60s - price) / price * 100.0;
 
+        // CVD (Cumulative Volume Delta) — buy vs sell pressure
+        let cvd = &data["cvd"];
+        let cvd_signal = cvd["signal"].as_f64().unwrap_or(0.0);
+        let cvd_direction = cvd["direction"].as_str().unwrap_or("neutral");
+        let cvd_buy_sell_ratio = cvd["buy_sell_ratio"].as_f64().unwrap_or(1.0);
+
         // Kalman filter signals (mathematically optimal state estimation)
         let kalman = &data["kalman"];
         let kalman_momentum = kalman["momentum"].as_f64().unwrap_or(0.0);
@@ -173,6 +182,8 @@ impl PaperTrader {
             kalman_momentum_building,
             kalman_momentum_fading,
             kalman_direction: kalman_direction.to_string(),
+            cvd_signal,
+            cvd_buy_sell_ratio,
             session_high: prev_high.max(price),
             session_low: if prev_low == 0.0 { price } else { prev_low.min(price) },
         });
@@ -298,12 +309,16 @@ impl PaperTrader {
             });
             if !momentum_confirmed { continue; }
 
-            // 5. Composite score — Kalman + pattern + momentum
-            let score = 0.30 * data.kalman_momentum.max(0.0).min(1.0) // Kalman true momentum
-                + 0.25 * data.pattern_signal                           // Pattern strength
-                + 0.20 * data.kalman_trend_strength.min(3.0) / 3.0    // Signal-to-noise ratio
-                + 0.15 * data.micro_momentum.max(0.0)                 // Pattern momentum
-                + 0.10 * data.kalman_confidence;                       // Kalman confidence
+            // 5. CVD must not be showing strong sell pressure
+            if data.cvd_signal < -0.3 { continue; } // Sellers dominating → skip
+
+            // 6. Composite score — Kalman + pattern + CVD + momentum
+            let score = 0.25 * data.kalman_momentum.max(0.0).min(1.0)  // Kalman true momentum
+                + 0.25 * data.pattern_signal                            // Pattern strength
+                + 0.15 * data.kalman_trend_strength.min(3.0) / 3.0     // Signal-to-noise ratio
+                + 0.15 * data.cvd_signal.max(0.0)                      // Buy pressure (CVD)
+                + 0.10 * data.micro_momentum.max(0.0)                  // Pattern momentum
+                + 0.10 * data.kalman_confidence;                        // Kalman confidence
 
             if score > MIN_BUY_SIGNAL {
                 candidates.push((sym.clone(), score));
