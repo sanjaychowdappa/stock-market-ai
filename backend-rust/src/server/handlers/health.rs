@@ -75,6 +75,16 @@ pub async fn institutional(State(state): State<Arc<AppState>>) -> Json<serde_jso
     }))
 }
 
+pub async fn layer_monitor(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    let trader = state.trader.lock();
+    if let Some(payload) = &trader.last_payload {
+        if let Some(monitor) = payload.get("layer_monitor") {
+            return Json(monitor.clone());
+        }
+    }
+    Json(serde_json::json!({"status": "no data yet"}))
+}
+
 pub async fn performance(State(_state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     let ledger = crate::services::performance_ledger::PerformanceLedger::load().await;
     let comparison = ledger.compare_days();

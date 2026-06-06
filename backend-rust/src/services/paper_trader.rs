@@ -37,6 +37,23 @@ pub struct PaperTrader {
     pub market_open: bool,
     pub tx: broadcast::Sender<serde_json::Value>,
     pub last_payload: Option<serde_json::Value>,
+    /// Per-layer block counters for monitoring which layers filter most
+    layer_blocks: LayerBlockCounters,
+}
+
+/// Tracks how many times each layer blocked an entry — for efficiency analysis.
+#[derive(Default, Clone)]
+struct LayerBlockCounters {
+    kronos_bias: u32,
+    kalman_direction: u32,
+    pattern_signal: u32,
+    kalman_momentum: u32,
+    pattern_history: u32,
+    cvd_pressure: u32,
+    vp_resistance: u32,
+    consensus: u32,
+    score_too_low: u32,
+    total_passed: u32,
 }
 
 struct MarketSnapshot {
@@ -87,6 +104,7 @@ impl PaperTrader {
             market_open: false,
             tx,
             last_payload: None,
+            layer_blocks: LayerBlockCounters::default(),
         }
     }
 
@@ -329,6 +347,27 @@ impl PaperTrader {
         };
 
         if let Some(reason) = should_sell {
+            // Log all layer states at exit for monitoring
+            if let Some(pos) = self.positions.get(symbol) {
+                let data = self.market_data.get(symbol);
+                info!("[EXIT_LAYERS] {} reason={} | pnl={:.4}% hold={}s | \
+                    kalman(dir={},mom={:.4},fading={}) pat_sig={:.3} cvd={:.2}(ratio={:.2}) \
+                    vp({},{:.2}) gex({},{:.2}) cot={:.2}",
+                    symbol, reason,
+                    pos.unrealized_pnl_pct(), pos.hold_seconds,
+                    data.map(|d| d.kalman_direction.as_str()).unwrap_or("?"),
+                    data.map(|d| d.kalman_momentum).unwrap_or(0.0),
+                    data.map(|d| d.kalman_momentum_fading).unwrap_or(false),
+                    data.map(|d| d.pattern_signal).unwrap_or(0.0),
+                    data.map(|d| d.cvd_signal).unwrap_or(0.0),
+                    data.map(|d| d.cvd_buy_sell_ratio).unwrap_or(1.0),
+                    data.map(|d| d.vp_position.as_str()).unwrap_or("?"),
+                    data.map(|d| d.vp_signal).unwrap_or(0.0),
+                    data.map(|d| d.gex_regime.as_str()).unwrap_or("?"),
+                    data.map(|d| d.gex_signal).unwrap_or(0.0),
+                    data.map(|d| d.cot_signal).unwrap_or(0.0),
+                );
+            }
             self.sell(symbol, &reason);
         }
     }
@@ -341,7 +380,7 @@ impl PaperTrader {
         let available = total_value * MAX_POSITION_PCT - self.invested_value();
         if available < 2.0 { return; }
 
-        let mut candidates: Vec<(String, f64)> = Vec::new();
+        let mut candidates: Vec<(String, f64, String)> = Vec::new();
 
         for (sym, data) in &self.market_data {
             if self.positions.contains_key(sym) { continue; }
@@ -351,45 +390,75 @@ impl PaperTrader {
                 if cd.elapsed().as_secs() < TRADE_COOLDOWN_SECS { continue; }
             }
 
-            // ── KRONOS DAILY FOCUS FILTER ──
-            // Skip stocks that Kronos ranked as bearish for today
-            // The daily_stock_picker runs Kronos once at market open
-            // and updates the kronos_daily_bias EMA
-            if data.kronos_active {
-                let bias = *self.kronos_daily_bias.get(sym).unwrap_or(&0.0);
-                if bias < -0.02 {
-                    continue; // Kronos says skip this stock today
-                }
-            }
+            // ══ LAYER-BY-LAYER GATE (each layer logs pass/block) ══
 
-            // ── KALMAN + PATTERN DRIVEN ENTRY ──
+            // LAYER 1: Kronos Daily Bias
+            let kronos_bias = *self.kronos_daily_bias.get(sym).unwrap_or(&0.0);
+            let kronos_pass = if data.kronos_active && kronos_bias < -0.02 {
+                info!("[BLOCKED] {} KRONOS_BIAS: bias={:.3}% < -0.02 → skip bearish stock", sym, kronos_bias);
+                self.layer_blocks.kronos_bias += 1;
+                false
+            } else { true };
+            if !kronos_pass { continue; }
 
-            // 1. Kalman filter must show bullish direction with confidence
-            if data.kalman_direction != "bullish" || data.kalman_confidence < 0.3 { continue; }
+            // LAYER 2: Kalman Direction + Confidence
+            let kalman_pass = if data.kalman_direction != "bullish" || data.kalman_confidence < 0.3 {
+                info!("[BLOCKED] {} KALMAN_DIR: dir={} conf={:.2} → need bullish+>0.3",
+                    sym, data.kalman_direction, data.kalman_confidence);
+                self.layer_blocks.kalman_direction += 1;
+                false
+            } else { true };
+            if !kalman_pass { continue; }
 
-            // 2. Pattern signal must be positive
-            if data.pattern_signal < 0.01 { continue; }
+            // LAYER 3: Pattern Signal
+            let pattern_pass = if data.pattern_signal < 0.01 {
+                info!("[BLOCKED] {} PATTERN: sig={:.3} < 0.01 → no bullish pattern", sym, data.pattern_signal);
+                self.layer_blocks.pattern_signal += 1;
+                false
+            } else { true };
+            if !pattern_pass { continue; }
 
-            // 3. Momentum must be building (not fading)
-            if data.kalman_momentum_fading { continue; }
+            // LAYER 4: Kalman Momentum Fading
+            let momentum_pass = if data.kalman_momentum_fading {
+                info!("[BLOCKED] {} KALMAN_MOM: momentum fading (kmom={:.4}) → trend dying",
+                    sym, data.kalman_momentum);
+                self.layer_blocks.kalman_momentum += 1;
+                false
+            } else { true };
+            if !momentum_pass { continue; }
 
-            // 4. Pattern history confirmation
+            // LAYER 5: Pattern History Confirmation
             let momentum_confirmed = self.signal_history.get(sym).map_or(false, |hist| {
                 if hist.len() < 5 { return false; }
                 let pos_count = hist.iter().rev().take(5).filter(|&&s| s > 0.005).count();
                 pos_count >= 3
             });
-            if !momentum_confirmed { continue; }
+            if !momentum_confirmed {
+                let hist_len = self.signal_history.get(sym).map(|h| h.len()).unwrap_or(0);
+                info!("[BLOCKED] {} PATTERN_HIST: insufficient bullish history (len={})", sym, hist_len);
+                self.layer_blocks.pattern_history += 1;
+                continue;
+            }
 
-            // 5. CVD must not be showing strong sell pressure
-            if data.cvd_signal < -0.3 { continue; }
+            // LAYER 6: CVD Sell Pressure
+            let cvd_pass = if data.cvd_signal < -0.3 {
+                info!("[BLOCKED] {} CVD: sig={:.2} ratio={:.2} → sellers dominating",
+                    sym, data.cvd_signal, data.cvd_buy_sell_ratio);
+                self.layer_blocks.cvd_pressure += 1;
+                false
+            } else { true };
+            if !cvd_pass { continue; }
 
-            // 6. Volume Profile: don't buy at resistance (above value area)
-            if data.vp_position == "above_value" && data.vp_signal < -0.2 { continue; }
+            // LAYER 7: Volume Profile Resistance
+            let vp_pass = if data.vp_position == "above_value" && data.vp_signal < -0.2 {
+                info!("[BLOCKED] {} VP_RESIST: pos={} sig={:.2} → at institutional resistance",
+                    sym, data.vp_position, data.vp_signal);
+                self.layer_blocks.vp_resistance += 1;
+                false
+            } else { true };
+            if !vp_pass { continue; }
 
-            // 7. GEX regime affects strategy:
-            //    Long gamma = mean-revert → need stronger signal to enter
-            //    Short gamma = trending → momentum signals more reliable
+            // LAYER 8: GEX Regime Adjustment
             let gex_boost = if data.gex_regime == "short_gamma" {
                 0.05
             } else if data.gex_regime == "long_gamma" {
@@ -398,29 +467,38 @@ impl PaperTrader {
                 0.0
             };
 
-            // 8. Cross-layer conflict detection — when layers disagree, reduce confidence
-            let bullish_layers = [
-                data.kalman_direction == "bullish",
-                data.pattern_signal > 0.02,
-                data.cvd_signal > 0.1,
-                data.vp_signal > 0.0,
-                data.gex_signal > 0.0,
-                data.cot_signal > 0.0,
+            // LAYER 9: Cross-Layer Agreement
+            let layer_votes = [
+                ("Kalman", data.kalman_direction == "bullish"),
+                ("Pattern", data.pattern_signal > 0.02),
+                ("CVD", data.cvd_signal > 0.1),
+                ("VP", data.vp_signal > 0.0),
+                ("GEX", data.gex_signal > 0.0),
+                ("COT", data.cot_signal > 0.0),
             ];
-            let bullish_count = bullish_layers.iter().filter(|&&b| b).count();
-            // If fewer than 3 of 6 layers are bullish, apply a penalty
-            let agreement_factor = if bullish_count >= 5 {
-                1.1  // Strong agreement bonus
-            } else if bullish_count >= 4 {
-                1.0  // Good agreement
-            } else if bullish_count == 3 {
-                0.85 // Mixed signals — reduce score
-            } else {
-                0.0  // Majority bearish — block entry
-            };
-            if agreement_factor == 0.0 { continue; }
+            let bullish_count = layer_votes.iter().filter(|(_, v)| *v).count();
+            let bearish_names: Vec<&str> = layer_votes.iter()
+                .filter(|(_, v)| !*v).map(|(n, _)| *n).collect();
+            let bullish_names: Vec<&str> = layer_votes.iter()
+                .filter(|(_, v)| *v).map(|(n, _)| *n).collect();
 
-            // 9. Composite score — ALL layers weighted
+            let agreement_factor = if bullish_count >= 5 {
+                1.1
+            } else if bullish_count >= 4 {
+                1.0
+            } else if bullish_count == 3 {
+                0.85
+            } else {
+                0.0
+            };
+            if agreement_factor == 0.0 {
+                info!("[BLOCKED] {} CONSENSUS: only {}/6 bullish [{}] — bearish: [{}]",
+                    sym, bullish_count, bullish_names.join(","), bearish_names.join(","));
+                self.layer_blocks.consensus += 1;
+                continue;
+            }
+
+            // LAYER 10: Composite Score
             let raw_score = 0.20 * data.kalman_momentum.max(0.0).min(1.0)
                 + 0.20 * data.pattern_signal
                 + 0.12 * data.kalman_trend_strength.min(3.0) / 3.0
@@ -433,20 +511,39 @@ impl PaperTrader {
                 + gex_boost;
             let score = raw_score * agreement_factor;
 
-            if score > MIN_BUY_SIGNAL {
-                candidates.push((sym.clone(), score));
+            if score <= MIN_BUY_SIGNAL {
+                info!("[BLOCKED] {} SCORE: {:.3} (raw={:.3}×agree={:.2}) < {:.2} threshold",
+                    sym, score, raw_score, agreement_factor, MIN_BUY_SIGNAL);
+                self.layer_blocks.score_too_low += 1;
+                continue;
             }
+            self.layer_blocks.total_passed += 1;
+
+            // ── ALL LAYERS PASSED ──
+            let layer_report = format!(
+                "agree={}/6[{}] kalman(dir={},mom={:.3},snr={:.2},conf={:.2}) pat={:.3} cvd={:.2} vp({},{:.2}) gex({},{:.2}) cot={:.2} boost={:.2}",
+                bullish_count, bullish_names.join("+"),
+                data.kalman_direction, data.kalman_momentum,
+                data.kalman_trend_strength, data.kalman_confidence,
+                data.pattern_signal, data.cvd_signal,
+                data.vp_position, data.vp_signal,
+                data.gex_regime, data.gex_signal,
+                data.cot_signal, gex_boost,
+            );
+            info!("[PASSED] {} ALL_LAYERS: score={:.3} {}", sym, score, layer_report);
+
+            candidates.push((sym.clone(), score, layer_report));
         }
 
         candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
-        if let Some((best_sym, score)) = candidates.first() {
+        if let Some((best_sym, score, layer_report)) = candidates.first() {
             let price = self.market_data[best_sym].price;
             let bias = *self.kronos_daily_bias.get(best_sym.as_str()).unwrap_or(&0.0);
 
             // Position sizing: bigger when Kronos bias supports the trade
             let alloc = if bias > 0.05 && *score > STRONG_BUY_SIGNAL {
-                available  // Full size: strong pattern + Kronos bullish
+                available
             } else if *score > STRONG_BUY_SIGNAL {
                 available * 0.85
             } else {
@@ -460,11 +557,23 @@ impl PaperTrader {
                     "PAPER: BUY {:.4} {} @ ${:.2} = ${:.2} (score={:.3}, bias={:.3}% [{}])",
                     shares, best_sym, price, shares * price, score, bias, bias_tag
                 );
+                info!("  LAYERS: {}", layer_report);
 
                 let pos = Position::new(best_sym.clone(), shares, price,
                     Local::now().format("%H:%M:%S").to_string());
                 self.positions.insert(best_sym.clone(), pos);
                 self.cash -= shares * price;
+
+                // Count bullish layers for the trade reason tag
+                let data = &self.market_data[best_sym];
+                let agree_count = [
+                    data.kalman_direction == "bullish",
+                    data.pattern_signal > 0.02,
+                    data.cvd_signal > 0.1,
+                    data.vp_signal > 0.0,
+                    data.gex_signal > 0.0,
+                    data.cot_signal > 0.0,
+                ].iter().filter(|&&v| v).count();
 
                 let trade = Trade {
                     symbol: best_sym.clone(),
@@ -474,7 +583,7 @@ impl PaperTrader {
                     value: shares * price,
                     pnl: None,
                     pnl_pct: None,
-                    reason: format!("PATTERN(s={:.3},{})", score, bias_tag),
+                    reason: format!("ENTRY(s={:.3},{},{}of6)", score, bias_tag, agree_count),
                     time: Local::now().format("%H:%M:%S").to_string(),
                     hold_seconds: None,
                 };
@@ -605,6 +714,15 @@ impl PaperTrader {
             if hist.len() > 60 { hist.split_off(hist.len() - 60) } else { hist }
         };
 
+        let lb = &self.layer_blocks;
+        let total_blocked = lb.kronos_bias + lb.kalman_direction + lb.pattern_signal
+            + lb.kalman_momentum + lb.pattern_history + lb.cvd_pressure
+            + lb.vp_resistance + lb.consensus + lb.score_too_low;
+        let total_evaluated = lb.total_passed + total_blocked;
+        let filter_rate = if total_evaluated > 0 {
+            total_blocked as f64 / total_evaluated as f64 * 100.0
+        } else { 0.0 };
+
         json!({
             "market_open": self.market_open,
             "portfolio": {
@@ -629,6 +747,22 @@ impl PaperTrader {
                 "uptime_seconds": self.start_time.elapsed().as_secs(),
             },
             "symbols": symbols, "value_history": value_history,
+            "layer_monitor": {
+                "blocks": {
+                    "kronos_bias": lb.kronos_bias,
+                    "kalman_direction": lb.kalman_direction,
+                    "pattern_signal": lb.pattern_signal,
+                    "kalman_momentum": lb.kalman_momentum,
+                    "pattern_history": lb.pattern_history,
+                    "cvd_pressure": lb.cvd_pressure,
+                    "vp_resistance": lb.vp_resistance,
+                    "consensus": lb.consensus,
+                    "score_too_low": lb.score_too_low,
+                },
+                "total_passed": lb.total_passed,
+                "total_blocked": total_blocked,
+                "filter_rate_pct": (filter_rate * 10.0).round() / 10.0,
+            },
         })
     }
 }

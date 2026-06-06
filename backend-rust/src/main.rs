@@ -294,10 +294,35 @@ fn spawn_orchestrator(state: Arc<AppState>) {
                 }
             }
 
-            // Periodic save every 5 minutes
+            // Periodic save + layer monitor dump every 5 minutes
             save_counter += 1;
             if save_counter >= 300 {
                 save_counter = 0;
+                // Dump layer block stats
+                {
+                    let trader = state.trader.lock();
+                    if let Some(payload) = &trader.last_payload {
+                        if let Some(monitor) = payload.get("layer_monitor") {
+                            let passed = monitor["total_passed"].as_u64().unwrap_or(0);
+                            let blocked = monitor["total_blocked"].as_u64().unwrap_or(0);
+                            let rate = monitor["filter_rate_pct"].as_f64().unwrap_or(0.0);
+                            info!("=== LAYER MONITOR (5min) === passed={} blocked={} filter_rate={:.1}%", passed, blocked, rate);
+                            if let Some(blocks) = monitor.get("blocks") {
+                                info!("  Kronos:{} Kalman_dir:{} Pattern:{} Kalman_mom:{} Pat_hist:{} CVD:{} VP:{} Consensus:{} Score:{}",
+                                    blocks["kronos_bias"].as_u64().unwrap_or(0),
+                                    blocks["kalman_direction"].as_u64().unwrap_or(0),
+                                    blocks["pattern_signal"].as_u64().unwrap_or(0),
+                                    blocks["kalman_momentum"].as_u64().unwrap_or(0),
+                                    blocks["pattern_history"].as_u64().unwrap_or(0),
+                                    blocks["cvd_pressure"].as_u64().unwrap_or(0),
+                                    blocks["vp_resistance"].as_u64().unwrap_or(0),
+                                    blocks["consensus"].as_u64().unwrap_or(0),
+                                    blocks["score_too_low"].as_u64().unwrap_or(0),
+                                );
+                            }
+                        }
+                    }
+                }
                 let mut tracker = state.tracker.lock();
                 tokio::task::block_in_place(|| {
                     tokio::runtime::Handle::current().block_on(tracker.save());
