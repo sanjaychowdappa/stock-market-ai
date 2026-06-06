@@ -136,16 +136,16 @@ async fn compute_institutional_signals(inst: &InstitutionalState) {
         cot.commercial_net, cot.signal, cot.report_date);
     *inst.cot.lock() = cot;
 
-    // 2. Per-symbol: GEX + Volume Profile
+    // 2. Per-symbol: GEX (uses DAILY bars) + Volume Profile (uses 1-min bars)
     for &sym in TOP_SYMBOLS {
-        match alpaca_stream::fetch_historical_bars(sym, 500).await {
-            Ok(bars) if bars.len() >= 20 => {
-                // Extract daily close prices for GEX
-                let prices: Vec<f64> = bars.iter()
+        // GEX needs daily bars for realized volatility (20+ trading days)
+        match alpaca_stream::fetch_daily_bars(sym, 60).await {
+            Ok(daily_bars) if daily_bars.len() >= 20 => {
+                let daily_prices: Vec<f64> = daily_bars.iter()
                     .filter_map(|b| b["close"].as_f64())
                     .collect();
-                let current_price = *prices.last().unwrap_or(&0.0);
-                let atr_vals: Vec<f64> = bars.iter()
+                let current_price = *daily_prices.last().unwrap_or(&0.0);
+                let atr_vals: Vec<f64> = daily_bars.iter()
                     .filter_map(|b| {
                         let h = b["high"].as_f64()?;
                         let l = b["low"].as_f64()?;
@@ -155,23 +155,35 @@ async fn compute_institutional_signals(inst: &InstitutionalState) {
                     atr_vals.iter().rev().take(14).sum::<f64>() / 14.0_f64.min(atr_vals.len() as f64)
                 } else { current_price * 0.01 };
 
-                // Compute GEX
-                let gex = institutional_signals::estimate_gex(current_price, &prices, atr);
-                tracing::info!("  {}: GEX={:.2} regime={} signal={:.2}",
-                    sym, gex.gex_level, gex.regime, gex.signal);
+                let gex = institutional_signals::estimate_gex(current_price, &daily_prices, atr);
+                tracing::info!("  {}: GEX={:.2} regime={} signal={:.2} (from {} daily bars)",
+                    sym, gex.gex_level, gex.regime, gex.signal, daily_bars.len());
                 inst.gex.insert(sym.to_string(), gex);
+            }
+            Ok(bars) => {
+                tracing::warn!("  {}: Only {} daily bars for GEX, need 20+", sym, bars.len());
+            }
+            Err(e) => {
+                tracing::warn!("  {}: Failed to fetch daily bars for GEX: {}", sym, e);
+            }
+        }
 
-                // Compute Volume Profile
+        // Volume Profile uses intraday 1-min bars (where volume actually traded today)
+        match alpaca_stream::fetch_historical_bars(sym, 500).await {
+            Ok(bars) if bars.len() >= 20 => {
+                let current_price = bars.last()
+                    .and_then(|b| b["close"].as_f64())
+                    .unwrap_or(0.0);
                 let vp = institutional_signals::compute_volume_profile(&bars, current_price, 50);
                 tracing::info!("  {}: VP POC=${:.2} VA=[${:.2}-${:.2}] pos={} signal={:.2}",
                     sym, vp.poc_price, vp.va_low, vp.va_high, vp.position, vp.signal);
                 inst.volume_profiles.insert(sym.to_string(), vp);
             }
             Ok(bars) => {
-                tracing::warn!("  {}: Only {} bars, need 20+", sym, bars.len());
+                tracing::warn!("  {}: Only {} intraday bars for VP, need 20+", sym, bars.len());
             }
             Err(e) => {
-                tracing::warn!("  {}: Failed to fetch bars: {}", sym, e);
+                tracing::warn!("  {}: Failed to fetch intraday bars for VP: {}", sym, e);
             }
         }
     }

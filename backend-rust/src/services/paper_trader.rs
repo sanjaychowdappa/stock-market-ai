@@ -121,13 +121,23 @@ impl PaperTrader {
         vp_signal: f64, vp_position: &str,
         cot_signal: f64,
     ) {
-        if let Some(snap) = self.market_data.get_mut(symbol) {
-            snap.gex_signal = gex_signal;
-            snap.gex_regime = gex_regime.to_string();
-            snap.vp_signal = vp_signal;
-            snap.vp_position = vp_position.to_string();
-            snap.cot_signal = cot_signal;
-        }
+        let snap = self.market_data.entry(symbol.to_string()).or_insert_with(|| MarketSnapshot {
+            price: 0.0, pattern_signal: 0.0, pattern_confidence: 0.0,
+            micro_momentum: 0.0, trend: 0.0, kronos_active: false,
+            kronos_direction: 0.0, kalman_momentum: 0.0,
+            kalman_trend_strength: 0.0, kalman_confidence: 0.0,
+            kalman_momentum_building: false, kalman_momentum_fading: false,
+            kalman_direction: "neutral".to_string(),
+            cvd_signal: 0.0, cvd_buy_sell_ratio: 1.0,
+            gex_signal: 0.0, gex_regime: "neutral".to_string(),
+            vp_signal: 0.0, vp_position: "unknown".to_string(),
+            cot_signal: 0.0, session_high: 0.0, session_low: 0.0,
+        });
+        snap.gex_signal = gex_signal;
+        snap.gex_regime = gex_regime.to_string();
+        snap.vp_signal = vp_signal;
+        snap.vp_position = vp_position.to_string();
+        snap.cot_signal = cot_signal;
     }
 
     pub fn tick(&mut self, symbol: &str, data: &serde_json::Value) {
@@ -243,7 +253,11 @@ impl PaperTrader {
                 let signal = data.map(|d| d.pattern_signal).unwrap_or(0.0);
                 let k_fading = data.map(|d| d.kalman_momentum_fading).unwrap_or(false);
                 let k_momentum = data.map(|d| d.kalman_momentum).unwrap_or(0.0);
-                let k_dir_str = data.map(|d| d.kalman_direction.clone()).unwrap_or("neutral".to_string());
+                let cvd_sig = data.map(|d| d.cvd_signal).unwrap_or(0.0);
+                let cvd_ratio = data.map(|d| d.cvd_buy_sell_ratio).unwrap_or(1.0);
+                let gex_regime = data.map(|d| d.gex_regime.clone()).unwrap_or("neutral".to_string());
+                let vp_pos = data.map(|d| d.vp_position.clone()).unwrap_or("unknown".to_string());
+                let vp_sig = data.map(|d| d.vp_signal).unwrap_or(0.0);
 
                 // Kalman says momentum is dying + pattern confirms
                 let momentum_dead = (k_fading && k_momentum.abs() < 0.01)
@@ -252,27 +266,57 @@ impl PaperTrader {
                         hist.iter().rev().take(5).all(|&s| s < -0.05)
                     });
 
+                // CVD divergence: sellers dominating while we're long
+                let cvd_bearish = cvd_sig < -0.4 && cvd_ratio < 0.7;
+
+                // VP resistance: price pushed above value area (overbought)
+                let at_resistance = vp_pos == "above_value" && vp_sig < -0.3;
+
+                // GEX regime: in long_gamma, mean reversion kicks in faster
+                let gex_mean_revert = gex_regime == "long_gamma" && pnl_pct > 0.03;
+
                 // 1. HARD STOP — protect capital, immediate
                 if pnl_pct <= HARD_STOP_PCT {
                     Some("HARD_STOP".to_string())
                 }
-                // 2. TAKE PROFIT — lock gains
-                else if pnl_pct >= TAKE_PROFIT_PCT {
-                    Some(format!("TAKE_PROFIT({:.2}%)", pnl_pct))
+                // 2. TAKE PROFIT — lock gains (tighter in long_gamma regime)
+                else if pnl_pct >= TAKE_PROFIT_PCT
+                    || (gex_mean_revert && pnl_pct >= TAKE_PROFIT_PCT * 0.6) {
+                    Some(format!("TAKE_PROFIT({:.2}%,gex={})", pnl_pct, gex_regime))
                 }
-                // 3. TRAILING STOP — price fell from peak, held long enough
+                // 3. CVD REVERSAL — sellers took over while we're in profit
+                else if cvd_bearish && pnl_pct > 0.005 && pos.hold_seconds > 20 {
+                    Some(format!("CVD_EXIT(cvd={:.2},ratio={:.2},pnl={:.2}%)", cvd_sig, cvd_ratio, pnl_pct))
+                }
+                // 4. TRAILING STOP — price fell from peak
                 else if drawdown <= -TRAILING_STOP_PCT && pos.hold_seconds > 45 {
                     Some(format!("TRAIL_STOP({:.2}% from peak)", drawdown))
                 }
-                // 4. MOMENTUM EXHAUSTION — pattern signals all turned negative
-                else if momentum_dead && pos.hold_seconds > 30 {
-                    Some(format!("MOMENTUM_DEAD(sig={:.2},kmom={:.2})", signal, k_momentum))
+                // 5. VP RESISTANCE — hit institutional resistance with profit
+                else if at_resistance && pnl_pct > 0.01 && pos.hold_seconds > 30 {
+                    Some(format!("VP_RESIST(pos={},sig={:.2},pnl={:.2}%)", vp_pos, vp_sig, pnl_pct))
                 }
-                // 5. PROFIT PROTECTION — was profitable, now giving it back
+                // 6. MOMENTUM EXHAUSTION — all layers confirm momentum died
+                else if momentum_dead && pos.hold_seconds > 30 {
+                    Some(format!("MOMENTUM_DEAD(sig={:.2},kmom={:.2},cvd={:.2})", signal, k_momentum, cvd_sig))
+                }
+                // 7. MULTI-LAYER BEARISH — 3+ layers turned against us
+                else if pos.hold_seconds > 45 {
+                    let bearish_count = [
+                        k_fading,
+                        signal < -0.03,
+                        cvd_sig < -0.2,
+                        vp_sig < -0.2,
+                    ].iter().filter(|&&b| b).count();
+                    if bearish_count >= 3 && pnl_pct < 0.02 {
+                        Some(format!("LAYER_CONSENSUS_EXIT({}bearish,pnl={:.2}%)", bearish_count, pnl_pct))
+                    } else { None }
+                }
+                // 8. PROFIT PROTECTION — was profitable, now giving it back
                 else if pos.hold_seconds > 60 && pnl_pct < -0.02 && pos.high_price > pos.entry_price * 1.0005 {
                     Some(format!("PROFIT_PROTECT(was+,now{:.2}%)", pnl_pct))
                 }
-                // 6. FLAT EXIT — going nowhere
+                // 9. FLAT EXIT — going nowhere
                 else if pos.hold_seconds >= FLAT_EXIT_SECS {
                     Some(format!("FLAT_EXIT({}s,{:.2}%)", pos.hold_seconds, pnl_pct))
                 }
@@ -347,24 +391,47 @@ impl PaperTrader {
             //    Long gamma = mean-revert → need stronger signal to enter
             //    Short gamma = trending → momentum signals more reliable
             let gex_boost = if data.gex_regime == "short_gamma" {
-                0.05 // Trending regime — slightly easier entry
+                0.05
             } else if data.gex_regime == "long_gamma" {
-                -0.02 // Mean-reverting — need more conviction
+                -0.02
             } else {
                 0.0
             };
 
-            // 8. Composite score — ALL layers weighted
-            let score = 0.20 * data.kalman_momentum.max(0.0).min(1.0)  // Kalman true momentum
-                + 0.20 * data.pattern_signal                            // Pattern strength
-                + 0.12 * data.kalman_trend_strength.min(3.0) / 3.0     // Signal-to-noise ratio
-                + 0.12 * data.cvd_signal.max(0.0)                      // Buy pressure (CVD)
-                + 0.08 * data.micro_momentum.max(0.0)                  // Pattern momentum
-                + 0.08 * data.kalman_confidence                         // Kalman confidence
-                + 0.08 * data.vp_signal.max(0.0)                       // Volume profile support
-                + 0.06 * data.gex_signal.max(0.0)                      // GEX signal
-                + 0.06 * data.cot_signal.max(0.0)                      // COT smart money
-                + gex_boost;                                            // Regime adjustment
+            // 8. Cross-layer conflict detection — when layers disagree, reduce confidence
+            let bullish_layers = [
+                data.kalman_direction == "bullish",
+                data.pattern_signal > 0.02,
+                data.cvd_signal > 0.1,
+                data.vp_signal > 0.0,
+                data.gex_signal > 0.0,
+                data.cot_signal > 0.0,
+            ];
+            let bullish_count = bullish_layers.iter().filter(|&&b| b).count();
+            // If fewer than 3 of 6 layers are bullish, apply a penalty
+            let agreement_factor = if bullish_count >= 5 {
+                1.1  // Strong agreement bonus
+            } else if bullish_count >= 4 {
+                1.0  // Good agreement
+            } else if bullish_count == 3 {
+                0.85 // Mixed signals — reduce score
+            } else {
+                0.0  // Majority bearish — block entry
+            };
+            if agreement_factor == 0.0 { continue; }
+
+            // 9. Composite score — ALL layers weighted
+            let raw_score = 0.20 * data.kalman_momentum.max(0.0).min(1.0)
+                + 0.20 * data.pattern_signal
+                + 0.12 * data.kalman_trend_strength.min(3.0) / 3.0
+                + 0.12 * data.cvd_signal.max(0.0)
+                + 0.08 * data.micro_momentum.max(0.0)
+                + 0.08 * data.kalman_confidence
+                + 0.08 * data.vp_signal.max(0.0)
+                + 0.06 * data.gex_signal.max(0.0)
+                + 0.06 * data.cot_signal.max(0.0)
+                + gex_boost;
+            let score = raw_score * agreement_factor;
 
             if score > MIN_BUY_SIGNAL {
                 candidates.push((sym.clone(), score));

@@ -201,6 +201,14 @@ impl RealtimeEngine {
                             change / inner.prev_close * 100.0
                         } else { 0.0 };
 
+                        // Count how many layers agree on direction
+                        let bullish_layers = [
+                            ks.direction == "bullish",
+                            pattern.signal > 0.02,
+                            cvd_state.signal > 0.1,
+                        ];
+                        let layer_agreement = bullish_layers.iter().filter(|&&b| b).count();
+
                         Some(json!({
                             "symbol": self.symbol,
                             "current_price": price,
@@ -239,6 +247,14 @@ impl RealtimeEngine {
                                 "buy_sell_ratio": cvd_state.buy_sell_ratio,
                                 "divergence": cvd_state.divergence,
                                 "signal": cvd_state.signal,
+                            },
+                            "layer_agreement": {
+                                "bullish_count": layer_agreement,
+                                "total_realtime": 3,
+                                "consensus": if layer_agreement >= 3 { "strong_buy" }
+                                    else if layer_agreement == 2 { "buy" }
+                                    else if layer_agreement == 1 { "mixed" }
+                                    else { "bearish" },
                             },
                             "predictions": predictions,
                             "micro_candles": candles.len(),

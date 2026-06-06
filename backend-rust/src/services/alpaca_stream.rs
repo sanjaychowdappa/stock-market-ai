@@ -292,6 +292,50 @@ pub async fn fetch_snapshot(symbol: &str) -> Result<(f64, f64, f64), String> {
     Ok((price, atr, volume))
 }
 
+/// Fetch daily bars from Alpaca (for GEX realized volatility calculation).
+pub async fn fetch_daily_bars(
+    symbol: &str,
+    limit: usize,
+) -> Result<Vec<serde_json::Value>, String> {
+    let api_key = env::var("APCA_API_KEY_ID")
+        .map_err(|_| "APCA_API_KEY_ID not set".to_string())?;
+    let api_secret = env::var("APCA_API_SECRET_KEY")
+        .map_err(|_| "APCA_API_SECRET_KEY not set".to_string())?;
+
+    let url = format!(
+        "{}/v2/stocks/{}/bars?timeframe=1Day&limit={}&feed=iex",
+        env::var("APCA_DATA_URL").unwrap_or_else(|_| "https://data.alpaca.markets".to_string()),
+        symbol,
+        limit,
+    );
+
+    let resp = reqwest::Client::new()
+        .get(&url)
+        .header("APCA-API-KEY-ID", &api_key)
+        .header("APCA-API-SECRET-KEY", &api_secret)
+        .send()
+        .await
+        .map_err(|e| format!("Alpaca daily bars fetch: {}", e))?;
+
+    let data: serde_json::Value = resp.json().await
+        .map_err(|e| format!("Alpaca daily bars JSON: {}", e))?;
+
+    let bars = data["bars"].as_array()
+        .ok_or("No bars in daily response")?;
+
+    let candles: Vec<serde_json::Value> = bars.iter().filter_map(|b| {
+        Some(json!({
+            "open": b["o"].as_f64()?,
+            "high": b["h"].as_f64()?,
+            "low": b["l"].as_f64()?,
+            "close": b["c"].as_f64()?,
+            "volume": b["v"].as_f64().unwrap_or(0.0),
+        }))
+    }).collect();
+
+    Ok(candles)
+}
+
 fn parse_alpaca_timestamp(ts: &str) -> f64 {
     chrono::DateTime::parse_from_rfc3339(ts)
         .map(|dt| dt.timestamp() as f64 + dt.timestamp_subsec_millis() as f64 / 1000.0)
