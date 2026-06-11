@@ -13,19 +13,11 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379
       - RUST_LOG=stock_market_ai=info
-      - NVIDIA_VISIBLE_DEVICES=all
     depends_on:
       - redis
     volumes:
       - model_data:/app/model_cache
       - ./reports:/app/reports
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
     restart: unless-stopped
 
   # ── Python Fine-Tune + Agent Sidecar (GPU) ───────────────────

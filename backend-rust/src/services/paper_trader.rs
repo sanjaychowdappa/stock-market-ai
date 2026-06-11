@@ -9,11 +9,14 @@
 //! at sub-minute timeframes. Patterns detect real momentum shifts.
 
 use crate::config::*;
+use crate::models::position::EntryPrediction;
 use crate::models::{Position, Trade};
 use chrono::{Datelike, Local, Timelike};
 use serde_json::json;
 use std::collections::{HashMap, VecDeque};
 use std::time::Instant;
+use tokio::fs::OpenOptions;
+use tokio::io::AsyncWriteExt;
 use tokio::sync::broadcast;
 use tracing::info;
 
@@ -39,6 +42,56 @@ pub struct PaperTrader {
     pub last_payload: Option<serde_json::Value>,
     /// Per-layer block counters for monitoring which layers filter most
     layer_blocks: LayerBlockCounters,
+    /// Track vetoed entries to check if they were missed opportunities
+    veto_log: VecDeque<VetoEntry>,
+    last_veto_check: Instant,
+    /// Shadow models for A/B testing different layer weights
+    shadow_traders: Vec<ShadowTrader>,
+}
+
+#[derive(Clone)]
+struct VetoEntry {
+    symbol: String,
+    price_at_veto: f64,
+    veto_reason: String,
+    score: f64,
+    timestamp: Instant,
+}
+
+/// Shadow trader: runs a second model with different layer weights on the same
+/// market data. Doesn't execute real trades — just tracks what it *would* do
+/// and logs results to prediction_accuracy.jsonl with model_id for A/B comparison.
+struct ShadowTrader {
+    model_id: String,
+    cash: f64,
+    positions: HashMap<String, Position>,
+    realized_pnl: f64,
+    total_trades: u32,
+    winning_trades: u32,
+    daily_trades: u32,
+    cooldowns: HashMap<String, Instant>,
+    /// Layer weights: [kronos, kalman, pattern, cvd, vp, gex, cot]
+    weights: [f64; 7],
+}
+
+impl ShadowTrader {
+    fn new(model_id: &str, weights: [f64; 7]) -> Self {
+        Self {
+            model_id: model_id.to_string(),
+            cash: INITIAL_CASH,
+            positions: HashMap::new(),
+            realized_pnl: 0.0,
+            total_trades: 0,
+            winning_trades: 0,
+            daily_trades: 0,
+            cooldowns: HashMap::new(),
+            weights,
+        }
+    }
+
+    fn total_value(&self) -> f64 {
+        self.cash + self.positions.values().map(|p| p.market_value()).sum::<f64>()
+    }
 }
 
 /// Tracks how many times each layer blocked an entry — for efficiency analysis.
@@ -103,6 +156,35 @@ struct MarketSnapshot {
 impl PaperTrader {
     pub fn new() -> Self {
         let (tx, _) = broadcast::channel(64);
+
+        tokio::spawn(async {
+            let path = "/app/reports/prediction_accuracy.jsonl";
+            if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path).await {
+                let marker = json!({
+                    "type": "session_start",
+                    "timestamp": chrono::Utc::now().to_rfc3339(),
+                    "config": {
+                        "initial_cash": INITIAL_CASH,
+                        "max_concurrent_positions": MAX_CONCURRENT_POSITIONS,
+                        "max_daily_trades": MAX_DAILY_TRADES,
+                        "min_buy_signal": MIN_BUY_SIGNAL,
+                        "take_profit_pct": TAKE_PROFIT_PCT,
+                        "hard_stop_pct": HARD_STOP_PCT,
+                        "trailing_stop_pct": TRAILING_STOP_PCT,
+                    },
+                    "shadow_models": [
+                        {"id": "model_A_all_layers", "weights": [0.25, 0.25, 0.15, 0.15, 0.08, 0.06, 0.06],
+                         "description": "Control: all layers with current weights"},
+                        {"id": "model_B_vp_heavy", "weights": [0.30, 0.0, 0.0, 0.0, 0.50, 0.10, 0.10],
+                         "description": "VP-heavy: dropped Kalman/Pattern/CVD, boosted VP to 50%"},
+                    ]
+                });
+                let mut line = serde_json::to_string(&marker).unwrap_or_default();
+                line.push('\n');
+                let _ = f.write_all(line.as_bytes()).await;
+            }
+        });
+
         Self {
             cash: INITIAL_CASH,
             positions: HashMap::new(),
@@ -121,6 +203,16 @@ impl PaperTrader {
             tx,
             last_payload: None,
             layer_blocks: LayerBlockCounters::default(),
+            veto_log: VecDeque::with_capacity(100),
+            last_veto_check: Instant::now(),
+            shadow_traders: vec![
+                // Model A: current weights (control)
+                // [kronos=0.25, kalman=0.25, pattern=0.15, cvd=0.15, vp=0.08, gex=0.06, cot=0.06]
+                ShadowTrader::new("model_A_all_layers", [0.25, 0.25, 0.15, 0.15, 0.08, 0.06, 0.06]),
+                // Model B: VP-heavy, drop Kalman/Pattern/CVD
+                // [kronos=0.30, kalman=0.0, pattern=0.0, cvd=0.0, vp=0.50, gex=0.10, cot=0.10]
+                ShadowTrader::new("model_B_vp_heavy", [0.30, 0.0, 0.0, 0.0, 0.50, 0.10, 0.10]),
+            ],
         }
     }
 
@@ -308,6 +400,34 @@ impl PaperTrader {
         if eod_liquidation && self.positions.contains_key(symbol) {
             info!("[EOD_CLOSE] {} — liquidating before market close ({}:{})", symbol, et_hour, et_minute);
             self.sell(symbol, "EOD_LIQUIDATION(3:55pm)");
+            // EOD liquidate shadow traders too
+            for shadow in &mut self.shadow_traders {
+                if let Some(pos) = shadow.positions.remove(symbol) {
+                    let pnl = pos.unrealized_pnl();
+                    shadow.cash += pos.market_value();
+                    shadow.realized_pnl += pnl;
+                    if pnl > 0.0 { shadow.winning_trades += 1; }
+                    let log_entry = json!({
+                        "type": "shadow_trade", "model_id": shadow.model_id,
+                        "timestamp": Local::now().to_rfc3339(), "action": "SELL",
+                        "symbol": symbol, "entry_price": pos.entry_price,
+                        "exit_price": pos.current_price, "pnl": pnl,
+                        "pnl_pct": pos.unrealized_pnl_pct(),
+                        "hold_seconds": pos.hold_seconds,
+                        "exit_reason": "EOD_LIQUIDATION",
+                        "portfolio_value": shadow.total_value(),
+                        "realized_pnl": shadow.realized_pnl,
+                    });
+                    tokio::spawn(async move {
+                        let path = "/app/reports/prediction_accuracy.jsonl";
+                        if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path).await {
+                            let mut line = serde_json::to_string(&log_entry).unwrap_or_default();
+                            line.push('\n');
+                            let _ = f.write_all(line.as_bytes()).await;
+                        }
+                    });
+                }
+            }
             return;
         }
 
@@ -316,6 +436,15 @@ impl PaperTrader {
         // Don't open new positions in last 10 minutes
         if et_mins >= 15 * 60 + 50 { return; }
         self.find_best_entry();
+
+        // Check for missed opportunities every 60s
+        if self.last_veto_check.elapsed().as_secs() >= 60 {
+            self.check_missed_opportunities();
+            self.last_veto_check = Instant::now();
+        }
+
+        // Run shadow traders on same market data with different weights
+        self.tick_shadow_traders(symbol);
     }
 
     fn manage_position(&mut self, symbol: &str) {
@@ -354,41 +483,45 @@ impl PaperTrader {
                 // Only HARD_STOP bypasses this — capital protection is always immediate.
                 let held_long_enough = pos.hold_seconds >= MIN_HOLD_SECS;
 
-                // === SWING TRADE EXIT LOGIC ===
-                // Priority: protect capital → lock big wins → cut dead trades
-                // Goal: 2:1 reward/risk, hold 5-30 min, catch 1-2% moves
+                // === EXIT LOGIC — REACT FAST TO BEARISH SIGNALS ===
+                // Don't hold losers. If signals flip bearish, get out immediately.
+
+                let bearish_count = [
+                    k_fading,
+                    signal < -0.15,
+                    cvd_sig < -0.5,
+                    vp_sig < -0.5,
+                    cvd_bearish,
+                    at_resistance,
+                ].iter().filter(|&&b| b).count();
 
                 // 1. HARD STOP — protect capital, IMMEDIATE
                 if pnl_pct <= HARD_STOP_PCT {
                     Some("HARD_STOP".to_string())
                 }
-                // 2. TAKE PROFIT — hit our 2% target
+                // 2. BEARISH SIGNAL — exit immediately, don't wait
+                // If 2+ layers are bearish, dump the position regardless of hold time
+                else if bearish_count >= 2 && pnl_pct < 0.0 {
+                    Some(format!("BEARISH_EXIT({}signals,pnl={:.2}%)", bearish_count, pnl_pct))
+                }
+                // 3. TAKE PROFIT — hit our 2% target
                 else if held_long_enough && pnl_pct >= TAKE_PROFIT_PCT {
                     Some(format!("TAKE_PROFIT({:.2}%)", pnl_pct))
                 }
-                // 3. TRAILING STOP — only after 5+ min and we're losing
-                else if drawdown <= -TRAILING_STOP_PCT && pos.hold_seconds > 300
+                // 4. BEARISH WHILE WINNING — lock profits if 3+ layers flip
+                else if bearish_count >= 3 && pnl_pct > 0.0 && held_long_enough {
+                    Some(format!("BEARISH_PROFIT_LOCK({}signals,pnl={:.2}%)", bearish_count, pnl_pct))
+                }
+                // 5. TRAILING STOP — protect gains from peak
+                else if drawdown <= -TRAILING_STOP_PCT && held_long_enough
                     && pnl_pct < 0.0 {
                     Some(format!("TRAIL_STOP({:.2}% from peak,pnl={:.2}%)", drawdown, pnl_pct))
                 }
-                // 4. MOMENTUM COLLAPSE — all signals dead + losing money
-                // Don't exit winners on momentum death — they may resume
-                else if momentum_dead && pos.hold_seconds > 300 && pnl_pct < -0.2 {
+                // 6. MOMENTUM COLLAPSE — all signals dead + losing
+                else if momentum_dead && pnl_pct < -0.1 {
                     Some(format!("MOMENTUM_DEAD(sig={:.2},pnl={:.2}%)", signal, pnl_pct))
                 }
-                // 5. STRONG BEARISH REVERSAL — 3+ layers flipped against us hard
-                else if pos.hold_seconds > 240 {
-                    let bearish_count = [
-                        k_fading,
-                        signal < -0.15,
-                        cvd_sig < -0.5,
-                        vp_sig < -0.5,
-                    ].iter().filter(|&&b| b).count();
-                    if bearish_count >= 3 && pnl_pct < -0.3 {
-                        Some(format!("REVERSAL_EXIT({}bearish,pnl={:.2}%)", bearish_count, pnl_pct))
-                    } else { None }
-                }
-                // 6. FLAT EXIT — going nowhere after 30 min, take whatever we have
+                // 7. FLAT EXIT — going nowhere after 15 min
                 else if pos.hold_seconds >= FLAT_EXIT_SECS {
                     Some(format!("FLAT_EXIT({}s,{:.2}%)", pos.hold_seconds, pnl_pct))
                 }
@@ -431,10 +564,11 @@ impl PaperTrader {
         if self.positions.len() >= MAX_CONCURRENT_POSITIONS { return; }
 
         let total_value = self.total_value();
-        let available = total_value * MAX_POSITION_PCT - self.invested_value();
-        if available < 2.0 { return; }
+        let per_slot = total_value * MAX_POSITION_PCT;
+        if self.cash < 2.0 { return; }
 
-        let mut candidates: Vec<(String, f64, String, usize)> = Vec::new();
+        let mut candidates: Vec<(String, f64, String, usize, EntryPrediction)> = Vec::new();
+        let mut vetoes: Vec<(String, f64, f64, &str)> = Vec::new();
 
         for (sym, data) in &self.market_data {
             if self.positions.contains_key(sym) { continue; }
@@ -564,11 +698,10 @@ impl PaperTrader {
             );
 
             // ── HARD VETO 1: Kronos must not be bearish ──
-            // Analysis showed system was entering with K- (Kronos bearish) and losing.
-            // Kronos is the best predictor — never trade against it.
             if kronos_score < -0.1 {
                 info!("[KRONOS_VETO] {} — kronos={:.2} bearish, refusing entry: {}", sym, kronos_score, agent_report);
                 self.layer_blocks.kronos_bias += 1;
+                vetoes.push((sym.clone(), data.price, score, "KRONOS_VETO"));
                 continue;
             }
 
@@ -576,6 +709,7 @@ impl PaperTrader {
             if bearish_agents.len() >= 4 {
                 info!("[VETOED] {} — {}/7 agents bearish: {}", sym, bearish_agents.len(), agent_report);
                 self.layer_blocks.consensus += 1;
+                vetoes.push((sym.clone(), data.price, score, "CONSENSUS_VETO"));
                 continue;
             }
 
@@ -583,12 +717,12 @@ impl PaperTrader {
             if pattern_score < -0.25 {
                 info!("[PATTERN_VETO] {} — pattern={:.2} too bearish: {}", sym, pattern_score, agent_report);
                 self.layer_blocks.consensus += 1;
+                vetoes.push((sym.clone(), data.price, score, "PATTERN_VETO"));
                 continue;
             }
 
             // ── MINIMUM SCORE THRESHOLD ──
             if score <= MIN_BUY_SIGNAL {
-                // Only log occasionally to reduce noise (was flooding logs)
                 if self.layer_blocks.score_too_low % 50 == 0 {
                     info!("[WEAK] {} — {} (need > {:.2})", sym, agent_report, MIN_BUY_SIGNAL);
                 }
@@ -600,18 +734,38 @@ impl PaperTrader {
             let bullish_count = bullish_agents.len();
             let layer_report = agent_report;
 
-            candidates.push((sym.clone(), score, layer_report, bullish_count));
+            let prediction = EntryPrediction {
+                overall_score: score,
+                predicted_direction: "bullish".into(),
+                kronos_score,
+                kalman_score,
+                pattern_score,
+                cvd_score,
+                vp_score,
+                gex_score,
+                cot_score,
+                scoring_source: scoring_source.to_string(),
+                bullish_layers: bullish_agents.iter().map(|s| s.to_string()).collect(),
+                bearish_layers: bearish_agents.iter().map(|s| s.to_string()).collect(),
+            };
+
+            candidates.push((sym.clone(), score, layer_report, bullish_count, prediction));
+        }
+
+        // Log vetoes after the borrow of self.market_data ends
+        for (sym, price, score, reason) in vetoes {
+            self.log_veto(&sym, price, score, reason);
         }
 
         candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
-        if let Some((best_sym, score, layer_report, bullish_count)) = candidates.first() {
+        let open_slots = MAX_CONCURRENT_POSITIONS.saturating_sub(self.positions.len());
+        for (best_sym, score, layer_report, bullish_count, prediction) in candidates.iter().take(open_slots) {
+            if self.daily_trades >= MAX_DAILY_TRADES { break; }
             let price = self.market_data[best_sym].price;
             let bias = *self.kronos_daily_bias.get(best_sym.as_str()).unwrap_or(&0.0);
 
-            // Swing mode: always go all-in. With 1 max position and high entry
-            // bar, every entry is high conviction — no reason to hold back.
-            let alloc = available;
+            let alloc = per_slot.min(self.cash);
 
             let shares = alloc / price;
             if shares * price >= 1.0 {
@@ -622,8 +776,9 @@ impl PaperTrader {
                 );
                 info!("  LAYERS: {}", layer_report);
 
-                let pos = Position::new(best_sym.clone(), shares, price,
+                let mut pos = Position::new(best_sym.clone(), shares, price,
                     Local::now().format("%H:%M:%S").to_string());
+                pos.entry_prediction = Some(prediction.clone());
                 self.positions.insert(best_sym.clone(), pos);
                 self.cash -= shares * price;
 
@@ -643,6 +798,196 @@ impl PaperTrader {
                 self.daily_trades += 1;
                 if self.trades.len() >= 500 { self.trades.pop_front(); }
                 self.trades.push_back(trade);
+            }
+        }
+    }
+
+    fn tick_shadow_traders(&mut self, symbol: &str) {
+        let data = match self.market_data.get(symbol) {
+            Some(d) => d,
+            None => return,
+        };
+        let price = data.price;
+        let kronos_bias = *self.kronos_daily_bias.get(symbol).unwrap_or(&0.0);
+
+        // Compute raw layer scores (same as main trader)
+        let kronos_score = if !data.kronos_active { 0.0 }
+            else if kronos_bias > 0.10 { 1.0 }
+            else if kronos_bias > 0.03 { 0.6 }
+            else if kronos_bias > -0.03 { 0.1 }
+            else if kronos_bias > -0.10 { -0.4 }
+            else { -1.0 };
+
+        let kalman_dir_score = match data.kalman_direction.as_str() {
+            "bullish" => 0.5, "bearish" => -0.5, _ => 0.0,
+        };
+        let kalman_mom_score = if data.kalman_momentum_fading { -0.3 }
+            else { (data.kalman_momentum.max(-1.0).min(1.0)) * 0.3 };
+        let kalman_conf_bonus = (data.kalman_confidence - 0.5).max(0.0) * 0.4;
+        let kalman_score = (kalman_dir_score + kalman_mom_score + kalman_conf_bonus).max(-1.0).min(1.0);
+
+        let hist_score = self.signal_history.get(symbol).map_or(0.0, |hist| {
+            if hist.len() < 3 { return -0.2; }
+            let recent: Vec<f64> = hist.iter().rev().take(5).cloned().collect();
+            let pos = recent.iter().filter(|&&s| s > 0.005).count() as f64;
+            let neg = recent.iter().filter(|&&s| s < -0.005).count() as f64;
+            (pos - neg) / recent.len() as f64
+        });
+        let pattern_score = ((data.pattern_signal * 3.0).max(-1.0).min(1.0) * 0.6
+            + hist_score * 0.4).max(-1.0).min(1.0);
+
+        let cvd_score = if data.cvd_signal > 0.5 { 1.0 }
+            else if data.cvd_signal > 0.1 { 0.5 }
+            else if data.cvd_signal > -0.1 { 0.0 }
+            else if data.cvd_signal > -0.3 { -0.4 }
+            else { -0.8 };
+
+        let vp_score = if data.vp_position == "above_value" && data.vp_signal < -0.2 { -0.7 }
+            else if data.vp_position == "below_value" && data.vp_signal > 0.1 { 0.6 }
+            else { data.vp_signal.max(-1.0).min(1.0) * 0.3 };
+
+        let gex_score = if data.gex_regime == "short_gamma" { 0.5 }
+            else if data.gex_regime == "long_gamma" { -0.2 }
+            else { data.gex_signal.max(-1.0).min(1.0) * 0.3 };
+
+        let cot_score = data.cot_signal.max(-1.0).min(1.0) * 0.5;
+
+        let raw_scores = [kronos_score, kalman_score, pattern_score, cvd_score, vp_score, gex_score, cot_score];
+
+        let k_fading = data.kalman_momentum_fading;
+        let signal = data.pattern_signal;
+        let cvd_sig = data.cvd_signal;
+        let cvd_bearish = cvd_sig < -0.4 && data.cvd_buy_sell_ratio < 0.7;
+        let at_resistance = data.vp_position == "above_value" && data.vp_signal < -0.3;
+
+        for shadow in &mut self.shadow_traders {
+            // Update existing positions
+            if let Some(pos) = shadow.positions.get_mut(symbol) {
+                pos.update(price);
+
+                let pnl_pct = pos.unrealized_pnl_pct();
+                let held_long_enough = pos.hold_seconds >= MIN_HOLD_SECS;
+
+                let bearish_count = [k_fading, signal < -0.15, cvd_sig < -0.5,
+                    vp_score < -0.5, cvd_bearish, at_resistance]
+                    .iter().filter(|&&b| b).count();
+
+                let exit_reason = if pnl_pct <= HARD_STOP_PCT {
+                    Some("HARD_STOP".to_string())
+                } else if bearish_count >= 2 && pnl_pct < 0.0 {
+                    Some(format!("BEARISH_EXIT({}signals,pnl={:.2}%)", bearish_count, pnl_pct))
+                } else if held_long_enough && pnl_pct >= TAKE_PROFIT_PCT {
+                    Some(format!("TAKE_PROFIT({:.2}%)", pnl_pct))
+                } else if bearish_count >= 3 && pnl_pct > 0.0 && held_long_enough {
+                    Some(format!("BEARISH_PROFIT_LOCK({}signals)", bearish_count))
+                } else if pos.hold_seconds >= FLAT_EXIT_SECS {
+                    Some(format!("FLAT_EXIT({}s,{:.2}%)", pos.hold_seconds, pnl_pct))
+                } else {
+                    None
+                };
+
+                if let Some(reason) = exit_reason {
+                    let pnl = pos.unrealized_pnl();
+                    let actual_dir = if pnl >= 0.0 { "bullish" } else { "bearish" };
+                    shadow.cash += pos.market_value();
+                    shadow.realized_pnl += pnl;
+                    if pnl > 0.0 { shadow.winning_trades += 1; }
+
+                    let log_entry = json!({
+                        "type": "shadow_trade",
+                        "model_id": shadow.model_id,
+                        "timestamp": Local::now().to_rfc3339(),
+                        "action": "SELL",
+                        "symbol": symbol,
+                        "entry_price": pos.entry_price,
+                        "exit_price": pos.current_price,
+                        "pnl": pnl,
+                        "pnl_pct": pnl_pct,
+                        "hold_seconds": pos.hold_seconds,
+                        "exit_reason": reason,
+                        "actual_direction": actual_dir,
+                        "portfolio_value": shadow.total_value(),
+                        "realized_pnl": shadow.realized_pnl,
+                        "total_trades": shadow.total_trades,
+                        "win_rate": if shadow.total_trades > 0 {
+                            shadow.winning_trades as f64 / shadow.total_trades as f64 * 100.0
+                        } else { 0.0 },
+                    });
+
+                    tokio::spawn(async move {
+                        let path = "/app/reports/prediction_accuracy.jsonl";
+                        if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path).await {
+                            let mut line = serde_json::to_string(&log_entry).unwrap_or_default();
+                            line.push('\n');
+                            let _ = f.write_all(line.as_bytes()).await;
+                        }
+                    });
+
+                    shadow.positions.remove(symbol);
+                    shadow.cooldowns.insert(symbol.to_string(), Instant::now());
+                    continue;
+                }
+            }
+
+            // Try to enter
+            if shadow.positions.contains_key(symbol) { continue; }
+            if shadow.positions.len() >= MAX_CONCURRENT_POSITIONS { continue; }
+            if shadow.daily_trades >= MAX_DAILY_TRADES { continue; }
+            if let Some(cd) = shadow.cooldowns.get(symbol) {
+                if cd.elapsed().as_secs() < TRADE_COOLDOWN_SECS { continue; }
+            }
+
+            let weighted_score: f64 = shadow.weights.iter()
+                .zip(raw_scores.iter())
+                .map(|(w, s)| w * s)
+                .sum();
+
+            if weighted_score > MIN_BUY_SIGNAL && kronos_score >= -0.1 {
+                let per_slot = shadow.total_value() * MAX_POSITION_PCT;
+                let alloc = per_slot.min(shadow.cash);
+                let shares = alloc / price;
+                if shares * price >= 1.0 {
+                    shadow.cash -= shares * price;
+                    shadow.total_trades += 1;
+                    shadow.daily_trades += 1;
+                    let mut pos = Position::new(symbol.to_string(), shares, price,
+                        Local::now().format("%H:%M:%S").to_string());
+                    pos.entry_prediction = Some(EntryPrediction {
+                        overall_score: weighted_score,
+                        predicted_direction: "bullish".into(),
+                        kronos_score, kalman_score, pattern_score, cvd_score,
+                        vp_score, gex_score, cot_score,
+                        scoring_source: "SHADOW".to_string(),
+                        bullish_layers: vec![], bearish_layers: vec![],
+                    });
+                    shadow.positions.insert(symbol.to_string(), pos);
+
+                    let model_id = shadow.model_id.clone();
+                    let log_entry = json!({
+                        "type": "shadow_trade",
+                        "model_id": model_id,
+                        "timestamp": Local::now().to_rfc3339(),
+                        "action": "BUY",
+                        "symbol": symbol,
+                        "price": price,
+                        "shares": shares,
+                        "score": weighted_score,
+                        "weights": shadow.weights,
+                        "layer_scores": {
+                            "kronos": kronos_score, "kalman": kalman_score,
+                            "pattern": pattern_score, "cvd": cvd_score,
+                            "vp": vp_score, "gex": gex_score, "cot": cot_score,
+                        },
+                    });
+                    tokio::spawn(async move {
+                        let path = "/app/reports/prediction_accuracy.jsonl";
+                        if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path).await {
+                            let mut line = serde_json::to_string(&log_entry).unwrap_or_default();
+                            line.push('\n');
+                            let _ = f.write_all(line.as_bytes()).await;
+                        }
+                    });
+                }
             }
         }
     }
@@ -667,6 +1012,83 @@ impl PaperTrader {
             pos.shares, symbol, pos.current_price, pnl, pnl_pct,
             pnl_tag, pos.hold_seconds, reason
         );
+
+        // === PREDICTION ACCURACY LOG ===
+        if let Some(pred) = &pos.entry_prediction {
+            let actual_direction = if pnl >= 0.0 { "bullish" } else { "bearish" };
+            let correct = pred.predicted_direction == actual_direction;
+            let accuracy_tag = if correct { "CORRECT" } else { "WRONG" };
+
+            let mut wrong_layers = Vec::new();
+            let mut right_layers = Vec::new();
+            let layer_checks: &[(&str, f64)] = &[
+                ("Kronos", pred.kronos_score),
+                ("Kalman", pred.kalman_score),
+                ("Pattern", pred.pattern_score),
+                ("CVD", pred.cvd_score),
+                ("VP", pred.vp_score),
+                ("GEX", pred.gex_score),
+                ("COT", pred.cot_score),
+            ];
+            for (name, score) in layer_checks {
+                let layer_predicted_bull = *score > 0.05;
+                let was_actually_bull = pnl >= 0.0;
+                if *score > 0.05 || *score < -0.05 {
+                    if layer_predicted_bull == was_actually_bull {
+                        right_layers.push(format!("{}({:.2})", name, score));
+                    } else {
+                        wrong_layers.push(format!("{}({:.2})", name, score));
+                    }
+                }
+            }
+
+            info!(
+                "PREDICTION: [{}] {} predicted={} actual={} | score={:.3} src={} | \
+                 right=[{}] wrong=[{}] | entry=${:.2} exit=${:.2} pnl=${:.4} held={}s",
+                accuracy_tag, symbol, pred.predicted_direction, actual_direction,
+                pred.overall_score, pred.scoring_source,
+                right_layers.join(","), wrong_layers.join(","),
+                pos.entry_price, pos.current_price, pnl, pos.hold_seconds
+            );
+
+            let log_entry = json!({
+                "timestamp": Local::now().to_rfc3339(),
+                "symbol": symbol,
+                "predicted_direction": pred.predicted_direction,
+                "actual_direction": actual_direction,
+                "correct": correct,
+                "entry_score": pred.overall_score,
+                "scoring_source": pred.scoring_source,
+                "layer_scores": {
+                    "kronos": pred.kronos_score,
+                    "kalman": pred.kalman_score,
+                    "pattern": pred.pattern_score,
+                    "cvd": pred.cvd_score,
+                    "vp": pred.vp_score,
+                    "gex": pred.gex_score,
+                    "cot": pred.cot_score,
+                },
+                "bullish_layers": pred.bullish_layers,
+                "bearish_layers": pred.bearish_layers,
+                "right_layers": right_layers,
+                "wrong_layers": wrong_layers,
+                "entry_price": pos.entry_price,
+                "exit_price": pos.current_price,
+                "pnl": pnl,
+                "pnl_pct": pnl_pct,
+                "hold_seconds": pos.hold_seconds,
+                "exit_reason": reason,
+            });
+
+            tokio::spawn(async move {
+                let path = "/app/reports/prediction_accuracy.jsonl";
+                if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path).await {
+                    let mut line = serde_json::to_string(&log_entry).unwrap_or_default();
+                    line.push('\n');
+                    let _ = f.write_all(line.as_bytes()).await;
+                }
+            });
+        }
 
         // Log trade to ML agent sidecar for training data collection
         if let Some(data) = self.market_data.get(symbol) {
@@ -720,6 +1142,63 @@ impl PaperTrader {
         if self.trades.len() >= 500 { self.trades.pop_front(); }
         self.trades.push_back(trade);
         self.cooldowns.insert(symbol.to_string(), Instant::now());
+    }
+
+    fn log_veto(&mut self, symbol: &str, price: f64, score: f64, reason: impl Into<String>) {
+        if self.veto_log.len() >= 100 { self.veto_log.pop_front(); }
+        self.veto_log.push_back(VetoEntry {
+            symbol: symbol.to_string(),
+            price_at_veto: price,
+            veto_reason: reason.into(),
+            score,
+            timestamp: Instant::now(),
+        });
+    }
+
+    pub fn check_missed_opportunities(&mut self) {
+        let mut missed = Vec::new();
+        self.veto_log.retain(|v| {
+            let age = v.timestamp.elapsed().as_secs();
+            if age < 300 { return true; } // check after 5 min
+            if age > 900 { return false; } // expire after 15 min
+            if let Some(data) = self.market_data.get(&v.symbol) {
+                let price_change_pct = (data.price - v.price_at_veto) / v.price_at_veto * 100.0;
+                if price_change_pct > 0.3 {
+                    missed.push((v.clone(), data.price, price_change_pct));
+                }
+            }
+            false
+        });
+
+        for (veto, current_price, change_pct) in &missed {
+            info!(
+                "MISSED_OPPORTUNITY: {} vetoed by {} at ${:.2} (score={:.3}), \
+                 now ${:.2} (+{:.2}%) — would have profited",
+                veto.symbol, veto.veto_reason, veto.price_at_veto,
+                veto.score, current_price, change_pct
+            );
+
+            let log_entry = json!({
+                "timestamp": Local::now().to_rfc3339(),
+                "type": "missed_opportunity",
+                "symbol": veto.symbol,
+                "veto_reason": veto.veto_reason,
+                "score_at_veto": veto.score,
+                "price_at_veto": veto.price_at_veto,
+                "price_after": current_price,
+                "price_change_pct": change_pct,
+                "seconds_later": veto.timestamp.elapsed().as_secs(),
+            });
+
+            tokio::spawn(async move {
+                let path = "/app/reports/prediction_accuracy.jsonl";
+                if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path).await {
+                    let mut line = serde_json::to_string(&log_entry).unwrap_or_default();
+                    line.push('\n');
+                    let _ = f.write_all(line.as_bytes()).await;
+                }
+            });
+        }
     }
 
     fn total_value(&self) -> f64 {

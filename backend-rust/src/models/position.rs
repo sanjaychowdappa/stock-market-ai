@@ -1,5 +1,22 @@
 use serde::Serialize;
 
+/// Layer-by-layer prediction snapshot captured at entry time.
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct EntryPrediction {
+    pub overall_score: f64,
+    pub predicted_direction: String, // "bullish" or "bearish"
+    pub kronos_score: f64,
+    pub kalman_score: f64,
+    pub pattern_score: f64,
+    pub cvd_score: f64,
+    pub vp_score: f64,
+    pub gex_score: f64,
+    pub cot_score: f64,
+    pub scoring_source: String, // "ML" or "RULES"
+    pub bullish_layers: Vec<String>,
+    pub bearish_layers: Vec<String>,
+}
+
 /// A single stock position with fractional shares.
 #[derive(Debug, Clone, Serialize)]
 pub struct Position {
@@ -10,6 +27,8 @@ pub struct Position {
     pub current_price: f64,
     pub high_price: f64,
     pub hold_seconds: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entry_prediction: Option<EntryPrediction>,
 }
 
 impl Position {
@@ -22,6 +41,7 @@ impl Position {
             current_price: entry_price,
             high_price: entry_price,
             hold_seconds: 0,
+            entry_prediction: None,
         }
     }
 

@@ -2,19 +2,18 @@
 pub const TOP_SYMBOLS: &[&str] = &["NVDA", "AAPL", "MSFT", "GOOGL", "AMZN"];
 
 // ══════════════════════════════════════════════════════════════
-//  PAPER TRADING — v5 $500 SWING MODE
+//  PAPER TRADING — v6 PREDICTION-DRIVEN MULTI-STOCK
 //
-//  Budget: $500. Target: $600 in 1-2 days = ~$50/day.
-//  $475 position × 2% = $9.50/win, 1% stop = $4.75/loss (2:1 R/R)
-//
-//  At 60% WR, 15 trades/day:
-//  9W × $9.50 = $85.50, 6L × $4.75 = -$28.50, fees ~$0.20
-//  Net ~$56.80/day. Hit $600 target in 2 days.
+//  Budget: $500. Target: $600 in 1-2 days.
+//  No artificial trade cap — model decides based on signals.
+//  Up to 5 concurrent positions (one per symbol), ~$95 each.
+//  If all 5 stocks are bullish, hold all 5 simultaneously.
+//  Trades happen when signals say go, stop when signals say no.
 // ══════════════════════════════════════════════════════════════
 
 pub const INITIAL_CASH: f64 = 500.0;
 
-pub const MAX_POSITION_PCT: f64 = 0.95;
+pub const MAX_POSITION_PCT: f64 = 0.20;
 
 pub const MIN_BUY_SIGNAL: f64 = 0.15;
 pub const STRONG_BUY_SIGNAL: f64 = 0.25;
@@ -26,15 +25,15 @@ pub const HARD_STOP_PCT: f64 = -1.0;
 
 pub const TAKE_PROFIT_PCT: f64 = 2.0;
 
-pub const TRADE_COOLDOWN_SECS: u64 = 300;
+pub const TRADE_COOLDOWN_SECS: u64 = 120;
 
-pub const MAX_CONCURRENT_POSITIONS: usize = 1;
+pub const MAX_CONCURRENT_POSITIONS: usize = 5;
 
 pub const MOMENTUM_WINDOW: usize = 5;
 
 pub const FLAT_EXIT_SECS: u64 = 900;
 
-pub const MAX_DAILY_TRADES: u32 = 15;
+pub const MAX_DAILY_TRADES: u32 = 999;
 
 pub const MIN_PREDICTED_MOVE_PCT: f64 = 0.012;
 

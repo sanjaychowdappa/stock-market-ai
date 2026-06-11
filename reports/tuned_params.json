@@ -5,11 +5,11 @@
   "trailing_stop_pct": 0.50,
   "hard_stop_pct": -1.0,
   "take_profit_pct": 2.0,
-  "trade_cooldown_secs": 300,
+  "trade_cooldown_secs": 120,
   "flat_exit_secs": 900,
-  "max_concurrent_positions": 1,
-  "max_daily_trades": 15,
+  "max_concurrent_positions": 5,
+  "max_daily_trades": 999,
   "min_predicted_move_pct": 0.012,
-  "tuned_at": "2026-06-10T23:00:00-04:00",
-  "reason": "v5 $500 SWING: Budget raised to $500. Target $600 in 1-2 days. $475 positions, 2% TP = $9.50/win, 1% stop = $4.75/loss. 15 trades/day max, 5min cooldown, 15min flat exit. Lower entry bar (0.15) for more opportunities."
+  "tuned_at": "2026-06-11T11:10:00-04:00",
+  "reason": "v6 PREDICTION-DRIVEN: No trade cap. Model decides when to trade based on signals. Up to 5 concurrent positions (~$100 each). Trade when bullish, exit when bearish. Quantity driven by prediction quality."
 }
