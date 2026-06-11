@@ -67,7 +67,7 @@ pub fn generate_report(
             "realized_pnl": portfolio["realized_pnl"],
             "drawdown_pct": portfolio["drawdown_pct"],
             "target": {
-                "goal": "$100 → $150 challenge",
+                "goal": "$500 → $600 challenge",
                 "target_value": portfolio["target_value"],
                 "progress_pct": portfolio["progress_pct"],
             },

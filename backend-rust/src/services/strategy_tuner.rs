@@ -70,11 +70,10 @@ pub fn analyze_and_tune(ledger: &PerformanceLedger) -> (TunedParams, serde_json:
             "Fees (${:.4}) are >{:.0}% of gross P&L (${:.4}) — overtrading",
             today.total_fees, 50.0, today.gross_pnl
         ));
-        // Raise entry bar, increase cooldown
-        p.min_buy_signal = (p.min_buy_signal * 1.25).min(0.40);
-        p.trade_cooldown_secs = (p.trade_cooldown_secs + 15).min(180);
-        p.max_daily_trades = ((p.max_daily_trades as f64 * 0.75) as u32).max(15);
-        actions.push("Raised MIN_BUY_SIGNAL, increased cooldown, lowered daily cap".into());
+        // Raise entry bar, lower daily cap
+        p.min_buy_signal = (p.min_buy_signal * 1.15).min(0.30);
+        p.max_daily_trades = ((p.max_daily_trades as f64 * 0.80) as u32).max(10);
+        actions.push("Raised MIN_BUY_SIGNAL, lowered daily cap".into());
     }
 
     // ── Diagnosis 2: Avg hold too short (not capturing real moves) ──
@@ -84,9 +83,9 @@ pub fn analyze_and_tune(ledger: &PerformanceLedger) -> (TunedParams, serde_json:
             today.avg_hold_seconds
         ));
         p.flat_exit_secs = (p.flat_exit_secs + 60).min(600);
-        p.sell_signal_threshold -= 0.03; // more negative = less trigger-happy
-        p.sell_signal_threshold = p.sell_signal_threshold.max(-0.25);
-        p.trailing_stop_pct = (p.trailing_stop_pct + 0.02).min(0.20);
+        p.sell_signal_threshold -= 0.02;
+        p.sell_signal_threshold = p.sell_signal_threshold.max(-0.20);
+        p.trailing_stop_pct = (p.trailing_stop_pct + 0.02).min(0.25);
         actions.push("Extended flat exit, loosened signal flip, widened trailing stop".into());
     }
 
@@ -113,23 +112,20 @@ pub fn analyze_and_tune(ledger: &PerformanceLedger) -> (TunedParams, serde_json:
     }
 
     // ── Diagnosis 5: Too few trades (missed opportunities) ──
-    if today.total_trades < 5 && today.gross_pnl < 0.10 {
-        diagnosis.push(format!(
-            "Only {} trades — entry thresholds may be too strict",
-            today.total_trades
-        ));
-        p.min_buy_signal = (p.min_buy_signal * 0.85).max(0.05);
-        p.trade_cooldown_secs = (p.trade_cooldown_secs.saturating_sub(10)).max(30);
-        p.max_daily_trades = (p.max_daily_trades + 10).min(120);
-        actions.push("Lowered MIN_BUY_SIGNAL, reduced cooldown, raised daily cap".into());
+    // Swing mode: few trades is intentional, not a problem.
+    // Only loosen if we had 0 trades AND market was open full day.
+    if today.total_trades == 0 && today.gross_pnl == 0.0 {
+        diagnosis.push("Zero trades — may need slightly lower entry bar".to_string());
+        p.min_buy_signal = (p.min_buy_signal * 0.95).max(0.15);
+        actions.push("Slightly lowered MIN_BUY_SIGNAL (floor 0.15)".into());
     }
 
     // ── Diagnosis 6: Negative net P&L ──
     if today.net_pnl < 0.0 {
         diagnosis.push(format!("Net P&L negative: ${:.4}", today.net_pnl));
-        // Tighten hard stop to limit losses
-        p.hard_stop_pct = (p.hard_stop_pct + 0.02).min(-0.08);
-        actions.push("Tightened hard stop to limit downside".into());
+        // In swing mode, don't tighten hard stop below -0.50% — we need room
+        p.hard_stop_pct = (p.hard_stop_pct + 0.05).min(-0.50);
+        actions.push("Slightly tightened hard stop (floor -0.50%)".into());
     }
 
     // ── Diagnosis 7: Compared to yesterday — regression ──

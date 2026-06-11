@@ -2,65 +2,43 @@
 pub const TOP_SYMBOLS: &[&str] = &["NVDA", "AAPL", "MSFT", "GOOGL", "AMZN"];
 
 // ══════════════════════════════════════════════════════════════
-//  PAPER TRADING — Optimized for real-world profitability
+//  PAPER TRADING — v5 $500 SWING MODE
 //
-//  Previous config: 2143 trades/day, 3s avg hold, $0.003/trade
-//  → Spread cost alone: ~$6-20 → net negative.
+//  Budget: $500. Target: $600 in 1-2 days = ~$50/day.
+//  $475 position × 2% = $9.50/win, 1% stop = $4.75/loss (2:1 R/R)
 //
-//  New philosophy: FEWER trades, BIGGER moves, LONGER holds.
-//  Target: 30-80 trades/day, 60-300s hold, $0.05+ avg profit.
-//  At ~$0.05/trade × 50 trades = $2.50/day gross.
-//  Spread cost: 50 × $0.01 = $0.50 → net ~$2.00/day.
+//  At 60% WR, 15 trades/day:
+//  9W × $9.50 = $85.50, 6L × $4.75 = -$28.50, fees ~$0.20
+//  Net ~$56.80/day. Hit $600 target in 2 days.
 // ══════════════════════════════════════════════════════════════
 
-pub const INITIAL_CASH: f64 = 100.0;
+pub const INITIAL_CASH: f64 = 500.0;
 
-/// Max % of portfolio in positions at once (keep some cash reserve)
-pub const MAX_POSITION_PCT: f64 = 0.80;
+pub const MAX_POSITION_PCT: f64 = 0.95;
 
-/// Only enter when composite score > this.
-/// Calibrated to OU sim signal range (~0.02-0.10 typical).
-/// Old: 0.01 (too low → 2000 trades). Then 0.15 (too high → 0 trades).
-pub const MIN_BUY_SIGNAL: f64 = 0.04;
+pub const MIN_BUY_SIGNAL: f64 = 0.15;
+pub const STRONG_BUY_SIGNAL: f64 = 0.25;
+pub const SELL_SIGNAL_THRESHOLD: f64 = -0.10;
 
-/// Full-size position above this score
-pub const STRONG_BUY_SIGNAL: f64 = 0.08;
+pub const TRAILING_STOP_PCT: f64 = 0.50;
 
-/// Exit on bearish flip only if signal drops below this
-/// More negative = stays in trade longer through noise
-pub const SELL_SIGNAL_THRESHOLD: f64 = -0.06;
+pub const HARD_STOP_PCT: f64 = -1.0;
 
-/// Trailing stop: exit if price drops this % from peak
-/// Wider stop lets winners run through normal volatility
-pub const TRAILING_STOP_PCT: f64 = 0.06;
+pub const TAKE_PROFIT_PCT: f64 = 2.0;
 
-/// Hard stop loss: absolute max loss before forced exit
-pub const HARD_STOP_PCT: f64 = -0.15;
+pub const TRADE_COOLDOWN_SECS: u64 = 300;
 
-/// Take profit: lock in gains at this %
-/// Must be large enough to overcome spread (~$0.01/share)
-pub const TAKE_PROFIT_PCT: f64 = 0.12;
+pub const MAX_CONCURRENT_POSITIONS: usize = 1;
 
-/// Cooldown between trades on same symbol
-/// 20s — Kronos updates every 8s, so 2-3 fresh readings before re-entry
-pub const TRADE_COOLDOWN_SECS: u64 = 20;
-
-/// Max concurrent positions — trade up to 3 stocks at once
-pub const MAX_CONCURRENT_POSITIONS: usize = 3;
-
-/// Momentum confirmation window (seconds of consistent signal)
 pub const MOMENTUM_WINDOW: usize = 5;
 
-/// Time limit: close position if flat after this long
-/// 3 minutes gives the trade time to develop
-pub const FLAT_EXIT_SECS: u64 = 180;
+pub const FLAT_EXIT_SECS: u64 = 900;
 
-/// No daily trade limit — keep trading until $150 goal
-pub const MAX_DAILY_TRADES: u32 = u32::MAX;
+pub const MAX_DAILY_TRADES: u32 = 15;
 
-/// Minimum predicted price move % to justify entry
-/// Calibrated: OU sim typically predicts 0.002-0.01% moves
-pub const MIN_PREDICTED_MOVE_PCT: f64 = 0.003;
+pub const MIN_PREDICTED_MOVE_PCT: f64 = 0.012;
+
+pub const MIN_HOLD_SECS: u64 = 120;
 
 /// OU simulator parameters
 pub const OU_THETA: f64 = 0.15;

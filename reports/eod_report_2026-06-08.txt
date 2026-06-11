@@ -1,0 +1,69 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-06-08
+  Generated:  2026-06-08T20:10:01.110297608+00:00
+  Uptime:     4h 9m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $100.00
+  Current Value:    $99.10
+  Cash:             $19.82
+  Positions Value:  $79.28
+  Total P&L:        -0.9016 (-0.90%)
+  Realized P&L:     $-0.8883
+  Challenge:        $100 → $150 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     927
+  Winning Trades:   442
+  Win Rate:         47.7%
+  Avg Hold Time:    43s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $208.48     bullish     0.196    OPEN
+  AAPL     $301.88     bearish     -0.115   OPEN
+  MSFT     $411.66     bearish     -0.179   OPEN
+  GOOGL    $363.44     neutral     -0.053   —
+  AMZN     $245.37     bearish     -0.181   —
+
+─────────────── OPEN POSITIONS ───────────────
+
+  MSFT — 0.0788 shares @ $411.75 → $411.66  P&L: $-0.0071 (-0.02%)
+  NVDA — 0.1173 shares @ $208.74 → $208.48  P&L: $-0.0305 (-0.12%)
+  AAPL — 0.0742 shares @ $301.58 → $301.88  P&L: $0.0223 (0.10%)
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:59:56  BUY    MSFT     $411.75    $32.44   $0.0000    ENTRY(s=0.214,K+,3of7)
+  19:59:50  SELL   GOOGL    $363.54    $28.12   $-0.0077   TRAIL_STOP(-0.08% from peak)
+  19:59:45  BUY    NVDA     $208.74    $24.48   $0.0000    ENTRY(s=0.275,K~,3of7)
+  19:59:45  SELL   AMZN     $245.34    $28.79   $-0.0094   MOMENTUM_DEAD(sig=-0.15,kmom=-0.16,cvd=0.06)
+  19:59:35  BUY    AAPL     $301.58    $22.37   $0.0000    ENTRY(s=0.362,K+,3of7)
+  19:59:35  SELL   MSFT     $411.82    $17.29   $0.0101    MOMENTUM_DEAD(sig=0.30,kmom=0.00,cvd=0.13)
+  19:59:12  BUY    AMZN     $245.42    $28.80   $0.0000    ENTRY(s=0.189,K~,3of7)
+  19:59:12  SELL   NVDA     $208.66    $33.89   $0.0114    MOMENTUM_DEAD(sig=-0.19,kmom=0.70,cvd=0.04)
+  19:59:03  BUY    GOOGL    $363.64    $28.13   $0.0000    ENTRY(s=0.126,K+,2of7)
+  19:59:03  SELL   AAPL     $301.46    $22.15   $0.0110    MOMENTUM_DEAD(sig=-0.07,kmom=-0.29,cvd=0.04)
+  19:58:39  BUY    NVDA     $208.59    $33.88   $0.0000    ENTRY(s=0.245,K~,3of7)
+  19:58:39  SELL   AMZN     $245.29    $39.86   $0.0154    MOMENTUM_DEAD(sig=-0.25,kmom=0.02,cvd=0.06)
+  19:58:29  BUY    AAPL     $301.31    $22.14   $0.0000    ENTRY(s=0.327,K+,3of7)
+  19:58:17  SELL   NVDA     $208.48    $19.10   $-0.0064   MOMENTUM_DEAD(sig=-0.35,kmom=0.65,cvd=0.04)
+  19:58:16  BUY    MSFT     $411.58    $17.28   $0.0000    ENTRY(s=0.276,K~,3of7)
+  19:58:16  SELL   GOOGL    $363.58    $13.29   $0.0011    MOMENTUM_DEAD(sig=-0.26,kmom=-0.01,cvd=-0.18)
+  19:58:09  BUY    AMZN     $245.20    $39.84   $0.0000    ENTRY(s=0.153,K~,2of7)
+  19:58:09  SELL   AAPL     $301.21    $36.58   $-0.0364   TRAIL_STOP(-0.11% from peak)
+  19:57:45  BUY    NVDA     $208.55    $19.11   $0.0000    ENTRY(s=0.080,K~,2of7)
+  19:57:45  SELL   MSFT     $411.77    $22.24   $-0.0100   MOMENTUM_DEAD(sig=-0.62,kmom=0.75,cvd=0.15)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

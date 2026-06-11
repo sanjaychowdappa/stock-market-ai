@@ -302,24 +302,14 @@ fn spawn_orchestrator(state: Arc<AppState>) {
                 {
                     let trader = state.trader.lock();
                     if let Some(payload) = &trader.last_payload {
-                        if let Some(monitor) = payload.get("layer_monitor") {
+                        if let Some(monitor) = payload.get("agent_monitor") {
                             let passed = monitor["total_passed"].as_u64().unwrap_or(0);
-                            let blocked = monitor["total_blocked"].as_u64().unwrap_or(0);
+                            let evaluated = monitor["total_evaluated"].as_u64().unwrap_or(0);
                             let rate = monitor["filter_rate_pct"].as_f64().unwrap_or(0.0);
-                            info!("=== LAYER MONITOR (5min) === passed={} blocked={} filter_rate={:.1}%", passed, blocked, rate);
-                            if let Some(blocks) = monitor.get("blocks") {
-                                info!("  Kronos:{} Kalman_dir:{} Pattern:{} Kalman_mom:{} Pat_hist:{} CVD:{} VP:{} Consensus:{} Score:{}",
-                                    blocks["kronos_bias"].as_u64().unwrap_or(0),
-                                    blocks["kalman_direction"].as_u64().unwrap_or(0),
-                                    blocks["pattern_signal"].as_u64().unwrap_or(0),
-                                    blocks["kalman_momentum"].as_u64().unwrap_or(0),
-                                    blocks["pattern_history"].as_u64().unwrap_or(0),
-                                    blocks["cvd_pressure"].as_u64().unwrap_or(0),
-                                    blocks["vp_resistance"].as_u64().unwrap_or(0),
-                                    blocks["consensus"].as_u64().unwrap_or(0),
-                                    blocks["score_too_low"].as_u64().unwrap_or(0),
-                                );
-                            }
+                            let vetoed = monitor["vetoed"].as_u64().unwrap_or(0);
+                            let weak = monitor["score_too_low"].as_u64().unwrap_or(0);
+                            info!("=== AGENT MONITOR (5min) === passed={} evaluated={} filter_rate={:.1}% vetoed={} weak_score={}",
+                                passed, evaluated, rate, vetoed, weak);
                         }
                     }
                 }

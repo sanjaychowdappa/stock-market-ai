@@ -1,0 +1,15 @@
+{
+  "min_buy_signal": 0.15,
+  "strong_buy_signal": 0.25,
+  "sell_signal_threshold": -0.10,
+  "trailing_stop_pct": 0.50,
+  "hard_stop_pct": -1.0,
+  "take_profit_pct": 2.0,
+  "trade_cooldown_secs": 300,
+  "flat_exit_secs": 900,
+  "max_concurrent_positions": 1,
+  "max_daily_trades": 15,
+  "min_predicted_move_pct": 0.012,
+  "tuned_at": "2026-06-10T23:00:00-04:00",
+  "reason": "v5 $500 SWING: Budget raised to $500. Target $600 in 1-2 days. $475 positions, 2% TP = $9.50/win, 1% stop = $4.75/loss. 15 trades/day max, 5min cooldown, 15min flat exit. Lower entry bar (0.15) for more opportunities."
+}

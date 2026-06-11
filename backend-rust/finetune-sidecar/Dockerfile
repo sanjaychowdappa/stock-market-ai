@@ -25,6 +25,6 @@ RUN git clone --depth 1 https://github.com/shiyu-coder/Kronos.git /app/kronos_re
 
 COPY . .
 
-EXPOSE 8001
+EXPOSE 8001 8002
 
-CMD ["python", "kronos_server.py"]
+CMD ["python", "start_servers.py"]

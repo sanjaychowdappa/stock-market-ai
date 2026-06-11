@@ -5,7 +5,7 @@
 //! Python fine-tune sidecar if the day was profitable.
 
 use crate::config::*;
-use chrono::{Datelike, Local, Timelike};
+use chrono::{Datelike, Local, Timelike, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
@@ -270,19 +270,28 @@ impl DailyTracker {
     }
 
     /// Check if EOD should trigger. Returns true if fine-tune was triggered.
+    /// Uses UTC and converts to ET for market close detection.
     pub fn check_eod(&mut self) -> bool {
         if self.finetune_triggered {
             return false;
         }
 
-        let now = Local::now();
+        let utc_now = chrono::Utc::now();
+        let month = utc_now.month();
+        // EDT (Mar-Oct) = UTC-4, EST (Nov-Feb) = UTC-5
+        let offset_hours: i64 = if month >= 3 && month <= 10 { 4 } else { 5 };
+        let et_hour = (utc_now.hour() as i64 - offset_hours).rem_euclid(24) as u32;
+        let et_minute = utc_now.minute();
+
         let total_ticks: usize = self.records.values().map(|r| r.ticks.len()).sum();
 
-        let should_trigger = (now.hour() >= 16 && now.minute() >= 5) || total_ticks >= EOD_TICK_THRESHOLD;
+        // Trigger at 4:05 PM ET or if enough ticks accumulated
+        let should_trigger = (et_hour >= 16 && et_minute >= 5) || total_ticks >= EOD_TICK_THRESHOLD;
 
         if should_trigger {
             self.finetune_triggered = true;
-            info!("EOD triggered — {} total ticks, PnL: ${:.4}", total_ticks, self.day_pnl);
+            info!("EOD triggered — {} total ticks, PnL: ${:.4}, time={}:{:02} ET",
+                total_ticks, self.day_pnl, et_hour, et_minute);
             true
         } else {
             false
@@ -350,8 +359,23 @@ impl DailyTracker {
 
     /// Evaluate profitability and trigger fine-tune via HTTP to Python sidecar.
     pub async fn evaluate_and_finetune(&self) {
+        // Always train ML agents (learns from both wins and losses)
+        info!("Triggering ML agent training on EOD data...");
+        match reqwest::Client::new()
+            .post("http://finetune-sidecar:8002/train")
+            .timeout(std::time::Duration::from_secs(300))
+            .send()
+            .await
+        {
+            Ok(resp) if resp.status().is_success() => {
+                info!("ML agent training completed successfully");
+            }
+            Ok(resp) => { warn!("ML agent training returned {}", resp.status()); }
+            Err(e) => { warn!("ML agent training request failed (sidecar may not be running): {}", e); }
+        }
+
         if self.day_pnl <= 0.0 {
-            info!("Day NOT profitable (PnL: ${:.4}). Skipping fine-tune.", self.day_pnl);
+            info!("Day NOT profitable (PnL: ${:.4}). Skipping Kronos fine-tune.", self.day_pnl);
             return;
         }
 
@@ -398,6 +422,7 @@ impl DailyTracker {
                 error!("Fine-tune sidecar request failed: {}", e);
             }
         }
+
     }
 
     /// Get status for the API endpoint.

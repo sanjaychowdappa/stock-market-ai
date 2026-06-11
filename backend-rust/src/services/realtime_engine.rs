@@ -32,6 +32,9 @@ struct EngineInner {
     kronos_predictions: Option<Vec<Candle>>,
     kronos_timestamp: f64,
     last_payload: Option<serde_json::Value>,
+    // ML Agent scores cache (from agent sidecar on port 8002)
+    agent_scores: Option<serde_json::Value>,
+    agent_timestamp: f64,
 }
 
 impl RealtimeEngine {
@@ -52,6 +55,8 @@ impl RealtimeEngine {
                 kronos_predictions: None,
                 kronos_timestamp: 0.0,
                 last_payload: None,
+                agent_scores: None,
+                agent_timestamp: 0.0,
             }),
             pred_tx,
             tick_tx,
@@ -65,6 +70,10 @@ impl RealtimeEngine {
         // Spawn Kronos prediction loop
         let e = engine.clone();
         tokio::spawn(async move { e.kronos_loop().await });
+
+        // Spawn ML Agent prediction loop (every 3s)
+        let e = engine.clone();
+        tokio::spawn(async move { e.agent_loop().await });
 
         // Spawn prediction builder loop (1 Hz)
         let e = engine.clone();
@@ -259,6 +268,8 @@ impl RealtimeEngine {
                             "predictions": predictions,
                             "micro_candles": candles.len(),
                             "kronos_age_seconds": now - inner.kronos_timestamp,
+                            "agent_scores": inner.agent_scores.clone(),
+                            "agent_age_seconds": now - inner.agent_timestamp,
                             "source": "alpaca-realtime",
                         }))
                     }
@@ -353,6 +364,108 @@ impl RealtimeEngine {
             }
 
             tokio::time::sleep(tokio::time::Duration::from_secs(KRONOS_INTERVAL_SECS)).await;
+        }
+    }
+
+    /// Fetch ML agent predictions from sidecar (port 8002).
+    /// Runs every 3 seconds per symbol. Sends current features, gets back
+    /// individual agent scores + meta-ensemble decision.
+    async fn agent_loop(self: Arc<Self>) {
+        tokio::time::sleep(tokio::time::Duration::from_secs(20)).await;
+
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap();
+
+        let agent_url = "http://finetune-sidecar:8002";
+
+        // Check if agent sidecar is available
+        match client.get(format!("{}/agents/health", agent_url)).send().await {
+            Ok(resp) if resp.status().is_success() => {
+                if let Ok(data) = resp.json::<serde_json::Value>().await {
+                    let trained = data["trained"].as_bool().unwrap_or(false);
+                    info!("{}: Agent sidecar connected (trained={})", self.symbol, trained);
+                }
+            }
+            _ => {
+                warn!("{}: Agent sidecar not available on port 8002 — using hardcoded scoring", self.symbol);
+                return; // Don't loop if sidecar isn't up
+            }
+        }
+
+        loop {
+            // Collect current features from inner state
+            let request_body = {
+                let inner = self.inner.lock();
+                let price = inner.live_price;
+                if price <= 0.0 {
+                    None
+                } else if let Some(ref payload) = inner.last_payload {
+                    let kalman = &payload["kalman"];
+                    let cvd = &payload["cvd"];
+                    let pattern = &payload["pattern"];
+                    Some(json!({
+                        "symbol": self.symbol,
+                        "kronos_score": 0.0, // Will be set by paper_trader from bias
+                        "kronos_confidence": 0.5,
+                        "kalman_momentum": kalman["momentum"].as_f64().unwrap_or(0.0),
+                        "kalman_trend_strength": kalman["trend_strength"].as_f64().unwrap_or(0.0),
+                        "kalman_confidence": kalman["confidence"].as_f64().unwrap_or(0.5),
+                        "kalman_direction": kalman["direction"].as_str().unwrap_or("neutral"),
+                        "kalman_momentum_building": kalman["momentum_building"].as_bool().unwrap_or(false),
+                        "kalman_momentum_fading": kalman["momentum_fading"].as_bool().unwrap_or(false),
+                        "pattern_signal": pattern["signal"].as_f64().unwrap_or(0.0),
+                        "pattern_confidence": pattern["confidence"].as_f64().unwrap_or(0.0),
+                        "signal_history": [],
+                        "cvd_signal": cvd["signal"].as_f64().unwrap_or(0.0),
+                        "cvd_buy_sell_ratio": cvd["buy_sell_ratio"].as_f64().unwrap_or(1.0),
+                        "prev_cvd_signal": 0.0,
+                        "vp_signal": 0.0,
+                        "vp_position": "unknown",
+                        "price": price,
+                        "poc_price": 0.0,
+                        "gex_signal": 0.0,
+                        "gex_regime": "neutral",
+                        "cot_signal": 0.0,
+                    }))
+                } else {
+                    None
+                }
+            };
+
+            if let Some(body) = request_body {
+                match client.post(format!("{}/predict/agents", agent_url))
+                    .json(&body)
+                    .send()
+                    .await
+                {
+                    Ok(resp) if resp.status().is_success() => {
+                        if let Ok(data) = resp.json::<serde_json::Value>().await {
+                            if data.get("error").is_none() {
+                                let now = SystemTime::now()
+                                    .duration_since(UNIX_EPOCH)
+                                    .unwrap()
+                                    .as_secs_f64();
+                                let meta_score = data["meta_score"].as_f64().unwrap_or(0.0);
+                                let action = data["action"].as_str().unwrap_or("HOLD");
+                                let trained = data["is_trained"].as_bool().unwrap_or(false);
+                                debug!("{}: Agents meta={:.3} action={} trained={}",
+                                    self.symbol, meta_score, action, trained);
+
+                                let mut inner = self.inner.lock();
+                                inner.agent_scores = Some(data);
+                                inner.agent_timestamp = now;
+                            }
+                        }
+                    }
+                    _ => {
+                        debug!("{}: Agent sidecar request failed", self.symbol);
+                    }
+                }
+            }
+
+            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
         }
     }
 }

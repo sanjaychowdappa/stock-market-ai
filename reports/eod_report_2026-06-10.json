@@ -1,0 +1,184 @@
+{
+  "data_quality": {
+    "finetune_triggered": true,
+    "snapshots": 5375,
+    "tracker": {
+      "AAPL": {
+        "predictions": 5364,
+        "ticks": 5364,
+        "trades": 4
+      },
+      "AMZN": {
+        "predictions": 5371,
+        "ticks": 5371,
+        "trades": 0
+      },
+      "GOOGL": {
+        "predictions": 5371,
+        "ticks": 5371,
+        "trades": 2
+      },
+      "MSFT": {
+        "predictions": 5362,
+        "ticks": 5362,
+        "trades": 0
+      },
+      "NVDA": {
+        "predictions": 5374,
+        "ticks": 5374,
+        "trades": 0
+      }
+    }
+  },
+  "portfolio": {
+    "cash": 99.92,
+    "drawdown_pct": -0.08,
+    "initial_capital": 100.0,
+    "positions_value": -0.0,
+    "realized_pnl": -0.0824,
+    "target": {
+      "goal": "$100 → $150 challenge",
+      "progress_pct": 0.0,
+      "target_value": 150.0
+    },
+    "total_pnl": -0.0825,
+    "total_pnl_pct": -0.08,
+    "total_value": 99.92
+  },
+  "positions": [],
+  "recent_trades": [
+    {
+      "action": "SELL",
+      "pnl": 0.2693,
+      "pnl_pct": 0.28,
+      "price": 292.55,
+      "reason": "EOD_LIQUIDATION(3:55pm)",
+      "shares": 0.324509,
+      "symbol": "AAPL",
+      "time": "19:55:00",
+      "total": 94.94
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 291.72,
+      "reason": "ENTRY(s=0.472,K+,3of7)",
+      "shares": 0.3245087184194604,
+      "symbol": "AAPL",
+      "time": "19:49:58",
+      "total": 94.67
+    },
+    {
+      "action": "SELL",
+      "pnl": -0.1545,
+      "pnl_pct": -0.16,
+      "price": 355.36,
+      "reason": "TRAIL_STOP(-0.58% from peak,pnl=-0.16%)",
+      "shares": 0.266372,
+      "symbol": "GOOGL",
+      "time": "19:49:58",
+      "total": 94.66
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 355.94,
+      "reason": "ENTRY(s=0.349,K+,3of7)",
+      "shares": 0.2663722601182784,
+      "symbol": "GOOGL",
+      "time": "18:50:19",
+      "total": 94.81
+    },
+    {
+      "action": "SELL",
+      "pnl": -0.1973,
+      "pnl_pct": -0.21,
+      "price": 293.17,
+      "reason": "MOMENTUM_DEAD(sig=-0.45,pnl=-0.21%)",
+      "shares": 0.323371,
+      "symbol": "AAPL",
+      "time": "18:50:19",
+      "total": 94.8
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 293.78,
+      "reason": "ENTRY(s=0.223,K~,2of7)",
+      "shares": 0.32337123017223773,
+      "symbol": "AAPL",
+      "time": "18:40:38",
+      "total": 95.0
+    }
+  ],
+  "report": {
+    "date": "2026-06-10",
+    "generated_at": "2026-06-10T20:10:00.851059694+00:00",
+    "market_session": {
+      "close": "16:00 ET",
+      "open": "09:30 ET",
+      "status": "closed"
+    },
+    "type": "end_of_day"
+  },
+  "symbols": [
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 200.07,
+      "position_pnl": 0.0,
+      "signal_strength": -0.025087133345723947,
+      "symbol": "NVDA"
+    },
+    {
+      "direction": "bearish",
+      "in_position": false,
+      "last_price": 291.24,
+      "position_pnl": 0.0,
+      "signal_strength": -0.33350169017264913,
+      "symbol": "AAPL"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 396.84,
+      "position_pnl": 0.0,
+      "signal_strength": 0.3102699226329678,
+      "symbol": "MSFT"
+    },
+    {
+      "direction": "bearish",
+      "in_position": false,
+      "last_price": 355.91,
+      "position_pnl": 0.0,
+      "signal_strength": -0.3202670313356599,
+      "symbol": "GOOGL"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 237.84,
+      "position_pnl": 0.0,
+      "signal_strength": 0.15770816477568705,
+      "symbol": "AMZN"
+    }
+  ],
+  "trading_stats": {
+    "avg_hold_seconds": 1487,
+    "open_positions": 0,
+    "total_trades": 3,
+    "uptime_seconds": 5384,
+    "win_rate": 33.33,
+    "winning_trades": 1
+  },
+  "value_history": [
+    100.0,
+    99.80274369000001,
+    99.64824793000001,
+    99.91759040000001,
+    99.91751233617501
+  ]
+}

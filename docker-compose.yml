@@ -28,11 +28,14 @@ services:
               capabilities: [gpu]
     restart: unless-stopped
 
-  # ── Python Fine-Tune Sidecar (GPU, wakes at EOD) ────────────
+  # ── Python Fine-Tune + Agent Sidecar (GPU) ───────────────────
+  # Kronos inference on :8001, ML Agent predictions on :8002
   finetune-sidecar:
     build:
       context: ./backend-rust/finetune-sidecar
       dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
     env_file:
       - .env
     environment:
@@ -41,6 +44,7 @@ services:
     volumes:
       - model_data:/app/model_cache
       - ./backend-rust/scripts:/app/scripts
+      - ./reports:/app/reports
     deploy:
       resources:
         reservations:
@@ -49,33 +53,6 @@ services:
               count: 1
               capabilities: [gpu]
     restart: unless-stopped
-
-  # ── Python Backend (legacy, kept for fallback) ───────────────
-  backend-python:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "8001:8000"
-    environment:
-      - REDIS_URL=redis://redis:6379
-      - PYTHONUNBUFFERED=1
-      - HF_HOME=/app/model_cache
-      - NVIDIA_VISIBLE_DEVICES=all
-    depends_on:
-      - redis
-    volumes:
-      - model_data:/app/model_cache
-      - ./backend/app:/app/app
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    restart: unless-stopped
-    profiles: ["legacy"]
 
   frontend:
     build:

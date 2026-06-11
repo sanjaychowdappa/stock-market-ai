@@ -1,0 +1,49 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-06-10
+  Generated:  2026-06-10T20:10:00.851059694+00:00
+  Uptime:     1h 29m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $100.00
+  Current Value:    $99.92
+  Cash:             $99.92
+  Positions Value:  $-0.00
+  Total P&L:        -0.0825 (-0.08%)
+  Realized P&L:     $-0.0824
+  Challenge:        $100 → $150 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     3
+  Winning Trades:   1
+  Win Rate:         33.3%
+  Avg Hold Time:    1487s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $200.07     neutral     -0.025   —
+  AAPL     $291.24     bearish     -0.334   —
+  MSFT     $396.84     bullish     0.310    —
+  GOOGL    $355.91     bearish     -0.320   —
+  AMZN     $237.84     bullish     0.158    —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   AAPL     $292.55    $94.94   $0.2693    EOD_LIQUIDATION(3:55pm)
+  19:49:58  BUY    AAPL     $291.72    $94.67   $0.0000    ENTRY(s=0.472,K+,3of7)
+  19:49:58  SELL   GOOGL    $355.36    $94.66   $-0.1545   TRAIL_STOP(-0.58% from peak,pnl=-0.16%)
+  18:50:19  BUY    GOOGL    $355.94    $94.81   $0.0000    ENTRY(s=0.349,K+,3of7)
+  18:50:19  SELL   AAPL     $293.17    $94.80   $-0.1973   MOMENTUM_DEAD(sig=-0.45,pnl=-0.21%)
+  18:40:38  BUY    AAPL     $293.78    $95.00   $0.0000    ENTRY(s=0.223,K~,2of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

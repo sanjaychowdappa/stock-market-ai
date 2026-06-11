@@ -1,4 +1,3 @@
-pub mod ou_simulator;
 pub mod candle_buffer;
 pub mod pattern_recognition;
 pub mod pattern_scorer;

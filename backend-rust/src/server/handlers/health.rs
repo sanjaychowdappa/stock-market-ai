@@ -78,7 +78,7 @@ pub async fn institutional(State(state): State<Arc<AppState>>) -> Json<serde_jso
 pub async fn layer_monitor(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     let trader = state.trader.lock();
     if let Some(payload) = &trader.last_payload {
-        if let Some(monitor) = payload.get("layer_monitor") {
+        if let Some(monitor) = payload.get("agent_monitor") {
             return Json(monitor.clone());
         }
     }
