@@ -72,6 +72,9 @@ struct ShadowTrader {
     cooldowns: HashMap<String, Instant>,
     /// Layer weights: [kronos, kalman, pattern, cvd, vp, gex, cot]
     weights: [f64; 7],
+    /// Random-entry baseline: ignores all signals, enters by coin flip.
+    /// If the signal models can't beat this trader, the layers have no edge.
+    is_random: bool,
 }
 
 impl ShadowTrader {
@@ -86,7 +89,14 @@ impl ShadowTrader {
             daily_trades: 0,
             cooldowns: HashMap::new(),
             weights,
+            is_random: false,
         }
+    }
+
+    fn new_random(model_id: &str) -> Self {
+        let mut s = Self::new(model_id, [0.0; 7]);
+        s.is_random = true;
+        s
     }
 
     fn total_value(&self) -> f64 {
@@ -177,6 +187,8 @@ impl PaperTrader {
                          "description": "Control: all layers with current weights"},
                         {"id": "model_B_vp_heavy", "weights": [0.30, 0.0, 0.0, 0.0, 0.50, 0.10, 0.10],
                          "description": "VP-heavy: dropped Kalman/Pattern/CVD, boosted VP to 50%"},
+                        {"id": "model_C_random_baseline", "weights": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                         "description": "Null hypothesis: random coin-flip entries, same exits — the bar every signal model must beat"},
                     ]
                 });
                 let mut line = serde_json::to_string(&marker).unwrap_or_default();
@@ -212,6 +224,9 @@ impl PaperTrader {
                 // Model B: VP-heavy, drop Kalman/Pattern/CVD
                 // [kronos=0.30, kalman=0.0, pattern=0.0, cvd=0.0, vp=0.50, gex=0.10, cot=0.10]
                 ShadowTrader::new("model_B_vp_heavy", [0.30, 0.0, 0.0, 0.0, 0.50, 0.10, 0.10]),
+                // Model C: random-entry baseline — coin-flip entries, same exits.
+                // The null hypothesis: if A/B/real can't beat this, layers add nothing.
+                ShadowTrader::new_random("model_C_random_baseline"),
             ],
         }
     }
@@ -970,7 +985,16 @@ impl PaperTrader {
                 .map(|(w, s)| w * s)
                 .sum();
 
-            if weighted_score > MIN_BUY_SIGNAL && kronos_score >= -0.1 {
+            // Random baseline ignores every signal: ~0.1% chance per tick,
+            // which lands near the real trader's daily trade count once
+            // cooldowns and position limits apply.
+            let should_enter = if shadow.is_random {
+                rand::random::<f64>() < 0.001
+            } else {
+                weighted_score > MIN_BUY_SIGNAL && kronos_score >= -0.1
+            };
+
+            if should_enter {
                 let shadow_open = MAX_CONCURRENT_POSITIONS.saturating_sub(shadow.positions.len());
                 let per_slot = (shadow.cash / shadow_open as f64).min(shadow.total_value() * MAX_POSITION_PCT);
                 let shadow_conf = if weighted_score >= 0.40 { 1.0 }

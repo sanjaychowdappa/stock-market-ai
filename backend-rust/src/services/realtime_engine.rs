@@ -22,6 +22,19 @@ pub struct RealtimeEngine {
 struct EngineInner {
     buffer: CandleBuffer,
     kalman: PriceKalmanFilter,
+    /// Bar-based Kalman: fed one close per minute instead of every tick.
+    /// Tick-level velocity is dominated by microstructure noise — this is
+    /// the filter trading decisions read from.
+    kalman_1m: PriceKalmanFilter,
+    /// Completed 1-minute candles (seeded from Alpaca history at startup).
+    /// Pattern scoring runs on these, not on 1-second micro-candles.
+    minute_candles: Vec<Candle>,
+    cur_min: u64,
+    min_open: f64,
+    min_high: f64,
+    min_low: f64,
+    min_close: f64,
+    min_vol: f64,
     cvd: institutional_signals::CvdTracker,
     // Live market data from Alpaca
     live_price: f64,
@@ -47,6 +60,14 @@ impl RealtimeEngine {
             inner: Mutex::new(EngineInner {
                 buffer: CandleBuffer::new(),
                 kalman: PriceKalmanFilter::new(1.0, 0.01, 0.05),
+                kalman_1m: PriceKalmanFilter::new(1.0, 0.01, 0.05),
+                minute_candles: Vec::with_capacity(400),
+                cur_min: 0,
+                min_open: 0.0,
+                min_high: 0.0,
+                min_low: 0.0,
+                min_close: 0.0,
+                min_vol: 0.0,
                 cvd: institutional_signals::CvdTracker::new(),
                 live_price: 0.0,
                 live_atr: 0.0,
@@ -89,12 +110,51 @@ impl RealtimeEngine {
         if inner.live_price == 0.0 {
             inner.prev_close = price;
             inner.kalman = PriceKalmanFilter::default_for_stock(price);
+            // Don't reset kalman_1m here — it may already be seeded from history
+            if inner.kalman_1m.state().tick_count == 0 {
+                inner.kalman_1m = PriceKalmanFilter::default_for_stock(price);
+            }
         }
         inner.live_price = price;
 
-        // Feed Kalman filter and CVD tracker with every tick
+        // Feed tick Kalman (display only) and CVD tracker with every tick
         inner.kalman.process_tick(price);
         inner.cvd.process_tick(price, size);
+
+        // Aggregate ticks into 1-minute candles — the signal layer's input
+        let minute = (timestamp / 60.0) as u64;
+        if inner.cur_min == 0 {
+            inner.cur_min = minute;
+            inner.min_open = price;
+            inner.min_high = price;
+            inner.min_low = price;
+            inner.min_vol = 0.0;
+        } else if minute > inner.cur_min {
+            // Minute rolled over: commit the completed candle, advance the bar Kalman
+            let completed = Candle {
+                time: (inner.cur_min * 60) as f64,
+                open: inner.min_open,
+                high: inner.min_high,
+                low: inner.min_low,
+                close: inner.min_close,
+                volume: inner.min_vol,
+            };
+            inner.minute_candles.push(completed);
+            if inner.minute_candles.len() > 390 {
+                inner.minute_candles.remove(0);
+            }
+            let close = inner.min_close;
+            inner.kalman_1m.process_tick(close);
+            inner.cur_min = minute;
+            inner.min_open = price;
+            inner.min_high = price;
+            inner.min_low = price;
+            inner.min_vol = 0.0;
+        }
+        inner.min_high = inner.min_high.max(price);
+        inner.min_low = if inner.min_low == 0.0 { price } else { inner.min_low.min(price) };
+        inner.min_close = price;
+        inner.min_vol += size;
 
         // Feed into candle buffer
         let vol = inner.live_volume;
@@ -168,6 +228,42 @@ impl RealtimeEngine {
                 warn!("{}: Alpaca snapshot failed: {} — will init from first tick", self.symbol, e);
             }
         }
+
+        // Seed 1-min candle history + bar Kalman so pattern/trend signals
+        // are warm at startup instead of needing 2h of live data to fill.
+        match alpaca_stream::fetch_historical_bars(&self.symbol, 500).await {
+            Ok(bars) if bars.len() >= 10 => {
+                let mut inner = self.inner.lock();
+                for b in &bars {
+                    if let (Some(o), Some(h), Some(l), Some(c)) = (
+                        b["open"].as_f64(), b["high"].as_f64(),
+                        b["low"].as_f64(), b["close"].as_f64(),
+                    ) {
+                        let v = b["volume"].as_f64().unwrap_or(0.0);
+                        if inner.kalman_1m.state().tick_count == 0 {
+                            inner.kalman_1m = PriceKalmanFilter::default_for_stock(c);
+                        } else {
+                            inner.kalman_1m.process_tick(c);
+                        }
+                        inner.minute_candles.push(Candle {
+                            time: 0.0, open: o, high: h, low: l, close: c, volume: v,
+                        });
+                    }
+                }
+                let n = inner.minute_candles.len();
+                if n > 390 {
+                    inner.minute_candles.drain(0..n - 390);
+                }
+                info!("{}: seeded {} 1-min candles for bar-based signals",
+                    self.symbol, inner.minute_candles.len());
+            }
+            Ok(bars) => {
+                warn!("{}: only {} historical bars — signals will warm up live", self.symbol, bars.len());
+            }
+            Err(e) => {
+                warn!("{}: historical bar seed failed: {}", self.symbol, e);
+            }
+        }
     }
 
     /// Build and broadcast prediction payload at 1 Hz.
@@ -191,13 +287,21 @@ impl RealtimeEngine {
                     None
                 } else {
                     let candles: Vec<Candle> = inner.buffer.candles().iter().copied().collect();
-                    if candles.len() < 5 {
+                    if candles.len() < 5 || inner.minute_candles.len() < 10 {
                         None
                     } else {
-                        let pattern = pattern_scorer::compute(&candles);
+                        // Signals run on 1-minute bars: tick-level data is
+                        // microstructure noise (the Jun 11/12 accuracy data
+                        // showed every tick-fed layer at or below coin-flip).
+                        let pattern = pattern_scorer::compute(&inner.minute_candles);
                         let atr = inner.live_atr.max(price * 0.001);
-                        let ks = inner.kalman.state();
-                        let cvd_state = inner.cvd.state(price, ks.price_30s);
+                        let ks = inner.kalman_1m.state();
+                        // Linear extrapolation only — velocity is $/minute.
+                        // The old quadratic term predicted ±30% moves in 60s.
+                        let k_price_5s = ks.price + ks.velocity * (5.0 / 60.0);
+                        let k_price_30s = ks.price + ks.velocity * 0.5;
+                        let k_price_60s = ks.price + ks.velocity * 1.0;
+                        let cvd_state = inner.cvd.state(price, k_price_30s);
 
                         let predictions = build_predictions(
                             price, atr, &pattern,
@@ -237,14 +341,16 @@ impl RealtimeEngine {
                                 "filtered_price": ks.price,
                                 "velocity": ks.velocity,
                                 "acceleration": ks.acceleration,
-                                "momentum": ks.momentum,
-                                "momentum_change": ks.momentum_change,
+                                // Normalized to %-per-minute so downstream
+                                // thresholds are price-independent
+                                "momentum": ks.velocity / price * 100.0,
+                                "momentum_change": ks.acceleration / price * 100.0,
                                 "trend_strength": ks.trend_strength,
                                 "direction": ks.direction,
                                 "confidence": ks.confidence(),
-                                "price_5s": ks.price_5s,
-                                "price_30s": ks.price_30s,
-                                "price_60s": ks.price_60s,
+                                "price_5s": k_price_5s,
+                                "price_30s": k_price_30s,
+                                "price_60s": k_price_60s,
                                 "strong_trend": ks.has_strong_trend(),
                                 "momentum_building": ks.momentum_building(),
                                 "momentum_fading": ks.momentum_fading(),
@@ -267,6 +373,7 @@ impl RealtimeEngine {
                             },
                             "predictions": predictions,
                             "micro_candles": candles.len(),
+                            "bar_candles": inner.minute_candles.len(),
                             "kronos_age_seconds": now - inner.kronos_timestamp,
                             "agent_scores": inner.agent_scores.clone(),
                             "agent_age_seconds": now - inner.agent_timestamp,
