@@ -543,9 +543,14 @@ impl CvdTracker {
             0.0
         };
 
-        // Signal based on buy/sell pressure
-        let pressure_signal = ((buy_sell_ratio - 1.0) * 2.0).clamp(-1.0, 1.0);
-        let signal = pressure_signal * 0.6 + divergence * 0.4;
+        // Signal based on CVD momentum slope (not cumulative ratio which drifts bullish)
+        let momentum_signal = if self.cvd_history.len() >= 20 {
+            let recent_avg: f64 = self.cvd_history.iter().rev().take(10).sum::<f64>() / 10.0;
+            let older_avg: f64 = self.cvd_history.iter().rev().skip(10).take(10).sum::<f64>() / 10.0;
+            let slope = recent_avg - older_avg;
+            if total_vol > 0.0 { (slope / total_vol * 10.0).clamp(-1.0, 1.0) } else { 0.0 }
+        } else { 0.0 };
+        let signal = momentum_signal * 0.7 + divergence * 0.3;
 
         CvdState {
             cvd: self.cvd,

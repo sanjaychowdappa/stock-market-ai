@@ -57,16 +57,21 @@ pub fn compute(candles: &[Candle]) -> PatternScore {
     // 4. Micro-momentum
     let momentum_score = technical::micro_momentum(candles, 5);
 
-    // Weighted combination
+    // Weighted combination — require more candle data to reduce noise
+    let min_candles_bonus = if candles.len() >= 120 { 1.0 }
+        else if candles.len() >= 60 { 0.7 }
+        else { 0.4 };
+
     let signal = (0.40 * repeat_score
         + 0.20 * sr_score
         + 0.20 * momentum_score
         + 0.20 * candle_score)
-        .clamp(-1.0, 1.0);
+        .clamp(-1.0, 1.0) * min_candles_bonus;
 
-    let direction = if signal > 0.1 {
+    // Higher threshold to avoid noise: was 0.1, now 0.2
+    let direction = if signal > 0.2 {
         "bullish"
-    } else if signal < -0.1 {
+    } else if signal < -0.2 {
         "bearish"
     } else {
         "neutral"

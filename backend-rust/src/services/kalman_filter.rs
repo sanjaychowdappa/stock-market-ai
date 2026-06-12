@@ -226,10 +226,11 @@ impl PriceKalmanFilter {
             velocity_uncertainty,
             prediction_rmse: pred_accuracy,
 
-            // Direction
-            direction: if self.x[1] > velocity_uncertainty * 0.5 {
+            // Direction — require 2x uncertainty to declare direction (was 0.5x)
+            // At tick resolution, noise easily exceeds 0.5x. 2x means genuine sustained move.
+            direction: if self.x[1] > velocity_uncertainty * 2.0 {
                 "bullish"
-            } else if self.x[1] < -velocity_uncertainty * 0.5 {
+            } else if self.x[1] < -velocity_uncertainty * 2.0 {
                 "bearish"
             } else {
                 "neutral"

@@ -483,42 +483,40 @@ impl PaperTrader {
                 // Only HARD_STOP bypasses this — capital protection is always immediate.
                 let held_long_enough = pos.hold_seconds >= MIN_HOLD_SECS;
 
-                // === EXIT LOGIC — REACT FAST TO BEARISH SIGNALS ===
-                // Don't hold losers. If signals flip bearish, get out immediately.
+                // === EXIT LOGIC — VP-ANCHORED (fixed based on accuracy data) ===
+                // VP is 72.6% accurate. Kalman/Pattern fire false bearish constantly.
+                // Require VP confirmation for bearish exits, not just noisy layers.
 
-                let bearish_count = [
-                    k_fading,
-                    signal < -0.15,
-                    cvd_sig < -0.5,
-                    vp_sig < -0.5,
-                    cvd_bearish,
-                    at_resistance,
+                let vp_bearish = vp_sig < -0.3 || at_resistance;
+                let strong_bearish = [
+                    vp_bearish,      // VP: proven reliable
+                    k_fading && k_momentum.abs() > 0.1, // Kalman: only when clearly fading
+                    cvd_bearish,     // CVD: sellers dominating
                 ].iter().filter(|&&b| b).count();
 
                 // 1. HARD STOP — protect capital, IMMEDIATE
                 if pnl_pct <= HARD_STOP_PCT {
                     Some("HARD_STOP".to_string())
                 }
-                // 2. BEARISH SIGNAL — exit immediately, don't wait
-                // If 2+ layers are bearish, dump the position regardless of hold time
-                else if bearish_count >= 2 && pnl_pct < 0.0 {
-                    Some(format!("BEARISH_EXIT({}signals,pnl={:.2}%)", bearish_count, pnl_pct))
+                // 2. VP-CONFIRMED BEARISH — VP must agree + one other signal
+                else if vp_bearish && strong_bearish >= 2 && pnl_pct < -0.05 {
+                    Some(format!("BEARISH_EXIT({}signals,vp_confirmed,pnl={:.2}%)", strong_bearish, pnl_pct))
                 }
                 // 3. TAKE PROFIT — hit our 2% target
                 else if held_long_enough && pnl_pct >= TAKE_PROFIT_PCT {
                     Some(format!("TAKE_PROFIT({:.2}%)", pnl_pct))
                 }
-                // 4. BEARISH WHILE WINNING — lock profits if 3+ layers flip
-                else if bearish_count >= 3 && pnl_pct > 0.0 && held_long_enough {
-                    Some(format!("BEARISH_PROFIT_LOCK({}signals,pnl={:.2}%)", bearish_count, pnl_pct))
+                // 4. VP RESISTANCE — overbought per volume profile, lock any gains
+                else if at_resistance && pnl_pct > 0.1 && held_long_enough {
+                    Some(format!("VP_PROFIT_LOCK(pnl={:.2}%)", pnl_pct))
                 }
                 // 5. TRAILING STOP — protect gains from peak
                 else if drawdown <= -TRAILING_STOP_PCT && held_long_enough
                     && pnl_pct < 0.0 {
                     Some(format!("TRAIL_STOP({:.2}% from peak,pnl={:.2}%)", drawdown, pnl_pct))
                 }
-                // 6. MOMENTUM COLLAPSE — all signals dead + losing
-                else if momentum_dead && pnl_pct < -0.1 {
+                // 6. MOMENTUM COLLAPSE — sustained dead momentum + losing
+                else if momentum_dead && pnl_pct < -0.2 {
                     Some(format!("MOMENTUM_DEAD(sig={:.2},pnl={:.2}%)", signal, pnl_pct))
                 }
                 // 7. FLAT EXIT — going nowhere after 15 min
@@ -605,81 +603,95 @@ impl PaperTrader {
             let (kalman_score, pattern_score, cvd_score, vp_score, gex_score, cot_score, score, scoring_source);
 
             if use_ml {
-                // ══ ML AGENT SCORING (trained models from sidecar) ══
                 let ml = data.ml_agent_scores.as_ref().unwrap();
                 kalman_score = ml.momentum;
                 pattern_score = ml.pattern;
                 cvd_score = ml.flow;
                 vp_score = ml.level;
-                // Split sentiment into gex + cot for compatibility
                 gex_score = ml.sentiment * 0.6;
                 cot_score = ml.sentiment * 0.4;
-                // Meta agent already learned optimal weighting — use its score directly
-                // but blend with kronos_score since meta doesn't have fresh kronos bias
                 score = ml.meta_score * 0.75 + kronos_score * 0.25;
                 scoring_source = "ML";
             } else {
-                // ══ HARDCODED FALLBACK SCORING ══
-                // ── Kalman Filter ──
-                let kalman_dir_score = match data.kalman_direction.as_str() {
-                    "bullish" => 0.5, "neutral" => 0.0, "bearish" => -0.5, _ => 0.0,
-                };
-                let kalman_mom_score = if data.kalman_momentum_fading {
-                    -0.3
+                // ══ FIXED SCORING — based on Jun 11 accuracy analysis ══
+
+                // ── Kalman: require SUSTAINED momentum, not single-tick noise ──
+                // Old: direction alone gave 0.5. Now: need strong trend + building momentum.
+                let kalman_sustained = data.kalman_trend_strength > 1.5
+                    && data.kalman_momentum_building
+                    && !data.kalman_momentum_fading;
+                kalman_score = if kalman_sustained && data.kalman_direction == "bullish" {
+                    0.4
+                } else if kalman_sustained && data.kalman_direction == "bearish" {
+                    -0.4
+                } else if data.kalman_momentum_fading {
+                    -0.2
                 } else {
-                    (data.kalman_momentum.max(-1.0).min(1.0)) * 0.3
+                    0.0 // Neutral unless momentum is clearly sustained
                 };
-                let kalman_conf_bonus = (data.kalman_confidence - 0.5).max(0.0) * 0.4;
-                kalman_score = (kalman_dir_score + kalman_mom_score + kalman_conf_bonus)
-                    .max(-1.0).min(1.0);
 
-                // ── Pattern Recognition ──
-                let hist_score = self.signal_history.get(sym).map_or(0.0, |hist| {
-                    if hist.len() < 3 { return -0.2; }
-                    let recent: Vec<f64> = hist.iter().rev().take(5).cloned().collect();
-                    let pos = recent.iter().filter(|&&s| s > 0.005).count() as f64;
-                    let neg = recent.iter().filter(|&&s| s < -0.005).count() as f64;
-                    (pos - neg) / recent.len() as f64
+                // ── Pattern: require strong, consistent signals across history ──
+                // Old: multiplied raw signal by 3x, catching noise. Now: need majority agreement.
+                let hist_consensus = self.signal_history.get(sym).map_or(0.0, |hist| {
+                    if hist.len() < 5 { return 0.0; }
+                    let recent: Vec<f64> = hist.iter().rev().take(10).cloned().collect();
+                    let pos = recent.iter().filter(|&&s| s > 0.02).count() as f64;
+                    let neg = recent.iter().filter(|&&s| s < -0.02).count() as f64;
+                    let total = recent.len() as f64;
+                    // Need 70%+ agreement for a signal
+                    if pos / total >= 0.7 { 0.5 }
+                    else if neg / total >= 0.7 { -0.5 }
+                    else { 0.0 }
                 });
-                pattern_score = ((data.pattern_signal * 3.0).max(-1.0).min(1.0) * 0.6
-                    + hist_score * 0.4).max(-1.0).min(1.0);
+                let raw_pattern = data.pattern_signal;
+                // Only trust pattern if both raw signal AND history agree
+                pattern_score = if raw_pattern > 0.1 && hist_consensus > 0.0 {
+                    (raw_pattern * 2.0).min(0.6)
+                } else if raw_pattern < -0.1 && hist_consensus < 0.0 {
+                    (raw_pattern * 2.0).max(-0.6)
+                } else {
+                    0.0 // Conflicting or weak — don't trust
+                };
 
-                // ── CVD / Order Flow ──
-                cvd_score = if data.cvd_signal > 0.5 { 1.0 }
-                    else if data.cvd_signal > 0.1 { 0.5 }
-                    else if data.cvd_signal > -0.1 { 0.0 }
-                    else if data.cvd_signal > -0.3 { -0.4 }
-                    else { -0.8 };
+                // ── CVD: use momentum slope, not cumulative ratio ──
+                // Old: buy_sell_ratio drifts bullish over time. Now: require clear momentum shift.
+                let cvd_strong_buy = data.cvd_signal > 0.5 && data.cvd_buy_sell_ratio > 1.3;
+                let cvd_strong_sell = data.cvd_signal < -0.3 && data.cvd_buy_sell_ratio < 0.7;
+                cvd_score = if cvd_strong_buy { 0.5 }
+                    else if cvd_strong_sell { -0.5 }
+                    else { 0.0 }; // Neutral unless signal is extreme
 
-                // ── Volume Profile ──
-                vp_score = if data.vp_position == "above_value" && data.vp_signal < -0.2 { -0.7 }
-                    else if data.vp_position == "below_value" && data.vp_signal > 0.1 { 0.6 }
-                    else { data.vp_signal.max(-1.0).min(1.0) * 0.3 };
+                // ── Volume Profile: proven 72.6% accurate — trust it fully ──
+                vp_score = if data.vp_position == "above_value" && data.vp_signal < -0.2 { -0.8 }
+                    else if data.vp_position == "below_value" && data.vp_signal > 0.1 { 0.7 }
+                    else if data.vp_position == "at_poc" { 0.3 }
+                    else { data.vp_signal.max(-1.0).min(1.0) * 0.4 };
 
                 // ── GEX ──
-                gex_score = if data.gex_regime == "short_gamma" { 0.5 }
-                    else if data.gex_regime == "long_gamma" { -0.2 }
-                    else { data.gex_signal.max(-1.0).min(1.0) * 0.3 };
+                gex_score = if data.gex_regime == "short_gamma" { 0.4 }
+                    else if data.gex_regime == "long_gamma" { -0.3 }
+                    else { 0.0 };
 
-                // ── COT ──
-                cot_score = data.cot_signal.max(-1.0).min(1.0) * 0.5;
+                // ── COT ── (weekly data, rarely useful intraday)
+                cot_score = 0.0;
 
-                // ── Weighted sum ──
-                let agent_weights: [f64; 7] = [0.25, 0.25, 0.15, 0.15, 0.08, 0.06, 0.06];
+                // ── Weighted sum: VP dominates, unreliable layers reduced ──
+                // Old: [0.25, 0.25, 0.15, 0.15, 0.08, 0.06, 0.06]
+                // New: VP 35%, Kronos 25%, GEX 15%, Kalman 10%, Pattern 5%, CVD 5%, COT 5%
+                let agent_weights: [f64; 7] = [0.25, 0.10, 0.05, 0.05, 0.35, 0.15, 0.05];
                 let agent_scores_arr = [kronos_score, kalman_score, pattern_score, cvd_score, vp_score, gex_score, cot_score];
                 score = agent_weights.iter().zip(agent_scores_arr.iter())
                     .map(|(w, s)| w * s).sum();
                 scoring_source = "RULES";
             }
 
-            // Agent scores array for reporting
             let agent_weights: [(&str, f64, f64); 7] = [
                 ("Kronos",  0.25, kronos_score),
-                ("Kalman",  0.25, kalman_score),
-                ("Pattern", 0.15, pattern_score),
-                ("CVD",     0.15, cvd_score),
-                ("VP",      0.08, vp_score),
-                ("GEX",     0.06, gex_score),
+                ("Kalman",  0.10, kalman_score),
+                ("Pattern", 0.05, pattern_score),
+                ("CVD",     0.05, cvd_score),
+                ("VP",      0.35, vp_score),
+                ("GEX",     0.15, gex_score),
                 ("COT",     0.06, cot_score),
             ];
 
@@ -713,11 +725,11 @@ impl PaperTrader {
                 continue;
             }
 
-            // ── HARD VETO 3: pattern strongly against ──
-            if pattern_score < -0.25 {
-                info!("[PATTERN_VETO] {} — pattern={:.2} too bearish: {}", sym, pattern_score, agent_report);
+            // ── HARD VETO 3: VP strongly against (proven 72.6% accurate) ──
+            if vp_score < -0.5 {
+                info!("[VP_VETO] {} — vp={:.2} overbought: {}", sym, vp_score, agent_report);
                 self.layer_blocks.consensus += 1;
-                vetoes.push((sym.clone(), data.price, score, "PATTERN_VETO"));
+                vetoes.push((sym.clone(), data.price, score, "VP_VETO"));
                 continue;
             }
 
@@ -810,7 +822,7 @@ impl PaperTrader {
         let price = data.price;
         let kronos_bias = *self.kronos_daily_bias.get(symbol).unwrap_or(&0.0);
 
-        // Compute raw layer scores (same as main trader)
+        // Compute raw layer scores (same fixed logic as main trader)
         let kronos_score = if !data.kronos_active { 0.0 }
             else if kronos_bias > 0.10 { 1.0 }
             else if kronos_bias > 0.03 { 0.6 }
@@ -818,39 +830,47 @@ impl PaperTrader {
             else if kronos_bias > -0.10 { -0.4 }
             else { -1.0 };
 
-        let kalman_dir_score = match data.kalman_direction.as_str() {
-            "bullish" => 0.5, "bearish" => -0.5, _ => 0.0,
-        };
-        let kalman_mom_score = if data.kalman_momentum_fading { -0.3 }
-            else { (data.kalman_momentum.max(-1.0).min(1.0)) * 0.3 };
-        let kalman_conf_bonus = (data.kalman_confidence - 0.5).max(0.0) * 0.4;
-        let kalman_score = (kalman_dir_score + kalman_mom_score + kalman_conf_bonus).max(-1.0).min(1.0);
+        let kalman_sustained = data.kalman_trend_strength > 1.5
+            && data.kalman_momentum_building
+            && !data.kalman_momentum_fading;
+        let kalman_score = if kalman_sustained && data.kalman_direction == "bullish" { 0.4 }
+            else if kalman_sustained && data.kalman_direction == "bearish" { -0.4 }
+            else if data.kalman_momentum_fading { -0.2 }
+            else { 0.0 };
 
-        let hist_score = self.signal_history.get(symbol).map_or(0.0, |hist| {
-            if hist.len() < 3 { return -0.2; }
-            let recent: Vec<f64> = hist.iter().rev().take(5).cloned().collect();
-            let pos = recent.iter().filter(|&&s| s > 0.005).count() as f64;
-            let neg = recent.iter().filter(|&&s| s < -0.005).count() as f64;
-            (pos - neg) / recent.len() as f64
+        let hist_consensus = self.signal_history.get(symbol).map_or(0.0, |hist| {
+            if hist.len() < 5 { return 0.0; }
+            let recent: Vec<f64> = hist.iter().rev().take(10).cloned().collect();
+            let pos = recent.iter().filter(|&&s| s > 0.02).count() as f64;
+            let neg = recent.iter().filter(|&&s| s < -0.02).count() as f64;
+            let total = recent.len() as f64;
+            if pos / total >= 0.7 { 0.5 }
+            else if neg / total >= 0.7 { -0.5 }
+            else { 0.0 }
         });
-        let pattern_score = ((data.pattern_signal * 3.0).max(-1.0).min(1.0) * 0.6
-            + hist_score * 0.4).max(-1.0).min(1.0);
+        let raw_pattern = data.pattern_signal;
+        let pattern_score = if raw_pattern > 0.1 && hist_consensus > 0.0 {
+            (raw_pattern * 2.0).min(0.6)
+        } else if raw_pattern < -0.1 && hist_consensus < 0.0 {
+            (raw_pattern * 2.0).max(-0.6)
+        } else { 0.0 };
 
-        let cvd_score = if data.cvd_signal > 0.5 { 1.0 }
-            else if data.cvd_signal > 0.1 { 0.5 }
-            else if data.cvd_signal > -0.1 { 0.0 }
-            else if data.cvd_signal > -0.3 { -0.4 }
-            else { -0.8 };
+        let cvd_strong_buy = data.cvd_signal > 0.5 && data.cvd_buy_sell_ratio > 1.3;
+        let cvd_strong_sell = data.cvd_signal < -0.3 && data.cvd_buy_sell_ratio < 0.7;
+        let cvd_score = if cvd_strong_buy { 0.5 }
+            else if cvd_strong_sell { -0.5 }
+            else { 0.0 };
 
-        let vp_score = if data.vp_position == "above_value" && data.vp_signal < -0.2 { -0.7 }
-            else if data.vp_position == "below_value" && data.vp_signal > 0.1 { 0.6 }
-            else { data.vp_signal.max(-1.0).min(1.0) * 0.3 };
+        let vp_score = if data.vp_position == "above_value" && data.vp_signal < -0.2 { -0.8 }
+            else if data.vp_position == "below_value" && data.vp_signal > 0.1 { 0.7 }
+            else if data.vp_position == "at_poc" { 0.3 }
+            else { data.vp_signal.max(-1.0).min(1.0) * 0.4 };
 
-        let gex_score = if data.gex_regime == "short_gamma" { 0.5 }
-            else if data.gex_regime == "long_gamma" { -0.2 }
-            else { data.gex_signal.max(-1.0).min(1.0) * 0.3 };
+        let gex_score = if data.gex_regime == "short_gamma" { 0.4 }
+            else if data.gex_regime == "long_gamma" { -0.3 }
+            else { 0.0 };
 
-        let cot_score = data.cot_signal.max(-1.0).min(1.0) * 0.5;
+        let cot_score = 0.0;
 
         let raw_scores = [kronos_score, kalman_score, pattern_score, cvd_score, vp_score, gex_score, cot_score];
 
