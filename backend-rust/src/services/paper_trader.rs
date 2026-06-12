@@ -45,6 +45,11 @@ pub struct PaperTrader {
     /// Track vetoed entries to check if they were missed opportunities
     veto_log: VecDeque<VetoEntry>,
     last_veto_check: Instant,
+    /// Daily circuit breaker state: portfolio value at day start and
+    /// whether the -2% loss limit has tripped (blocks new entries only).
+    day_start_value: f64,
+    last_trading_date: String,
+    circuit_breaker_tripped: bool,
     /// Shadow models for A/B testing different layer weights
     shadow_traders: Vec<ShadowTrader>,
 }
@@ -217,6 +222,9 @@ impl PaperTrader {
             layer_blocks: LayerBlockCounters::default(),
             veto_log: VecDeque::with_capacity(100),
             last_veto_check: Instant::now(),
+            day_start_value: INITIAL_CASH,
+            last_trading_date: String::new(),
+            circuit_breaker_tripped: false,
             shadow_traders: vec![
                 // Model A: current weights (control)
                 // [kronos=0.25, kalman=0.25, pattern=0.15, cvd=0.15, vp=0.08, gex=0.06, cot=0.06]
@@ -412,6 +420,17 @@ impl PaperTrader {
         let et_mins = et_hour * 60 + et_minute;
         let eod_liquidation = et_mins >= 15 * 60 + 55; // 3:55 PM ET
 
+        // New trading day: reset circuit breaker and daily counters
+        let et_date = (utc_now - chrono::Duration::hours(offset_hours)).date_naive().to_string();
+        if self.last_trading_date != et_date {
+            self.last_trading_date = et_date.clone();
+            self.day_start_value = self.total_value();
+            self.circuit_breaker_tripped = false;
+            self.daily_trades = 0;
+            for shadow in &mut self.shadow_traders { shadow.daily_trades = 0; }
+            info!("[NEW_DAY] {} — day start value ${:.2}, circuit breaker reset", et_date, self.day_start_value);
+        }
+
         if eod_liquidation && self.positions.contains_key(symbol) {
             info!("[EOD_CLOSE] {} — liquidating before market close ({}:{})", symbol, et_hour, et_minute);
             self.sell(symbol, "EOD_LIQUIDATION(3:55pm)");
@@ -448,9 +467,23 @@ impl PaperTrader {
 
         self.manage_position(symbol);
 
+        // Daily circuit breaker: once the day is down 2%, stop opening new
+        // positions (exits keep running). Prevents grinding losses all day
+        // when the market regime doesn't match the model.
+        let day_pnl_pct = if self.day_start_value > 0.0 {
+            (self.total_value() - self.day_start_value) / self.day_start_value * 100.0
+        } else { 0.0 };
+        if day_pnl_pct <= DAILY_LOSS_LIMIT_PCT && !self.circuit_breaker_tripped {
+            self.circuit_breaker_tripped = true;
+            info!("[CIRCUIT_BREAKER] Day P&L {:.2}% hit the {:.1}% limit — no new entries until tomorrow",
+                day_pnl_pct, DAILY_LOSS_LIMIT_PCT);
+        }
+
         // Don't open new positions in last 10 minutes
         if et_mins >= 15 * 60 + 50 { return; }
-        self.find_best_entry();
+        if !self.circuit_breaker_tripped {
+            self.find_best_entry();
+        }
 
         // Check for missed opportunities every 60s
         if self.last_veto_check.elapsed().as_secs() >= 60 {
@@ -463,10 +496,23 @@ impl PaperTrader {
     }
 
     fn manage_position(&mut self, symbol: &str) {
+        // Partial profit booking: sell half at +PARTIAL_PROFIT_PCT, let the
+        // rest run behind the trailing stop. (TAKE_PROFIT at +2% never fires
+        // intraday — this actually captures the winners.)
+        let book_partial = self.positions.get(symbol).map_or(false, |pos| {
+            !pos.partial_taken
+                && pos.unrealized_pnl_pct() >= PARTIAL_PROFIT_PCT
+                && pos.hold_seconds >= MIN_HOLD_SECS
+        });
+        if book_partial {
+            self.sell_partial(symbol, 0.5);
+        }
+
         let should_sell = {
             if let Some(pos) = self.positions.get(symbol) {
                 let pnl_pct = pos.unrealized_pnl_pct();
                 let drawdown = pos.trailing_drawdown_pct();
+                let partial_taken = pos.partial_taken;
                 let data = self.market_data.get(symbol);
                 let signal = data.map(|d| d.pattern_signal).unwrap_or(0.0);
                 let k_fading = data.map(|d| d.kalman_momentum_fading).unwrap_or(false);
@@ -525,9 +571,10 @@ impl PaperTrader {
                 else if at_resistance && pnl_pct > 0.1 && held_long_enough {
                     Some(format!("VP_PROFIT_LOCK(pnl={:.2}%)", pnl_pct))
                 }
-                // 5. TRAILING STOP — protect gains from peak
+                // 5. TRAILING STOP — protect gains from peak. After a partial
+                // booking, the runner exits on drawdown even while in profit.
                 else if drawdown <= -TRAILING_STOP_PCT && held_long_enough
-                    && pnl_pct < 0.0 {
+                    && (pnl_pct < 0.0 || partial_taken) {
                     Some(format!("TRAIL_STOP({:.2}% from peak,pnl={:.2}%)", drawdown, pnl_pct))
                 }
                 // 6. MOMENTUM COLLAPSE — sustained dead momentum + deeper loss
@@ -1046,6 +1093,48 @@ impl PaperTrader {
                 }
             }
         }
+    }
+
+    /// Sell a fraction of the position at market, keep the rest running.
+    /// Locks in profit without giving up the trade's remaining upside.
+    fn sell_partial(&mut self, symbol: &str, fraction: f64) {
+        let (sold_shares, price, sold_value, sold_pnl, pnl_pct) = {
+            let pos = match self.positions.get_mut(symbol) {
+                Some(p) => p,
+                None => return,
+            };
+            let sold_shares = pos.shares * fraction;
+            let sold_value = sold_shares * pos.current_price;
+            let sold_pnl = (pos.current_price - pos.entry_price) * sold_shares;
+            let pnl_pct = pos.unrealized_pnl_pct();
+            pos.shares -= sold_shares;
+            pos.partial_taken = true;
+            (sold_shares, pos.current_price, sold_value, sold_pnl, pnl_pct)
+        };
+
+        self.cash += sold_value;
+        self.realized_pnl += sold_pnl;
+        // Not counted as a winning trade — the final close decides that.
+
+        info!(
+            "PAPER: PARTIAL SELL {:.4} {} @ ${:.2} PnL: ${:.4} ({:.3}%) — half booked, runner trails",
+            sold_shares, symbol, price, sold_pnl, pnl_pct
+        );
+
+        let trade = Trade {
+            symbol: symbol.to_string(),
+            action: "SELL".into(),
+            shares: sold_shares,
+            price,
+            value: sold_value,
+            pnl: Some(sold_pnl),
+            pnl_pct: Some(pnl_pct),
+            reason: format!("PARTIAL_PROFIT(+{:.2}%,half)", pnl_pct),
+            time: Local::now().format("%H:%M:%S").to_string(),
+            hold_seconds: None,
+        };
+        if self.trades.len() >= 500 { self.trades.pop_front(); }
+        self.trades.push_back(trade);
     }
 
     fn sell(&mut self, symbol: &str, reason: &str) {

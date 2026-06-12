@@ -27,6 +27,15 @@ pub const TAKE_PROFIT_PCT: f64 = 2.0;
 
 pub const TRADE_COOLDOWN_SECS: u64 = 120;
 
+/// Daily circuit breaker: stop opening new positions once the day's loss
+/// hits this percentage of the day's starting value. Existing positions
+/// still run their normal exits. (Prop-desk standard risk rule.)
+pub const DAILY_LOSS_LIMIT_PCT: f64 = -2.0;
+
+/// Partial profit booking: sell half the position at this gain and let
+/// the remainder run behind the trailing stop.
+pub const PARTIAL_PROFIT_PCT: f64 = 0.5;
+
 pub const MAX_CONCURRENT_POSITIONS: usize = 5;
 
 pub const MOMENTUM_WINDOW: usize = 5;

@@ -27,6 +27,9 @@ pub struct Position {
     pub current_price: f64,
     pub high_price: f64,
     pub hold_seconds: u64,
+    /// True once half the position was sold at PARTIAL_PROFIT_PCT —
+    /// the remainder rides with trailing-stop protection.
+    pub partial_taken: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub entry_prediction: Option<EntryPrediction>,
 }
@@ -41,6 +44,7 @@ impl Position {
             current_price: entry_price,
             high_price: entry_price,
             hold_seconds: 0,
+            partial_taken: false,
             entry_prediction: None,
         }
     }
