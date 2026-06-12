@@ -13,7 +13,7 @@ pub const TOP_SYMBOLS: &[&str] = &["NVDA", "AAPL", "MSFT", "GOOGL", "AMZN"];
 
 pub const INITIAL_CASH: f64 = 500.0;
 
-pub const MAX_POSITION_PCT: f64 = 0.20;
+pub const MAX_POSITION_PCT: f64 = 0.25;
 
 pub const MIN_BUY_SIGNAL: f64 = 0.15;
 pub const STRONG_BUY_SIGNAL: f64 = 0.25;
@@ -37,7 +37,7 @@ pub const MAX_DAILY_TRADES: u32 = 999;
 
 pub const MIN_PREDICTED_MOVE_PCT: f64 = 0.012;
 
-pub const MIN_HOLD_SECS: u64 = 120;
+pub const MIN_HOLD_SECS: u64 = 200;
 
 /// OU simulator parameters
 pub const OU_THETA: f64 = 0.15;

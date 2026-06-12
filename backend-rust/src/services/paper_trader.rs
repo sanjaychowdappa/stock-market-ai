@@ -515,8 +515,8 @@ impl PaperTrader {
                     && pnl_pct < 0.0 {
                     Some(format!("TRAIL_STOP({:.2}% from peak,pnl={:.2}%)", drawdown, pnl_pct))
                 }
-                // 6. MOMENTUM COLLAPSE — sustained dead momentum + losing
-                else if momentum_dead && pnl_pct < -0.2 {
+                // 6. MOMENTUM COLLAPSE — sustained dead momentum + deeper loss
+                else if momentum_dead && pnl_pct < -0.35 {
                     Some(format!("MOMENTUM_DEAD(sig={:.2},pnl={:.2}%)", signal, pnl_pct))
                 }
                 // 7. FLAT EXIT — going nowhere after 15 min
@@ -561,8 +561,9 @@ impl PaperTrader {
         if self.daily_trades >= MAX_DAILY_TRADES { return; }
         if self.positions.len() >= MAX_CONCURRENT_POSITIONS { return; }
 
-        let total_value = self.total_value();
-        let per_slot = total_value * MAX_POSITION_PCT;
+        let open_slots_available = MAX_CONCURRENT_POSITIONS.saturating_sub(self.positions.len());
+        // Divide available cash evenly across remaining slots so full budget gets deployed
+        let per_slot = (self.cash / open_slots_available as f64).min(self.total_value() * MAX_POSITION_PCT);
         if self.cash < 2.0 { return; }
 
         let mut candidates: Vec<(String, f64, String, usize, EntryPrediction)> = Vec::new();
@@ -577,8 +578,12 @@ impl PaperTrader {
             }
 
             // ══ AGENT-BASED SCORING ══
-            // Uses ML sidecar scores when available, falls back to hardcoded rules
             let kronos_bias = *self.kronos_daily_bias.get(sym).unwrap_or(&0.0);
+
+            // Skip symbols Kronos daily ranking flags bearish (bias < -0.03%)
+            if kronos_bias < -0.03 {
+                continue;
+            }
 
             // ── AGENT 1: Kronos Transformer (always hardcoded — it IS the ML model) ──
             let kronos_score = if !data.kronos_active {
@@ -675,10 +680,9 @@ impl PaperTrader {
                 // ── COT ── (weekly data, rarely useful intraday)
                 cot_score = 0.0;
 
-                // ── Weighted sum: VP dominates, unreliable layers reduced ──
-                // Old: [0.25, 0.25, 0.15, 0.15, 0.08, 0.06, 0.06]
-                // New: VP 35%, Kronos 25%, GEX 15%, Kalman 10%, Pattern 5%, CVD 5%, COT 5%
-                let agent_weights: [f64; 7] = [0.25, 0.10, 0.05, 0.05, 0.35, 0.15, 0.05];
+                // ── Weighted sum: VP dominates based on Jun 12 accuracy data ──
+                // VP 45%, Kronos 20%, GEX 10%, Kalman 10%, Pattern 5%, CVD 5%, COT 5%
+                let agent_weights: [f64; 7] = [0.20, 0.10, 0.05, 0.05, 0.45, 0.10, 0.05];
                 let agent_scores_arr = [kronos_score, kalman_score, pattern_score, cvd_score, vp_score, gex_score, cot_score];
                 score = agent_weights.iter().zip(agent_scores_arr.iter())
                     .map(|(w, s)| w * s).sum();
@@ -686,13 +690,13 @@ impl PaperTrader {
             }
 
             let agent_weights: [(&str, f64, f64); 7] = [
-                ("Kronos",  0.25, kronos_score),
+                ("Kronos",  0.20, kronos_score),
                 ("Kalman",  0.10, kalman_score),
                 ("Pattern", 0.05, pattern_score),
                 ("CVD",     0.05, cvd_score),
-                ("VP",      0.35, vp_score),
-                ("GEX",     0.15, gex_score),
-                ("COT",     0.06, cot_score),
+                ("VP",      0.45, vp_score),
+                ("GEX",     0.10, gex_score),
+                ("COT",     0.05, cot_score),
             ];
 
             let bullish_agents: Vec<&str> = agent_weights.iter()
@@ -777,14 +781,18 @@ impl PaperTrader {
             let price = self.market_data[best_sym].price;
             let bias = *self.kronos_daily_bias.get(best_sym.as_str()).unwrap_or(&0.0);
 
-            let alloc = per_slot.min(self.cash);
+            // Confidence-scaled sizing: stronger signal = bigger position
+            let confidence_scale = if *score >= 0.40 { 1.0 }
+                else if *score >= 0.25 { 0.75 }
+                else { 0.50 };
+            let alloc = (per_slot * confidence_scale).min(self.cash);
 
             let shares = alloc / price;
             if shares * price >= 1.0 {
                 let bias_tag = if bias > 0.05 { "K+" } else if bias > -0.02 { "K~" } else { "K-" };
                 info!(
-                    "PAPER: BUY {:.4} {} @ ${:.2} = ${:.2} (score={:.3}, bias={:.3}% [{}])",
-                    shares, best_sym, price, shares * price, score, bias, bias_tag
+                    "PAPER: BUY {:.4} {} @ ${:.2} = ${:.2} (score={:.3}, conf={:.0}%, bias={:.3}% [{}])",
+                    shares, best_sym, price, shares * price, score, confidence_scale * 100.0, bias, bias_tag
                 );
                 info!("  LAYERS: {}", layer_report);
 
@@ -963,8 +971,12 @@ impl PaperTrader {
                 .sum();
 
             if weighted_score > MIN_BUY_SIGNAL && kronos_score >= -0.1 {
-                let per_slot = shadow.total_value() * MAX_POSITION_PCT;
-                let alloc = per_slot.min(shadow.cash);
+                let shadow_open = MAX_CONCURRENT_POSITIONS.saturating_sub(shadow.positions.len());
+                let per_slot = (shadow.cash / shadow_open as f64).min(shadow.total_value() * MAX_POSITION_PCT);
+                let shadow_conf = if weighted_score >= 0.40 { 1.0 }
+                    else if weighted_score >= 0.25 { 0.75 }
+                    else { 0.50 };
+                let alloc = (per_slot * shadow_conf).min(shadow.cash);
                 let shares = alloc / price;
                 if shares * price >= 1.0 {
                     shadow.cash -= shares * price;
