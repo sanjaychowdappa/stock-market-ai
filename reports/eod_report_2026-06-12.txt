@@ -1,0 +1,63 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-06-12
+  Generated:  2026-06-12T20:10:01.057546120+00:00
+  Uptime:     5h 7m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $500.00
+  Current Value:    $500.67
+  Cash:             $500.67
+  Positions Value:  $-0.00
+  Total P&L:        +0.6678 (+0.13%)
+  Realized P&L:     $0.6681
+  Challenge:        $100 → $150 (0.7% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     55
+  Winning Trades:   30
+  Win Rate:         54.5%
+  Avg Hold Time:    754s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $205.11     neutral     0.054    —
+  AAPL     $291.18     bearish     -0.229   —
+  MSFT     $390.90     bearish     -0.240   —
+  GOOGL    $359.67     neutral     0.095    —
+  AMZN     $238.30     bullish     0.305    —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   MSFT     $389.88    $62.58   $-0.0032   EOD_LIQUIDATION(3:55pm)
+  19:50:44  SELL   GOOGL    $359.00    $62.44   $-0.1270   MOMENTUM_DEAD(sig=-0.42,pnl=-0.20%)
+  19:48:38  SELL   NVDA     $204.37    $93.99   $0.1242    FLAT_EXIT(900s,0.13%)
+  19:48:15  SELL   AMZN     $237.78    $62.63   $0.0606    FLAT_EXIT(900s,0.10%)
+  19:48:07  BUY    MSFT     $389.90    $62.58   $0.0000    ENTRY(s=0.233,K+,1of7)
+  19:45:37  SELL   MSFT     $389.94    $62.70   $0.1053    FLAT_EXIT(900s,0.17%)
+  19:40:01  BUY    GOOGL    $359.73    $62.57   $0.0000    ENTRY(s=0.183,K~,2of7)
+  19:35:50  SELL   GOOGL    $359.61    $62.51   $-0.0817   FLAT_EXIT(900s,-0.13%)
+  19:33:39  BUY    NVDA     $204.10    $93.87   $0.0000    ENTRY(s=0.395,K+,2of7)
+  19:33:15  BUY    AMZN     $237.55    $62.57   $0.0000    ENTRY(s=0.153,K~,2of7)
+  19:31:39  SELL   NVDA     $204.24    $54.56   $-0.1990   MOMENTUM_DEAD(sig=-0.42,pnl=-0.36%)
+  19:30:37  BUY    MSFT     $389.29    $62.60   $0.0000    ENTRY(s=0.204,K+,1of7)
+  19:28:36  SELL   MSFT     $389.60    $62.69   $0.0764    FLAT_EXIT(900s,0.12%)
+  19:20:50  BUY    GOOGL    $360.08    $62.59   $0.0000    ENTRY(s=0.155,K~,1of7)
+  19:20:07  BUY    NVDA     $204.99    $54.76   $0.0000    ENTRY(s=0.235,K+,2of7)
+  19:18:03  SELL   NVDA     $204.84    $93.99   $0.1009    FLAT_EXIT(900s,0.11%)
+  19:16:54  SELL   GOOGL    $360.14    $62.46   $-0.1283   MOMENTUM_DEAD(sig=-0.30,pnl=-0.21%)
+  19:13:40  SELL   AMZN     $237.94    $59.95   $0.1197    FLAT_EXIT(900s,0.20%)
+  19:13:38  BUY    MSFT     $389.12    $62.61   $0.0000    ENTRY(s=0.220,K+,1of7)
+  19:07:15  SELL   MSFT     $388.87    $59.41   $0.0565    FLAT_EXIT(900s,0.10%)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

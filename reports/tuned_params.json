@@ -1,15 +1,15 @@
 {
-  "min_buy_signal": 0.15,
+  "min_buy_signal": 0.16125,
   "strong_buy_signal": 0.25,
-  "sell_signal_threshold": -0.10,
-  "trailing_stop_pct": 0.50,
-  "hard_stop_pct": -1.0,
+  "sell_signal_threshold": -0.1,
+  "trailing_stop_pct": 0.5,
+  "hard_stop_pct": -0.95,
   "take_profit_pct": 2.0,
   "trade_cooldown_secs": 120,
   "flat_exit_secs": 900,
   "max_concurrent_positions": 5,
-  "max_daily_trades": 999,
+  "max_daily_trades": 799,
   "min_predicted_move_pct": 0.012,
-  "tuned_at": "2026-06-11T11:10:00-04:00",
-  "reason": "v6 PREDICTION-DRIVEN: No trade cap. Model decides when to trade based on signals. Up to 5 concurrent positions (~$100 each). Trade when bullish, exit when bearish. Quantity driven by prediction quality."
+  "tuned_at": "2026-06-12T20:05:36.048279674+00:00",
+  "reason": "Diagnosis: Fees ($0.9179) are >50% of gross P&L ($0.6678) — overtrading; Net P&L negative: $-0.2501; Regression: today $-0.2501 < yesterday $4.2506. Actions: Raised MIN_BUY_SIGNAL, lowered daily cap; Slightly tightened hard stop (floor -0.50%); Blended toward yesterday's better-performing params"
 }
