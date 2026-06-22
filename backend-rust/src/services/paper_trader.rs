@@ -170,6 +170,9 @@ struct MarketSnapshot {
     cot_signal: f64,
     session_high: f64,
     session_low: f64,
+    // Trend regime filter: price relative to its intraday average.
+    // Don't fight the trend — long-only should not buy into downtrends.
+    uptrend: bool,
     // ML agent scores from sidecar (None = use hardcoded fallback)
     ml_agent_scores: Option<CachedAgentScores>,
 }
@@ -289,6 +292,7 @@ impl PaperTrader {
             gex_signal: 0.0, gex_regime: "neutral".to_string(),
             vp_signal: 0.0, vp_position: "unknown".to_string(),
             cot_signal: 0.0, session_high: 0.0, session_low: 0.0,
+            uptrend: true,
             ml_agent_scores: None,
         });
         snap.gex_signal = gex_signal;
@@ -401,6 +405,9 @@ impl PaperTrader {
             cot_signal: self.market_data.get(symbol).map(|d| d.cot_signal).unwrap_or(0.0),
             session_high: prev_high.max(price),
             session_low: if prev_low == 0.0 { price } else { prev_low.min(price) },
+            // Trend regime: price above its intraday average = uptrend.
+            // Fail-open (true) when the engine hasn't computed it yet.
+            uptrend: data["trend_filter"]["uptrend"].as_bool().unwrap_or(true),
             ml_agent_scores,
         });
 
@@ -812,6 +819,19 @@ impl PaperTrader {
                 bullish_agents.join("+"), bearish_agents.join("+"),
                 kronos_bias,
             );
+
+            // ── HARD VETO 0: don't fight the trend (regime filter) ──
+            // Long-only must not buy into downtrends. Price below its intraday
+            // average = stand aside. This is the most robust effect in trading
+            // and directly targets the long-into-decline losses (GOOGL/AMZN).
+            if !data.uptrend {
+                if self.layer_blocks.consensus % 50 == 0 {
+                    info!("[TREND_VETO] {} — price ${:.2} below intraday avg, standing aside (downtrend)", sym, data.price);
+                }
+                self.layer_blocks.consensus += 1;
+                vetoes.push((sym.clone(), data.price, score, "TREND_VETO"));
+                continue;
+            }
 
             // ── HARD VETO 1: Kronos must not be bearish ──
             if kronos_score < -0.1 {

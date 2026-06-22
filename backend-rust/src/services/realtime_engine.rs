@@ -303,6 +303,15 @@ impl RealtimeEngine {
                         let k_price_60s = ks.price + ks.velocity * 1.0;
                         let cvd_state = inner.cvd.state(price, k_price_30s);
 
+                        // Trend regime filter: price vs its intraday SMA over
+                        // the available 1-min bars (~full day). uptrend = above
+                        // average → long-only entries are only allowed then.
+                        let mc_n = inner.minute_candles.len();
+                        let trend_ma = if mc_n >= 20 {
+                            inner.minute_candles.iter().map(|c| c.close).sum::<f64>() / mc_n as f64
+                        } else { price };
+                        let uptrend = price >= trend_ma;
+
                         let predictions = build_predictions(
                             price, atr, &pattern,
                             &inner.kronos_predictions,
@@ -370,6 +379,11 @@ impl RealtimeEngine {
                                     else if layer_agreement == 2 { "buy" }
                                     else if layer_agreement == 1 { "mixed" }
                                     else { "bearish" },
+                            },
+                            "trend_filter": {
+                                "trend_ma": trend_ma,
+                                "uptrend": uptrend,
+                                "bars": mc_n,
                             },
                             "predictions": predictions,
                             "micro_candles": candles.len(),
