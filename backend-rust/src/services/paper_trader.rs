@@ -86,10 +86,12 @@ struct ShadowTrader {
     /// Random-entry baseline: ignores all signals, enters by coin flip.
     /// If the signal models can't beat this trader, the layers have no edge.
     is_random: bool,
+    /// Trend filter mode for A/B testing: "fullday", "short", or "off".
+    trend_mode: String,
 }
 
 impl ShadowTrader {
-    fn new(model_id: &str, weights: [f64; 7]) -> Self {
+    fn new(model_id: &str, weights: [f64; 7], trend_mode: &str) -> Self {
         Self {
             model_id: model_id.to_string(),
             cash: INITIAL_CASH,
@@ -101,11 +103,12 @@ impl ShadowTrader {
             cooldowns: HashMap::new(),
             weights,
             is_random: false,
+            trend_mode: trend_mode.to_string(),
         }
     }
 
     fn new_random(model_id: &str) -> Self {
-        let mut s = Self::new(model_id, [0.0; 7]);
+        let mut s = Self::new(model_id, [0.0; 7], "off");
         s.is_random = true;
         s
     }
@@ -172,7 +175,8 @@ struct MarketSnapshot {
     session_low: f64,
     // Trend regime filter: price relative to its intraday average.
     // Don't fight the trend — long-only should not buy into downtrends.
-    uptrend: bool,
+    uptrend: bool,        // full-day average reference
+    uptrend_short: bool,  // 30-min average reference (for A/B test)
     // ML agent scores from sidecar (None = use hardcoded fallback)
     ml_agent_scores: Option<CachedAgentScores>,
 }
@@ -196,13 +200,16 @@ impl PaperTrader {
                         "hard_stop_pct": HARD_STOP_PCT,
                         "trailing_stop_pct": TRAILING_STOP_PCT,
                     },
+                    "experiment": "trend-filter A/B/C — identical weights, only trend gate differs",
                     "shadow_models": [
-                        {"id": "model_A_all_layers", "weights": [0.25, 0.25, 0.15, 0.15, 0.08, 0.06, 0.06],
-                         "description": "Control: all layers with current weights"},
-                        {"id": "model_B_vp_heavy", "weights": [0.30, 0.0, 0.0, 0.0, 0.50, 0.10, 0.10],
-                         "description": "VP-heavy: dropped Kalman/Pattern/CVD, boosted VP to 50%"},
-                        {"id": "model_C_random_baseline", "weights": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                         "description": "Null hypothesis: random coin-flip entries, same exits — the bar every signal model must beat"},
+                        {"id": "trend_fullday", "trend": "fullday",
+                         "description": "Live weights + full-day trend filter (current production rule)"},
+                        {"id": "trend_30min", "trend": "short",
+                         "description": "Live weights + 30-min trend filter — catches reversals faster"},
+                        {"id": "trend_off", "trend": "off",
+                         "description": "Live weights, NO trend filter — tests whether the filter helps at all"},
+                        {"id": "random_baseline", "trend": "off",
+                         "description": "Null hypothesis: random coin-flip entries — the bar every model must beat"},
                     ]
                 });
                 let mut line = serde_json::to_string(&marker).unwrap_or_default();
@@ -236,17 +243,19 @@ impl PaperTrader {
             circuit_breaker_tripped: false,
             day_open_price: HashMap::new(),
             first_hh_return: HashMap::new(),
-            shadow_traders: vec![
-                // Model A: current weights (control)
-                // [kronos=0.25, kalman=0.25, pattern=0.15, cvd=0.15, vp=0.08, gex=0.06, cot=0.06]
-                ShadowTrader::new("model_A_all_layers", [0.25, 0.25, 0.15, 0.15, 0.08, 0.06, 0.06]),
-                // Model B: VP-heavy, drop Kalman/Pattern/CVD
-                // [kronos=0.30, kalman=0.0, pattern=0.0, cvd=0.0, vp=0.50, gex=0.10, cot=0.10]
-                ShadowTrader::new("model_B_vp_heavy", [0.30, 0.0, 0.0, 0.0, 0.50, 0.10, 0.10]),
-                // Model C: random-entry baseline — coin-flip entries, same exits.
-                // The null hypothesis: if A/B/real can't beat this, layers add nothing.
-                ShadowTrader::new_random("model_C_random_baseline"),
-            ],
+            shadow_traders: {
+                // TREND-FILTER A/B/C: all use the live production weights,
+                // differing ONLY in the trend gate, so end-of-week expectancy
+                // isolates the effect of the trend filter.
+                let live_w = [0.24, 0.12, 0.06, 0.06, 0.52, 0.0, 0.0];
+                vec![
+                    ShadowTrader::new("trend_fullday", live_w, "fullday"),
+                    ShadowTrader::new("trend_30min", live_w, "short"),
+                    ShadowTrader::new("trend_off", live_w, "off"),
+                    // Null hypothesis: random entries, no filter.
+                    ShadowTrader::new_random("random_baseline"),
+                ]
+            },
         }
     }
 
@@ -292,7 +301,7 @@ impl PaperTrader {
             gex_signal: 0.0, gex_regime: "neutral".to_string(),
             vp_signal: 0.0, vp_position: "unknown".to_string(),
             cot_signal: 0.0, session_high: 0.0, session_low: 0.0,
-            uptrend: true,
+            uptrend: true, uptrend_short: true,
             ml_agent_scores: None,
         });
         snap.gex_signal = gex_signal;
@@ -408,6 +417,7 @@ impl PaperTrader {
             // Trend regime: price above its intraday average = uptrend.
             // Fail-open (true) when the engine hasn't computed it yet.
             uptrend: data["trend_filter"]["uptrend"].as_bool().unwrap_or(true),
+            uptrend_short: data["trend_filter"]["uptrend_short"].as_bool().unwrap_or(true),
             ml_agent_scores,
         });
 
@@ -1104,13 +1114,21 @@ impl PaperTrader {
                 .map(|(w, s)| w * s)
                 .sum();
 
+            // Trend gate per this shadow's mode — the only thing that differs
+            // between the trend_fullday / trend_30min / trend_off models.
+            let trend_ok = match shadow.trend_mode.as_str() {
+                "fullday" => data.uptrend,
+                "short" => data.uptrend_short,
+                _ => true, // "off"
+            };
+
             // Random baseline ignores every signal: ~0.1% chance per tick,
             // which lands near the real trader's daily trade count once
             // cooldowns and position limits apply.
             let should_enter = if shadow.is_random {
                 rand::random::<f64>() < 0.001
             } else {
-                weighted_score > MIN_BUY_SIGNAL && kronos_score >= -0.1
+                weighted_score > MIN_BUY_SIGNAL && kronos_score >= -0.1 && trend_ok
             };
 
             if should_enter {

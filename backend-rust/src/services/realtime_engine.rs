@@ -311,6 +311,13 @@ impl RealtimeEngine {
                             inner.minute_candles.iter().map(|c| c.close).sum::<f64>() / mc_n as f64
                         } else { price };
                         let uptrend = price >= trend_ma;
+                        // Shorter 30-bar (~30 min) trend reference for A/B testing
+                        // against the full-day filter — catches reversals faster.
+                        let trend_ma_short = if mc_n >= 10 {
+                            let take = mc_n.min(30);
+                            inner.minute_candles.iter().rev().take(take).map(|c| c.close).sum::<f64>() / take as f64
+                        } else { price };
+                        let uptrend_short = price >= trend_ma_short;
 
                         let predictions = build_predictions(
                             price, atr, &pattern,
@@ -383,6 +390,8 @@ impl RealtimeEngine {
                             "trend_filter": {
                                 "trend_ma": trend_ma,
                                 "uptrend": uptrend,
+                                "trend_ma_short": trend_ma_short,
+                                "uptrend_short": uptrend_short,
                                 "bars": mc_n,
                             },
                             "predictions": predictions,
