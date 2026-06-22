@@ -112,7 +112,9 @@ foreach ($m in $byModel) {
     $tag = if ($m.Name -match 'random') { '  <-- the bar to beat' } else { '' }
     A (("  {0,-24} expectancy " -f $m.Name) + ('${0}' -f [math]::Round($exp,4)) + ("/trade  ({0} trades){1}" -f $m.Count, $tag))
 }
-$randModel = $byModel | Where-Object { $_.Name -match 'random' }
+# Pick the single random baseline with the most trades (log may contain more
+# than one random model_id if the roster was renamed mid-week).
+$randModel = $byModel | Where-Object { $_.Name -match 'random' } | Sort-Object { $_.Count } -Descending | Select-Object -First 1
 if ($randModel -and $winReal.Count) {
     $randExp = ($randModel.Group | Measure-Object pnl -Sum).Sum / $randModel.Count
     if ($realExp -gt $randExp) {
