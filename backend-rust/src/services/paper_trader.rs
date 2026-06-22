@@ -446,7 +446,10 @@ impl PaperTrader {
         // If the system starts after 10:00 the window is missed and the signal
         // simply stays inactive for the day — no fabricated data.
         if self.market_open && price > 0.0 {
-            if et_mins >= 9 * 60 + 30 && !self.day_open_price.contains_key(symbol) {
+            // Only capture the open *inside* the 9:30–10:00 window. A start
+            // after 10:00 leaves day_open_price unset → signal stays inactive,
+            // instead of grabbing a late price and fabricating a 0.000% return.
+            if et_mins >= 9 * 60 + 30 && et_mins < 10 * 60 && !self.day_open_price.contains_key(symbol) {
                 self.day_open_price.insert(symbol.to_string(), price);
             }
             if et_mins >= 10 * 60 && !self.first_hh_return.contains_key(symbol) {
