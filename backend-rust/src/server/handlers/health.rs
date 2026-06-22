@@ -75,6 +75,10 @@ pub async fn institutional(State(state): State<Arc<AppState>>) -> Json<serde_jso
     }))
 }
 
+pub async fn sp500_scan(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    Json(state.sp500_scan.lock().to_json())
+}
+
 pub async fn layer_monitor(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     let trader = state.trader.lock();
     if let Some(payload) = &trader.last_payload {

@@ -302,10 +302,17 @@ pub async fn fetch_daily_bars(
     let api_secret = env::var("APCA_API_SECRET_KEY")
         .map_err(|_| "APCA_API_SECRET_KEY not set".to_string())?;
 
+    // Without an explicit start, Alpaca's daily-bar endpoint returns only the
+    // single most recent bar. Span enough calendar days to cover `limit`
+    // trading days (~1.5x for weekends/holidays) so we get real history.
+    let lookback_days = (limit as i64 * 7 / 5) + 40;
+    let start = (chrono::Utc::now() - chrono::Duration::days(lookback_days))
+        .format("%Y-%m-%d").to_string();
     let url = format!(
-        "{}/v2/stocks/{}/bars?timeframe=1Day&limit={}&feed=iex",
+        "{}/v2/stocks/{}/bars?timeframe=1Day&start={}&limit={}&feed=iex",
         env::var("APCA_DATA_URL").unwrap_or_else(|_| "https://data.alpaca.markets".to_string()),
         symbol,
+        start,
         limit,
     );
 
@@ -330,6 +337,8 @@ pub async fn fetch_daily_bars(
             "low": b["l"].as_f64()?,
             "close": b["c"].as_f64()?,
             "volume": b["v"].as_f64().unwrap_or(0.0),
+            // Kronos /predict requires a timestamp per candle (422 without it)
+            "time": b["t"].as_str().map(parse_alpaca_timestamp).unwrap_or(0.0),
         }))
     }).collect();
 

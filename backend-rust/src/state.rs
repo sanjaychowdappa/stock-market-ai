@@ -27,6 +27,7 @@ pub struct AppState {
     pub trader: Mutex<PaperTrader>,
     pub tracker: Mutex<DailyTracker>,
     pub daily_focus: SharedDailyFocus,
+    pub sp500_scan: daily_stock_picker::SharedSp500Scan,
     pub institutional: Arc<InstitutionalState>,
 }
 
@@ -39,6 +40,7 @@ impl AppState {
         }
 
         let daily_focus = daily_stock_picker::create_shared();
+        let sp500_scan = daily_stock_picker::create_scan_shared();
         let institutional = Arc::new(InstitutionalState {
             gex: DashMap::new(),
             volume_profiles: DashMap::new(),
@@ -51,7 +53,22 @@ impl AppState {
             trader: Mutex::new(PaperTrader::new()),
             tracker: Mutex::new(DailyTracker::new()),
             daily_focus: daily_focus.clone(),
+            sp500_scan: sp500_scan.clone(),
             institutional: institutional.clone(),
+        });
+
+        // ── Spawn S&P 500 daily scanner (Phase 1) ──
+        let scan2 = sp500_scan.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_secs(45)).await;
+            daily_stock_picker::run_sp500_scan(&scan2).await;
+            // Re-scan once per day
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(86400));
+            interval.tick().await; // consume immediate first tick
+            loop {
+                interval.tick().await;
+                daily_stock_picker::run_sp500_scan(&scan2).await;
+            }
         });
 
         // ── Spawn Kronos daily ranking ──

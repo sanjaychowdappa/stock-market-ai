@@ -11,7 +11,7 @@
 use crate::config::TOP_SYMBOLS;
 use crate::services::alpaca_stream;
 use parking_lot::Mutex;
-use serde_json::json;
+use serde_json::{json, Value};
 use std::sync::Arc;
 use tracing::{info, warn};
 
@@ -236,4 +236,146 @@ pub async fn run_kronos_ranking(focus: &SharedDailyFocus) {
     f.focus_symbols = focus_symbols;
     f.last_updated = now;
     f.update_count += 1;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  S&P 500 DAILY SCANNER (Phase 1)
+//
+//  Ranks a broad liquid universe with Kronos on DAILY bars to find the
+//  best multi-day swing candidates. Read-only: it produces a ranked
+//  top-5 watchlist. Phase 2 will wire the picks into the live trader.
+// ════════════════════════════════════════════════════════════════
+
+/// Liquid S&P 500 universe for the daily scanner. Seeded with the most-liquid
+/// large-caps (covers the bulk of index volume); expand toward the full 500
+/// by adding tickers here. Dotted tickers (BRK.B) omitted to keep fetches clean.
+pub const SP500_UNIVERSE: &[&str] = &[
+    "AAPL","MSFT","NVDA","AMZN","GOOGL","GOOG","META","TSLA","AVGO","LLY",
+    "JPM","V","UNH","XOM","MA","COST","HD","PG","JNJ","WMT",
+    "NFLX","BAC","CRM","ORCL","MRK","ABBV","CVX","KO","AMD","PEP",
+    "ADBE","TMO","LIN","ACN","MCD","CSCO","WFC","ABT","DHR","TXN",
+    "INTC","QCOM","INTU","AMAT","IBM","PM","CAT","GE","VZ","NOW",
+    "AXP","PFE","UNP","GS","MS","RTX","HON","NEE","LOW","COP",
+    "BKNG","UBER","T","SPGI","BA","PLD","ELV","SCHW","BLK","SBUX",
+    "MDT","GILD","DE","ADP","LMT","CB","MMC","C","BMY","AMT",
+    "MU","ADI","SO","DUK","CI","REGN","MO","BSX","TJX","ETN",
+    "ISRG","VRTX","ZTS","PGR","SLB","EQIX","PANW","KLAC","SNPS","CDNS",
+];
+
+/// A single ranked pick from the daily scan.
+#[derive(Debug, Clone)]
+pub struct ScanPick {
+    pub symbol: String,
+    pub predicted_change_pct: f64,
+    pub direction: String,
+}
+
+/// Result of the latest S&P 500 daily scan.
+#[derive(Debug, Clone, Default)]
+pub struct Sp500Scan {
+    pub top_picks: Vec<ScanPick>,
+    pub scanned: usize,
+    pub universe: usize,
+    pub last_updated: String,
+    pub horizon_days: u32,
+    pub running: bool,
+}
+
+impl Sp500Scan {
+    pub fn to_json(&self) -> Value {
+        json!({
+            "last_updated": self.last_updated,
+            "running": self.running,
+            "horizon_days": self.horizon_days,
+            "universe_size": self.universe,
+            "scanned": self.scanned,
+            "top_picks": self.top_picks.iter().map(|p| json!({
+                "symbol": p.symbol,
+                "predicted_change_pct": format!("{:+.3}%", p.predicted_change_pct),
+                "direction": p.direction,
+            })).collect::<Vec<_>>(),
+        })
+    }
+}
+
+pub type SharedSp500Scan = Arc<Mutex<Sp500Scan>>;
+
+pub fn create_scan_shared() -> SharedSp500Scan {
+    Arc::new(Mutex::new(Sp500Scan::default()))
+}
+
+/// Scan the S&P 500 universe with Kronos on daily bars; rank by predicted
+/// multi-day change and store the top 5. Runs in the background (~once/day).
+pub async fn run_sp500_scan(scan: &SharedSp500Scan) {
+    info!("=== S&P 500 KRONOS SCAN (daily bars, multi-day horizon) ===");
+    scan.lock().running = true;
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .unwrap();
+    let sidecar_url = "http://finetune-sidecar:8001";
+
+    match client.get(format!("{}/health", sidecar_url)).send().await {
+        Ok(resp) if resp.status().is_success() => {}
+        _ => {
+            warn!("Kronos sidecar unavailable — skipping S&P 500 scan");
+            scan.lock().running = false;
+            return;
+        }
+    }
+
+    let horizon = 3u32; // predict ~3 trading days ahead
+    let mut picks: Vec<ScanPick> = Vec::new();
+    let mut scanned = 0usize;
+    let mut fetch_fail = 0usize;
+    let mut kronos_fail = 0usize;
+
+    for &sym in SP500_UNIVERSE {
+        // Throttle to stay under Alpaca's free-tier rate limit (~200/min).
+        tokio::time::sleep(std::time::Duration::from_millis(350)).await;
+
+        let candles = match alpaca_stream::fetch_daily_bars(sym, 120).await {
+            Ok(c) if c.len() >= 30 => c,
+            Ok(c) => { fetch_fail += 1; if fetch_fail <= 3 { warn!("  {} scan: only {} daily bars", sym, c.len()); } continue; }
+            Err(e) => { fetch_fail += 1; if fetch_fail <= 3 { warn!("  {} scan fetch err: {}", sym, e); } continue; }
+        };
+
+        let body = json!({ "symbol": sym, "candles": candles, "steps": horizon });
+        match client.post(format!("{}/predict", sidecar_url)).json(&body).send().await {
+            Ok(resp) if resp.status().is_success() => {
+                if let Ok(data) = resp.json::<Value>().await {
+                    if data.get("error").is_none() {
+                        let change = data["total_change_pct"].as_f64().unwrap_or(0.0);
+                        let dir = data["direction"].as_str().unwrap_or("neutral").to_string();
+                        picks.push(ScanPick { symbol: sym.to_string(), predicted_change_pct: change, direction: dir });
+                        scanned += 1;
+                    } else { kronos_fail += 1; if kronos_fail <= 3 { warn!("  {} kronos error: {:?}", sym, data.get("error")); } }
+                } else { kronos_fail += 1; }
+            }
+            Ok(resp) => { kronos_fail += 1; if kronos_fail <= 3 { warn!("  {} kronos http {}", sym, resp.status()); } }
+            Err(e) => { kronos_fail += 1; if kronos_fail <= 3 { warn!("  {} kronos req err: {}", sym, e); } }
+        }
+    }
+    info!("  scan tally: {} ok, {} fetch-fail, {} kronos-fail", scanned, fetch_fail, kronos_fail);
+
+    picks.sort_by(|a, b| b.predicted_change_pct
+        .partial_cmp(&a.predicted_change_pct)
+        .unwrap_or(std::cmp::Ordering::Equal));
+    let top: Vec<ScanPick> = picks.iter().take(5).cloned().collect();
+
+    info!("  S&P 500 scan complete: {}/{} scanned. Top 5 picks (next ~{}d):",
+        scanned, SP500_UNIVERSE.len(), horizon);
+    for p in &top {
+        info!("    {} {:+.3}% ({})", p.symbol, p.predicted_change_pct, p.direction);
+    }
+    info!("=== S&P 500 SCAN COMPLETE ===");
+
+    let mut s = scan.lock();
+    s.top_picks = top;
+    s.scanned = scanned;
+    s.universe = SP500_UNIVERSE.len();
+    s.horizon_days = horizon;
+    s.last_updated = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+    s.running = false;
 }
