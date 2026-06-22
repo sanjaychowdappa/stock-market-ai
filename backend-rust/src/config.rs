@@ -2,51 +2,57 @@
 pub const TOP_SYMBOLS: &[&str] = &["NVDA", "AAPL", "MSFT", "GOOGL", "AMZN"];
 
 // ══════════════════════════════════════════════════════════════
-//  PAPER TRADING — v6 PREDICTION-DRIVEN MULTI-STOCK
+//  PAPER TRADING — v7 SWING MODE (multi-day holds)
 //
-//  Budget: $500. Target: $600 in 1-2 days.
-//  No artificial trade cap — model decides based on signals.
-//  Up to 5 concurrent positions (one per symbol), ~$95 each.
-//  If all 5 stocks are bullish, hold all 5 simultaneously.
-//  Trades happen when signals say go, stop when signals say no.
+//  Budget: $500. Goal: profit over ~1 week, not intraday scalping.
+//  Why swing: at $500 intraday fees ate 137% of gross. Holding 2-5
+//  days cuts trade count ~20x so fees become negligible, and avoids
+//  the PDT rule entirely (overnight holds aren't day trades).
+//  Few, high-conviction trades. Wide targets. Hold through noise.
 // ══════════════════════════════════════════════════════════════
 
 pub const INITIAL_CASH: f64 = 500.0;
 
 pub const MAX_POSITION_PCT: f64 = 0.25;
 
-pub const MIN_BUY_SIGNAL: f64 = 0.15;
-pub const STRONG_BUY_SIGNAL: f64 = 0.25;
+// More selective entries — swing wants conviction, not volume.
+pub const MIN_BUY_SIGNAL: f64 = 0.20;
+pub const STRONG_BUY_SIGNAL: f64 = 0.35;
 pub const SELL_SIGNAL_THRESHOLD: f64 = -0.10;
 
-pub const TRAILING_STOP_PCT: f64 = 0.50;
+// Wide, multi-day risk bands. Swings need room to breathe.
+pub const TRAILING_STOP_PCT: f64 = 1.5;
 
-pub const HARD_STOP_PCT: f64 = -1.0;
+pub const HARD_STOP_PCT: f64 = -3.0;
 
-pub const TAKE_PROFIT_PCT: f64 = 2.0;
+pub const TAKE_PROFIT_PCT: f64 = 4.0;
 
-pub const TRADE_COOLDOWN_SECS: u64 = 120;
+// Cooldown is wall-clock: ~3h before re-entering the same symbol.
+pub const TRADE_COOLDOWN_SECS: u64 = 10800;
 
-/// Daily circuit breaker: stop opening new positions once the day's loss
-/// hits this percentage of the day's starting value. Existing positions
-/// still run their normal exits. (Prop-desk standard risk rule.)
-pub const DAILY_LOSS_LIMIT_PCT: f64 = -2.0;
+/// Daily circuit breaker — widened for swing: overnight gaps can move a
+/// held book >2% legitimately. Stops new entries once the day is down 4%.
+pub const DAILY_LOSS_LIMIT_PCT: f64 = -4.0;
 
-/// Partial profit booking: sell half the position at this gain and let
-/// the remainder run behind the trailing stop.
-pub const PARTIAL_PROFIT_PCT: f64 = 0.5;
+/// Partial profit booking: sell half at +2% on a swing, let the rest run.
+pub const PARTIAL_PROFIT_PCT: f64 = 2.0;
 
 pub const MAX_CONCURRENT_POSITIONS: usize = 5;
 
 pub const MOMENTUM_WINDOW: usize = 5;
 
-pub const FLAT_EXIT_SECS: u64 = 900;
+/// Max hold backstop ≈ 5 trading days of market-hour ticks (~1 week).
+/// If no price-based exit fires within a week, flatten the position.
+pub const FLAT_EXIT_SECS: u64 = 117000;
 
-pub const MAX_DAILY_TRADES: u32 = 999;
+/// Few trades per day — swing is about quality, not frequency.
+pub const MAX_DAILY_TRADES: u32 = 5;
 
 pub const MIN_PREDICTED_MOVE_PCT: f64 = 0.012;
 
-pub const MIN_HOLD_SECS: u64 = 200;
+/// Hold at least ~30 min of market time before any non-stop exit, so
+/// intraday noise doesn't shake us out of a multi-day thesis.
+pub const MIN_HOLD_SECS: u64 = 1800;
 
 /// OU simulator parameters
 pub const OU_THETA: f64 = 0.15;

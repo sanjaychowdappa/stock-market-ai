@@ -426,7 +426,11 @@ impl PaperTrader {
         let et_hour = (utc_now.hour() as i64 - offset_hours).rem_euclid(24) as u32;
         let et_minute = utc_now.minute();
         let et_mins = et_hour * 60 + et_minute;
-        let eod_liquidation = et_mins >= 15 * 60 + 55; // 3:55 PM ET
+        // Swing mode: hold overnight Mon–Thu, but flatten before the weekend.
+        // A $500 unattended system shouldn't carry 2+ days of gap risk.
+        let et_dt = utc_now - chrono::Duration::hours(offset_hours);
+        let is_friday = et_dt.weekday() == chrono::Weekday::Fri;
+        let eod_liquidation = is_friday && et_mins >= 15 * 60 + 55; // Fri 3:55 PM ET
 
         // New trading day: reset circuit breaker and daily counters
         let et_date = (utc_now - chrono::Duration::hours(offset_hours)).date_naive().to_string();
@@ -465,8 +469,8 @@ impl PaperTrader {
         }
 
         if eod_liquidation && self.positions.contains_key(symbol) {
-            info!("[EOD_CLOSE] {} — liquidating before market close ({}:{})", symbol, et_hour, et_minute);
-            self.sell(symbol, "EOD_LIQUIDATION(3:55pm)");
+            info!("[WEEKEND_FLAT] {} — flattening before the weekend ({}:{})", symbol, et_hour, et_minute);
+            self.sell(symbol, "WEEKEND_FLAT(Fri 3:55pm)");
             // EOD liquidate shadow traders too
             for shadow in &mut self.shadow_traders {
                 if let Some(pos) = shadow.positions.remove(symbol) {
@@ -481,7 +485,7 @@ impl PaperTrader {
                         "exit_price": pos.current_price, "pnl": pnl,
                         "pnl_pct": pos.unrealized_pnl_pct(),
                         "hold_seconds": pos.hold_seconds,
-                        "exit_reason": "EOD_LIQUIDATION",
+                        "exit_reason": "WEEKEND_FLAT",
                         "portfolio_value": shadow.total_value(),
                         "realized_pnl": shadow.realized_pnl,
                     });
@@ -547,7 +551,6 @@ impl PaperTrader {
                 let drawdown = pos.trailing_drawdown_pct();
                 let partial_taken = pos.partial_taken;
                 let data = self.market_data.get(symbol);
-                let signal = data.map(|d| d.pattern_signal).unwrap_or(0.0);
                 let k_fading = data.map(|d| d.kalman_momentum_fading).unwrap_or(false);
                 let k_momentum = data.map(|d| d.kalman_momentum).unwrap_or(0.0);
                 let cvd_sig = data.map(|d| d.cvd_signal).unwrap_or(0.0);
@@ -555,13 +558,6 @@ impl PaperTrader {
                 let gex_regime = data.map(|d| d.gex_regime.clone()).unwrap_or("neutral".to_string());
                 let vp_pos = data.map(|d| d.vp_position.clone()).unwrap_or("unknown".to_string());
                 let vp_sig = data.map(|d| d.vp_signal).unwrap_or(0.0);
-
-                // Kalman says momentum is dying + pattern confirms
-                let momentum_dead = (k_fading && k_momentum.abs() < 0.01)
-                    || self.signal_history.get(symbol).map_or(false, |hist| {
-                        if hist.len() < 5 { return false; }
-                        hist.iter().rev().take(5).all(|&s| s < -0.05)
-                    });
 
                 // CVD divergence: sellers dominating while we're long
                 let cvd_bearish = cvd_sig < -0.4 && cvd_ratio < 0.7;
@@ -588,20 +584,24 @@ impl PaperTrader {
                     cvd_bearish,     // CVD: sellers dominating
                 ].iter().filter(|&&b| b).count();
 
-                // 1. HARD STOP — protect capital, IMMEDIATE
+                // === SWING EXIT LADDER ===
+                // 1. HARD STOP — protect capital, IMMEDIATE (-3% in swing mode)
                 if pnl_pct <= HARD_STOP_PCT {
                     Some("HARD_STOP".to_string())
                 }
-                // 2. VP-CONFIRMED BEARISH — VP must agree + one other signal
-                else if vp_bearish && strong_bearish >= 2 && pnl_pct < -0.05 {
+                // 2. VP-CONFIRMED BEARISH — thesis invalidated: VP turns bearish
+                // + another signal, and we're down enough that it's not noise.
+                // Gated behind min-hold so intraday wobble can't cut a swing.
+                else if vp_bearish && strong_bearish >= 2 && held_long_enough && pnl_pct < -0.5 {
                     Some(format!("BEARISH_EXIT({}signals,vp_confirmed,pnl={:.2}%)", strong_bearish, pnl_pct))
                 }
-                // 3. TAKE PROFIT — hit our 2% target
+                // 3. TAKE PROFIT — hit the +4% swing target
                 else if held_long_enough && pnl_pct >= TAKE_PROFIT_PCT {
                     Some(format!("TAKE_PROFIT({:.2}%)", pnl_pct))
                 }
-                // 4. VP RESISTANCE — overbought per volume profile, lock any gains
-                else if at_resistance && pnl_pct > 0.1 && held_long_enough {
+                // 4. VP RESISTANCE — overbought per volume profile, lock gains
+                // (only meaningful gains now — swing rides small wobbles)
+                else if at_resistance && pnl_pct > 1.0 && held_long_enough {
                     Some(format!("VP_PROFIT_LOCK(pnl={:.2}%)", pnl_pct))
                 }
                 // 5. TRAILING STOP — protect gains from peak. After a partial
@@ -610,11 +610,7 @@ impl PaperTrader {
                     && (pnl_pct < 0.0 || partial_taken) {
                     Some(format!("TRAIL_STOP({:.2}% from peak,pnl={:.2}%)", drawdown, pnl_pct))
                 }
-                // 6. MOMENTUM COLLAPSE — sustained dead momentum + deeper loss
-                else if momentum_dead && pnl_pct < -0.35 {
-                    Some(format!("MOMENTUM_DEAD(sig={:.2},pnl={:.2}%)", signal, pnl_pct))
-                }
-                // 7. FLAT EXIT — going nowhere after 15 min
+                // 6. FLAT EXIT — max-hold backstop (~1 trading week)
                 else if pos.hold_seconds >= FLAT_EXIT_SECS {
                     Some(format!("FLAT_EXIT({}s,{:.2}%)", pos.hold_seconds, pnl_pct))
                 }
