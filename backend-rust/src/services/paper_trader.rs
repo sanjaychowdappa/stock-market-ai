@@ -50,6 +50,12 @@ pub struct PaperTrader {
     day_start_value: f64,
     last_trading_date: String,
     circuit_breaker_tripped: bool,
+    /// Market intraday momentum (Gao, Han, Li & Zhou 2018): each symbol's
+    /// 9:30 open price and its first-half-hour (9:30–10:00 ET) return %.
+    /// The first-half-hour return predicts the last-half-hour return, so we
+    /// tilt late-day long entries by it. Empty until 10:00 each day.
+    day_open_price: HashMap<String, f64>,
+    first_hh_return: HashMap<String, f64>,
     /// Shadow models for A/B testing different layer weights
     shadow_traders: Vec<ShadowTrader>,
 }
@@ -225,6 +231,8 @@ impl PaperTrader {
             day_start_value: INITIAL_CASH,
             last_trading_date: String::new(),
             circuit_breaker_tripped: false,
+            day_open_price: HashMap::new(),
+            first_hh_return: HashMap::new(),
             shadow_traders: vec![
                 // Model A: current weights (control)
                 // [kronos=0.25, kalman=0.25, pattern=0.15, cvd=0.15, vp=0.08, gex=0.06, cot=0.06]
@@ -428,7 +436,29 @@ impl PaperTrader {
             self.circuit_breaker_tripped = false;
             self.daily_trades = 0;
             for shadow in &mut self.shadow_traders { shadow.daily_trades = 0; }
+            self.day_open_price.clear();
+            self.first_hh_return.clear();
             info!("[NEW_DAY] {} — day start value ${:.2}, circuit breaker reset", et_date, self.day_start_value);
+        }
+
+        // Market intraday momentum capture (Gao et al. 2018): record the 9:30
+        // open price, then lock in the first-half-hour return at 10:00 ET.
+        // If the system starts after 10:00 the window is missed and the signal
+        // simply stays inactive for the day — no fabricated data.
+        if self.market_open && price > 0.0 {
+            if et_mins >= 9 * 60 + 30 && !self.day_open_price.contains_key(symbol) {
+                self.day_open_price.insert(symbol.to_string(), price);
+            }
+            if et_mins >= 10 * 60 && !self.first_hh_return.contains_key(symbol) {
+                if let Some(&open) = self.day_open_price.get(symbol) {
+                    if open > 0.0 {
+                        let hh = (price - open) / open * 100.0;
+                        self.first_hh_return.insert(symbol.to_string(), hh);
+                        info!("[INTRADAY_MOM] {} first-half-hour return {:.3}% (open ${:.2} → ${:.2})",
+                            symbol, hh, open, price);
+                    }
+                }
+            }
         }
 
         if eod_liquidation && self.positions.contains_key(symbol) {
@@ -631,6 +661,12 @@ impl PaperTrader {
         let mut candidates: Vec<(String, f64, String, usize, EntryPrediction)> = Vec::new();
         let mut vetoes: Vec<(String, f64, f64, &str)> = Vec::new();
 
+        // Late-day window for intraday-momentum tilt (after 2:30pm ET)
+        let utc_n = chrono::Utc::now();
+        let off_h: i64 = if utc_n.month() >= 3 && utc_n.month() <= 10 { 4 } else { 5 };
+        let et_m_now = ((utc_n.hour() as i64 - off_h).rem_euclid(24) as u32) * 60 + utc_n.minute();
+        let late_day = et_m_now >= 14 * 60 + 30;
+
         for (sym, data) in &self.market_data {
             if self.positions.contains_key(sym) { continue; }
 
@@ -742,9 +778,12 @@ impl PaperTrader {
                 // ── COT ── (weekly data, rarely useful intraday)
                 cot_score = 0.0;
 
-                // ── Weighted sum: VP dominates based on Jun 12 accuracy data ──
-                // VP 45%, Kronos 20%, GEX 10%, Kalman 10%, Pattern 5%, CVD 5%, COT 5%
-                let agent_weights: [f64; 7] = [0.20, 0.10, 0.05, 0.05, 0.45, 0.10, 0.05];
+                // ── Weighted sum — dead layers removed (Jun 22 live diagnosis) ──
+                // GEX returns null and COT returns 0 on every symbol, so their
+                // 15% weight only diluted scores. Zeroed and proportionally
+                // rescaled the live layers (×1/0.85), preserving relative balance:
+                // VP 52%, Kronos 24%, Kalman 12%, Pattern 6%, CVD 6%, GEX 0%, COT 0%
+                let agent_weights: [f64; 7] = [0.24, 0.12, 0.06, 0.06, 0.52, 0.0, 0.0];
                 let agent_scores_arr = [kronos_score, kalman_score, pattern_score, cvd_score, vp_score, gex_score, cot_score];
                 score = agent_weights.iter().zip(agent_scores_arr.iter())
                     .map(|(w, s)| w * s).sum();
@@ -752,13 +791,13 @@ impl PaperTrader {
             }
 
             let agent_weights: [(&str, f64, f64); 7] = [
-                ("Kronos",  0.20, kronos_score),
-                ("Kalman",  0.10, kalman_score),
-                ("Pattern", 0.05, pattern_score),
-                ("CVD",     0.05, cvd_score),
-                ("VP",      0.45, vp_score),
-                ("GEX",     0.10, gex_score),
-                ("COT",     0.05, cot_score),
+                ("Kronos",  0.24, kronos_score),
+                ("Kalman",  0.12, kalman_score),
+                ("Pattern", 0.06, pattern_score),
+                ("CVD",     0.06, cvd_score),
+                ("VP",      0.52, vp_score),
+                ("GEX",     0.0,  gex_score),
+                ("COT",     0.0,  cot_score),
             ];
 
             let bullish_agents: Vec<&str> = agent_weights.iter()
@@ -799,10 +838,24 @@ impl PaperTrader {
                 continue;
             }
 
+            // ── MARKET INTRADAY MOMENTUM TILT (Gao et al. 2018) ──
+            // Late-day return follows the morning return. Long-only, so a
+            // positive first-half-hour is a tailwind and a negative one is a
+            // headwind we lean against. Only active after 2:30pm ET, and only
+            // when the morning move was meaningful (>0.10%).
+            let mom_tilt = if late_day {
+                match self.first_hh_return.get(sym) {
+                    Some(&hh) if hh > 0.10 => 0.10,
+                    Some(&hh) if hh < -0.10 => -0.20,
+                    _ => 0.0,
+                }
+            } else { 0.0 };
+            let score = score + mom_tilt;
+
             // ── MINIMUM SCORE THRESHOLD ──
             if score <= MIN_BUY_SIGNAL {
                 if self.layer_blocks.score_too_low % 50 == 0 {
-                    info!("[WEAK] {} — {} (need > {:.2})", sym, agent_report, MIN_BUY_SIGNAL);
+                    info!("[WEAK] {} — {} mom_tilt={:.2} (need > {:.2})", sym, agent_report, mom_tilt, MIN_BUY_SIGNAL);
                 }
                 self.layer_blocks.score_too_low += 1;
                 continue;
