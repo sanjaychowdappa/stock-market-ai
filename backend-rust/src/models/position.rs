@@ -1,7 +1,7 @@
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 /// Layer-by-layer prediction snapshot captured at entry time.
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct EntryPrediction {
     pub overall_score: f64,
     pub predicted_direction: String, // "bullish" or "bearish"
@@ -18,7 +18,7 @@ pub struct EntryPrediction {
 }
 
 /// A single stock position with fractional shares.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Position {
     pub symbol: String,
     pub shares: f64,

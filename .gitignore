@@ -9,3 +9,5 @@ model_cache/
 *.egg-info/
 .DS_Store
 .claude/settings.local.json
+
+reports/trader_state.json

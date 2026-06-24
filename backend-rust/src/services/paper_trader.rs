@@ -20,6 +20,36 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::broadcast;
 use tracing::info;
 
+/// Where the trader persists its state so multi-day swing positions survive
+/// restarts (the machine is powered off overnight). Lives in the mounted
+/// reports/ volume so it persists on the host.
+const STATE_FILE: &str = "/app/reports/trader_state.json";
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct PersistedShadow {
+    model_id: String,
+    cash: f64,
+    positions: HashMap<String, Position>,
+    realized_pnl: f64,
+    total_trades: u32,
+    winning_trades: u32,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct PersistedState {
+    cash: f64,
+    positions: HashMap<String, Position>,
+    realized_pnl: f64,
+    total_trades: u32,
+    winning_trades: u32,
+    daily_trades: u32,
+    last_trading_date: String,
+    day_start_value: f64,
+    circuit_breaker_tripped: bool,
+    shadows: Vec<PersistedShadow>,
+    saved_at: String,
+}
+
 pub struct PaperTrader {
     cash: f64,
     positions: HashMap<String, Position>,
@@ -45,6 +75,7 @@ pub struct PaperTrader {
     /// Track vetoed entries to check if they were missed opportunities
     veto_log: VecDeque<VetoEntry>,
     last_veto_check: Instant,
+    last_save: Instant,
     /// Daily circuit breaker state: portfolio value at day start and
     /// whether the -2% loss limit has tripped (blocks new entries only).
     day_start_value: f64,
@@ -218,7 +249,7 @@ impl PaperTrader {
             }
         });
 
-        Self {
+        let mut trader = Self {
             cash: INITIAL_CASH,
             positions: HashMap::new(),
             trades: VecDeque::with_capacity(500),
@@ -238,6 +269,7 @@ impl PaperTrader {
             layer_blocks: LayerBlockCounters::default(),
             veto_log: VecDeque::with_capacity(100),
             last_veto_check: Instant::now(),
+            last_save: Instant::now(),
             day_start_value: INITIAL_CASH,
             last_trading_date: String::new(),
             circuit_breaker_tripped: false,
@@ -256,6 +288,73 @@ impl PaperTrader {
                     ShadowTrader::new_random("random_baseline"),
                 ]
             },
+        };
+
+        // Restore persisted state so multi-day swing positions survive a
+        // restart (the machine is off overnight). The NEW_DAY check on the
+        // next tick still resets daily counters if the calendar day changed.
+        if let Some(ps) = Self::load_persisted() {
+            trader.cash = ps.cash;
+            trader.positions = ps.positions;
+            trader.realized_pnl = ps.realized_pnl;
+            trader.total_trades = ps.total_trades;
+            trader.winning_trades = ps.winning_trades;
+            trader.daily_trades = ps.daily_trades;
+            trader.last_trading_date = ps.last_trading_date;
+            trader.day_start_value = ps.day_start_value;
+            trader.circuit_breaker_tripped = ps.circuit_breaker_tripped;
+            for psh in ps.shadows {
+                if let Some(sh) = trader.shadow_traders.iter_mut().find(|s| s.model_id == psh.model_id) {
+                    sh.cash = psh.cash;
+                    sh.positions = psh.positions;
+                    sh.realized_pnl = psh.realized_pnl;
+                    sh.total_trades = psh.total_trades;
+                    sh.winning_trades = psh.winning_trades;
+                }
+            }
+            info!("[STATE_RESTORE] resumed: cash ${:.2}, {} open positions, realized ${:.2}",
+                trader.cash, trader.positions.len(), trader.realized_pnl);
+        } else {
+            info!("[STATE_RESTORE] no saved state — fresh start at ${:.2}", INITIAL_CASH);
+        }
+
+        trader
+    }
+
+    /// Load persisted trader state from disk (startup only). None on first run.
+    fn load_persisted() -> Option<PersistedState> {
+        let content = std::fs::read_to_string(STATE_FILE).ok()?;
+        serde_json::from_str(&content).ok()
+    }
+
+    /// Snapshot live state to disk (non-blocking). Called throttled from tick
+    /// and after each realized trade so positions survive overnight restarts.
+    fn save_state(&self) {
+        let shadows: Vec<PersistedShadow> = self.shadow_traders.iter().map(|s| PersistedShadow {
+            model_id: s.model_id.clone(),
+            cash: s.cash,
+            positions: s.positions.clone(),
+            realized_pnl: s.realized_pnl,
+            total_trades: s.total_trades,
+            winning_trades: s.winning_trades,
+        }).collect();
+        let state = PersistedState {
+            cash: self.cash,
+            positions: self.positions.clone(),
+            realized_pnl: self.realized_pnl,
+            total_trades: self.total_trades,
+            winning_trades: self.winning_trades,
+            daily_trades: self.daily_trades,
+            last_trading_date: self.last_trading_date.clone(),
+            day_start_value: self.day_start_value,
+            circuit_breaker_tripped: self.circuit_breaker_tripped,
+            shadows,
+            saved_at: Local::now().to_rfc3339(),
+        };
+        if let Ok(json_str) = serde_json::to_string(&state) {
+            tokio::spawn(async move {
+                let _ = tokio::fs::write(STATE_FILE, json_str).await;
+            });
         }
     }
 
@@ -547,6 +646,12 @@ impl PaperTrader {
 
         // Run shadow traders on same market data with different weights
         self.tick_shadow_traders(symbol);
+
+        // Persist state every ~20s so positions/cash survive a restart.
+        if self.last_save.elapsed().as_secs() >= 20 {
+            self.save_state();
+            self.last_save = Instant::now();
+        }
     }
 
     fn manage_position(&mut self, symbol: &str) {
@@ -1377,6 +1482,9 @@ impl PaperTrader {
         if self.trades.len() >= 500 { self.trades.pop_front(); }
         self.trades.push_back(trade);
         self.cooldowns.insert(symbol.to_string(), Instant::now());
+
+        // Persist immediately after a realized trade.
+        self.save_state();
     }
 
     fn log_veto(&mut self, symbol: &str, price: f64, score: f64, reason: impl Into<String>) {
