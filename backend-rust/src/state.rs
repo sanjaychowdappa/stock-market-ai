@@ -28,6 +28,7 @@ pub struct AppState {
     pub tracker: Mutex<DailyTracker>,
     pub daily_focus: SharedDailyFocus,
     pub sp500_scan: daily_stock_picker::SharedSp500Scan,
+    pub momentum: crate::services::momentum_portfolio::SharedMomentum,
     pub institutional: Arc<InstitutionalState>,
 }
 
@@ -41,6 +42,7 @@ impl AppState {
 
         let daily_focus = daily_stock_picker::create_shared();
         let sp500_scan = daily_stock_picker::create_scan_shared();
+        let momentum = crate::services::momentum_portfolio::create_shared();
         let institutional = Arc::new(InstitutionalState {
             gex: DashMap::new(),
             volume_profiles: DashMap::new(),
@@ -54,7 +56,21 @@ impl AppState {
             tracker: Mutex::new(DailyTracker::new()),
             daily_focus: daily_focus.clone(),
             sp500_scan: sp500_scan.clone(),
+            momentum: momentum.clone(),
             institutional: institutional.clone(),
+        });
+
+        // ── Spawn momentum portfolio (daily rebalance, QQQ-benchmarked) ──
+        let mom2 = momentum.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_secs(90)).await;
+            crate::services::momentum_portfolio::rebalance(&mom2).await;
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(86400));
+            interval.tick().await; // consume immediate tick
+            loop {
+                interval.tick().await;
+                crate::services::momentum_portfolio::rebalance(&mom2).await;
+            }
         });
 
         // ── Spawn S&P 500 daily scanner (Phase 1) ──
