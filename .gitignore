@@ -11,3 +11,4 @@ model_cache/
 .claude/settings.local.json
 
 reports/trader_state.json
+reports/momentum_state.json

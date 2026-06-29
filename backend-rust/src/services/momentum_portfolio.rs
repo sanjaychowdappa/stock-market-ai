@@ -25,8 +25,9 @@ const MOM_TOP_N: usize = 5;
 const MOM_LOOKBACK: usize = 60; // trailing trading days (~3 months)
 const MOM_KILL_DAYS: i64 = 21;  // beat QQQ within 3 weeks or the thesis is dead
 const MOM_LOG: &str = "/app/reports/momentum_portfolio.jsonl";
+const MOM_STATE_FILE: &str = "/app/reports/momentum_state.json";
 
-#[derive(Default)]
+#[derive(Default, serde::Serialize, serde::Deserialize)]
 pub struct MomentumPortfolio {
     cash: f64,
     positions: HashMap<String, f64>, // symbol -> shares
@@ -74,7 +75,16 @@ impl MomentumPortfolio {
 pub type SharedMomentum = Arc<Mutex<MomentumPortfolio>>;
 
 pub fn create_shared() -> SharedMomentum {
-    Arc::new(Mutex::new(MomentumPortfolio { cash: MOM_START_CASH, ..Default::default() }))
+    // Restore persisted state so the QQQ benchmark + kill-date experiment
+    // survives the daily restarts (machine off overnight). Without this the
+    // portfolio reset to day-zero every morning and could never run 3 weeks.
+    let mp = std::fs::read_to_string(MOM_STATE_FILE).ok()
+        .and_then(|c| serde_json::from_str::<MomentumPortfolio>(&c).ok())
+        .unwrap_or(MomentumPortfolio { cash: MOM_START_CASH, ..Default::default() });
+    if mp.initialized {
+        info!("momentum: restored state from {} (started {}, kill {})", MOM_STATE_FILE, mp.started_date, mp.kill_date);
+    }
+    Arc::new(Mutex::new(mp))
 }
 
 /// Fetch the latest close for a symbol from daily bars.
@@ -110,6 +120,9 @@ pub async fn rebalance(mom: &SharedMomentum) {
     ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
     let top: Vec<(String, f64, f64)> = ranked.iter().take(MOM_TOP_N).cloned().collect();
     let prices: HashMap<String, f64> = top.iter().map(|(s, _, p)| (s.clone(), *p)).collect();
+    // Prices for the WHOLE universe — needed to mark held names that have
+    // since dropped out of the top-N (otherwise they'd be valued at $0).
+    let all_prices: HashMap<String, f64> = ranked.iter().map(|(s, _, p)| (s.clone(), *p)).collect();
 
     // 2. QQQ benchmark price.
     let qqq_price = latest_close("QQQ").await.unwrap_or(0.0);
@@ -133,11 +146,8 @@ pub async fn rebalance(mom: &SharedMomentum) {
 
     // 4. Mark current portfolio value (held shares at today's prices).
     let pos_value: f64 = m.positions.iter()
-        .map(|(s, sh)| sh * prices.get(s).copied().unwrap_or(0.0))
+        .map(|(s, sh)| sh * all_prices.get(s).copied().unwrap_or(0.0))
         .sum();
-    // For names dropping out of the top-N we no longer have a price; mark them
-    // at entry by treating missing price as 0 contribution is wrong, so the
-    // full-liquidation rebalance below uses only top-N prices we just fetched.
     let total_value = m.cash + pos_value;
 
     // 5. Full rebalance to equal-weight top-N.
@@ -179,6 +189,8 @@ pub async fn rebalance(mom: &SharedMomentum) {
         "rebalances": m.rebalances,
         "verdict": verdict,
     });
+    // Serialize full state so the experiment survives restarts.
+    let state_json = serde_json::to_string(&*m).ok();
     drop(m);
     tokio::spawn(async move {
         use tokio::io::AsyncWriteExt;
@@ -186,6 +198,9 @@ pub async fn rebalance(mom: &SharedMomentum) {
             let mut line = serde_json::to_string(&log_entry).unwrap_or_default();
             line.push('\n');
             let _ = f.write_all(line.as_bytes()).await;
+        }
+        if let Some(sj) = state_json {
+            let _ = tokio::fs::write(MOM_STATE_FILE, sj).await;
         }
     });
     info!("=== MOMENTUM REBALANCE COMPLETE ===");
