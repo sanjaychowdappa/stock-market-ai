@@ -117,6 +117,11 @@ struct ShadowTrader {
     /// Random-entry baseline: ignores all signals, enters by coin flip.
     /// If the signal models can't beat this trader, the layers have no edge.
     is_random: bool,
+    /// Max-exposure model: always fully invested — enters any free slot
+    /// immediately (no signals, no coin flip, no cooldown). Tests the
+    /// hypothesis the weekly data keeps pointing at: time-in-market with
+    /// the swing exit ladder is the driver, and every entry gate hurts.
+    is_always_in: bool,
     /// Trend filter mode for A/B testing: "fullday", "short", or "off".
     trend_mode: String,
 }
@@ -134,6 +139,7 @@ impl ShadowTrader {
             cooldowns: HashMap::new(),
             weights,
             is_random: false,
+            is_always_in: false,
             trend_mode: trend_mode.to_string(),
         }
     }
@@ -141,6 +147,12 @@ impl ShadowTrader {
     fn new_random(model_id: &str) -> Self {
         let mut s = Self::new(model_id, [0.0; 7], "off");
         s.is_random = true;
+        s
+    }
+
+    fn new_always_in(model_id: &str) -> Self {
+        let mut s = Self::new(model_id, [0.0; 7], "off");
+        s.is_always_in = true;
         s
     }
 
@@ -241,6 +253,8 @@ impl PaperTrader {
                          "description": "Live weights, NO trend filter — tests whether the filter helps at all"},
                         {"id": "random_baseline", "trend": "off",
                          "description": "Null hypothesis: random coin-flip entries — the bar every model must beat"},
+                        {"id": "always_in_max_exposure", "trend": "off",
+                         "description": "Max exposure: always fully invested, no entry gates — tests whether time-in-market is the real driver"},
                     ]
                 });
                 let mut line = serde_json::to_string(&marker).unwrap_or_default();
@@ -286,6 +300,10 @@ impl PaperTrader {
                     ShadowTrader::new("trend_off", live_w, "off"),
                     // Null hypothesis: random entries, no filter.
                     ShadowTrader::new_random("random_baseline"),
+                    // Max-exposure hypothesis: always fully invested, exits
+                    // do all the risk work. If this beats random, exposure is
+                    // the driver and entry timing is irrelevant.
+                    ShadowTrader::new_always_in("always_in_max_exposure"),
                 ]
             },
         };
@@ -1210,8 +1228,12 @@ impl PaperTrader {
             if shadow.positions.contains_key(symbol) { continue; }
             if shadow.positions.len() >= MAX_CONCURRENT_POSITIONS { continue; }
             if shadow.daily_trades >= MAX_DAILY_TRADES { continue; }
-            if let Some(cd) = shadow.cooldowns.get(symbol) {
-                if cd.elapsed().as_secs() < TRADE_COOLDOWN_SECS { continue; }
+            // Max-exposure model skips the cooldown — being out of the market
+            // for 3h after an exit is exactly the drag it exists to measure.
+            if !shadow.is_always_in {
+                if let Some(cd) = shadow.cooldowns.get(symbol) {
+                    if cd.elapsed().as_secs() < TRADE_COOLDOWN_SECS { continue; }
+                }
             }
 
             let weighted_score: f64 = shadow.weights.iter()
@@ -1229,9 +1251,12 @@ impl PaperTrader {
 
             // Random baseline ignores every signal: ~0.1% chance per tick,
             // which lands near the real trader's daily trade count once
-            // cooldowns and position limits apply.
+            // cooldowns and position limits apply. Always-in enters any free
+            // slot immediately — maximum time-in-market by construction.
             let should_enter = if shadow.is_random {
                 rand::random::<f64>() < 0.001
+            } else if shadow.is_always_in {
+                true
             } else {
                 weighted_score > MIN_BUY_SIGNAL && kronos_score >= -0.1 && trend_ok
             };
@@ -1239,7 +1264,8 @@ impl PaperTrader {
             if should_enter {
                 let shadow_open = MAX_CONCURRENT_POSITIONS.saturating_sub(shadow.positions.len());
                 let per_slot = (shadow.cash / shadow_open as f64).min(shadow.total_value() * MAX_POSITION_PCT);
-                let shadow_conf = if weighted_score >= 0.40 { 1.0 }
+                let shadow_conf = if shadow.is_always_in { 1.0 } // full size: exposure IS the thesis
+                    else if weighted_score >= 0.40 { 1.0 }
                     else if weighted_score >= 0.25 { 0.75 }
                     else { 0.50 };
                 let alloc = (per_slot * shadow_conf).min(shadow.cash);
