@@ -225,3 +225,295 @@ time="2026-06-10T16:10:00-04:00" level=warning msg="C:\\Users\\sanja\\stock-mark
 [10-06-2026 16:10:06.16] All containers stopped 
 [10-06-2026 16:10:06.16] === SESSION COMPLETE === 
  
+[11-06-2026  9:25:00.64] === AUTO START === 
+[12-06-2026  9:58:28.07] === AUTO START === 
+[12-06-2026 16:10:01.03] === AUTO STOP === 
+[12-06-2026 16:10:01.03] Fetching final EOD report... 
+[12-06-2026 16:10:01.06] EOD report saved to reports/ 
+[12-06-2026 16:10:01.06] Final daily status: 
+{"data_collected":{"AAPL":{"predictions":18443,"ticks":18443,"trades":26},"AMZN":{"predictions":18436,"ticks":18436,"trades":30},"GOOGL":{"predictions":18435,"ticks":18435,"trades":14},"MSFT":{"predictions":18435,"ticks":18435,"trades":18},"NVDA":{"predictions":18446,"ticks":18446,"trades":22}},"date":"2026-06-12","finetune_triggered":true,"portfolio":{"current_value":500.67,"pnl":0.6678,"profitable":true,"start_value":500.0},"running":true,"snapshots_count":18445} 
+[12-06-2026 16:10:01.08] Stopping containers... 
+time="2026-06-12T16:10:01-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-frontend-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopped 
+ Container stock-market-ai-finetune-sidecar-1 Removing 
+ Container stock-market-ai-finetune-sidecar-1 Removed 
+ Container stock-market-ai-frontend-1 Stopped 
+ Container stock-market-ai-frontend-1 Removing 
+ Container stock-market-ai-frontend-1 Removed 
+ Container stock-market-ai-backend-1 Stopping 
+ Container stock-market-ai-backend-1 Stopped 
+ Container stock-market-ai-backend-1 Removing 
+ Container stock-market-ai-backend-1 Removed 
+ Container stock-market-ai-redis-1 Stopping 
+ Container stock-market-ai-redis-1 Stopped 
+ Container stock-market-ai-redis-1 Removing 
+ Container stock-market-ai-redis-1 Removed 
+ Network stock-market-ai_default Removing 
+ Network stock-market-ai_default Removed 
+[12-06-2026 16:10:05.88] All containers stopped 
+[12-06-2026 16:10:05.88] === SESSION COMPLETE === 
+ 
+[15-06-2026  9:48:21.53] === AUTO START === 
+[15-06-2026 16:10:00.93] === AUTO STOP === 
+[15-06-2026 16:10:00.93] Fetching final EOD report... 
+[15-06-2026 16:10:03.18] WARNING: Could not fetch EOD report 
+[15-06-2026 16:10:03.18] Final daily status: 
+ 
+[15-06-2026 16:10:05.47] Stopping containers... 
+time="2026-06-15T16:10:05-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+[15-06-2026 16:10:06.14] All containers stopped 
+[15-06-2026 16:10:06.14] === SESSION COMPLETE === 
+ 
+[16-06-2026 13:46:42.90] === AUTO START === 
+[16-06-2026 16:10:01.01] === AUTO STOP === 
+[16-06-2026 16:10:01.01] Fetching final EOD report... 
+[16-06-2026 16:10:03.29] WARNING: Could not fetch EOD report 
+[16-06-2026 16:10:03.29] Final daily status: 
+ 
+[16-06-2026 16:10:05.56] Stopping containers... 
+time="2026-06-16T16:10:06-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+[16-06-2026 16:10:06.24] All containers stopped 
+[16-06-2026 16:10:06.24] === SESSION COMPLETE === 
+ 
+[17-06-2026 10:06:43.06] === AUTO START === 
+[17-06-2026 16:10:01.32] === AUTO STOP === 
+[17-06-2026 16:10:01.32] Fetching final EOD report... 
+[17-06-2026 16:10:03.60] WARNING: Could not fetch EOD report 
+[17-06-2026 16:10:03.60] Final daily status: 
+ 
+[17-06-2026 16:10:05.88] Stopping containers... 
+time="2026-06-17T16:10:06-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+[17-06-2026 16:10:06.56] All containers stopped 
+[17-06-2026 16:10:06.56] === SESSION COMPLETE === 
+ 
+[18-06-2026 11:52:04.90] === AUTO START === 
+[18-06-2026 16:10:00.51] === AUTO STOP === 
+[18-06-2026 16:10:00.51] Fetching final EOD report... 
+[18-06-2026 16:10:02.78] WARNING: Could not fetch EOD report 
+[18-06-2026 16:10:02.78] Final daily status: 
+ 
+[18-06-2026 16:10:05.06] Stopping containers... 
+time="2026-06-18T16:10:05-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+[18-06-2026 16:10:05.58] All containers stopped 
+[18-06-2026 16:10:05.58] === SESSION COMPLETE === 
+ 
+[19-06-2026 15:50:23.81] === AUTO START === 
+[19-06-2026 16:10:00.97] === AUTO STOP === 
+[19-06-2026 16:10:00.97] Fetching final EOD report... 
+[19-06-2026 16:10:03.25] WARNING: Could not fetch EOD report 
+[19-06-2026 16:10:03.25] Final daily status: 
+ 
+[19-06-2026 16:10:05.52] Stopping containers... 
+time="2026-06-19T16:10:05-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+[19-06-2026 16:10:06.06] All containers stopped 
+[19-06-2026 16:10:06.06] === SESSION COMPLETE === 
+ 
+[22-06-2026 10:08:28.61] === AUTO START === 
+[22-06-2026 16:10:00.55] === AUTO STOP === 
+[22-06-2026 16:10:00.55] Fetching final EOD report... 
+[22-06-2026 16:10:00.58] EOD report saved to reports/ 
+[22-06-2026 16:10:00.58] Final daily status: 
+{"data_collected":{"AAPL":{"predictions":1632,"ticks":1632,"trades":0},"AMZN":{"predictions":1635,"ticks":1635,"trades":0},"GOOGL":{"predictions":1632,"ticks":1632,"trades":1},"MSFT":{"predictions":1635,"ticks":1635,"trades":0},"NVDA":{"predictions":1632,"ticks":1632,"trades":0}},"date":"2026-06-22","finetune_triggered":true,"portfolio":{"current_value":500.16,"pnl":0.1649,"profitable":true,"start_value":500.0},"running":true,"snapshots_count":1635} 
+[22-06-2026 16:10:00.60] Stopping containers... 
+time="2026-06-22T16:10:00-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-finetune-sidecar-1 Stopping 
+ Container stock-market-ai-frontend-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopped 
+ Container stock-market-ai-finetune-sidecar-1 Removing 
+ Container stock-market-ai-finetune-sidecar-1 Removed 
+ Container stock-market-ai-frontend-1 Stopped 
+ Container stock-market-ai-frontend-1 Removing 
+ Container stock-market-ai-frontend-1 Removed 
+ Container stock-market-ai-backend-1 Stopping 
+ Container stock-market-ai-backend-1 Stopped 
+ Container stock-market-ai-backend-1 Removing 
+ Container stock-market-ai-backend-1 Removed 
+ Container stock-market-ai-redis-1 Stopping 
+ Container stock-market-ai-redis-1 Stopped 
+ Container stock-market-ai-redis-1 Removing 
+ Container stock-market-ai-redis-1 Removed 
+ Network stock-market-ai_default Removing 
+ Network stock-market-ai_default Removed 
+[22-06-2026 16:10:05.88] All containers stopped 
+[22-06-2026 16:10:05.88] === SESSION COMPLETE === 
+ 
+[23-06-2026 16:10:00.73] === AUTO STOP === 
+[23-06-2026 16:10:00.73] Fetching final EOD report... 
+[23-06-2026 16:10:00.81] EOD report saved to reports/ 
+[23-06-2026 16:10:00.81] Final daily status: 
+{"data_collected":{"AAPL":{"predictions":22143,"ticks":22143,"trades":2},"AMZN":{"predictions":22146,"ticks":22146,"trades":2},"GOOGL":{"predictions":22148,"ticks":22148,"trades":1},"MSFT":{"predictions":22143,"ticks":22143,"trades":1},"NVDA":{"predictions":22148,"ticks":22148,"trades":1}},"date":"2026-06-23","finetune_triggered":true,"portfolio":{"current_value":496.41,"pnl":-3.5936,"profitable":false,"start_value":500.0},"running":true,"snapshots_count":22152} 
+[23-06-2026 16:10:00.84] Stopping containers... 
+time="2026-06-23T16:10:00-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-finetune-sidecar-1 Stopping 
+ Container stock-market-ai-frontend-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopped 
+ Container stock-market-ai-finetune-sidecar-1 Removing 
+ Container stock-market-ai-finetune-sidecar-1 Removed 
+ Container stock-market-ai-frontend-1 Stopped 
+ Container stock-market-ai-frontend-1 Removing 
+ Container stock-market-ai-frontend-1 Removed 
+ Container stock-market-ai-backend-1 Stopping 
+ Container stock-market-ai-backend-1 Stopped 
+ Container stock-market-ai-backend-1 Removing 
+ Container stock-market-ai-backend-1 Removed 
+ Container stock-market-ai-redis-1 Stopping 
+ Container stock-market-ai-redis-1 Stopped 
+ Container stock-market-ai-redis-1 Removing 
+ Container stock-market-ai-redis-1 Removed 
+ Network stock-market-ai_default Removing 
+ Network stock-market-ai_default Removed 
+[23-06-2026 16:10:05.80] All containers stopped 
+[23-06-2026 16:10:05.80] === SESSION COMPLETE === 
+ 
+[24-06-2026  9:45:12.05] === AUTO START === 
+[24-06-2026 16:10:01.00] === AUTO STOP === 
+[24-06-2026 16:10:01.00] Fetching final EOD report... 
+[24-06-2026 16:10:01.06] EOD report saved to reports/ 
+[24-06-2026 16:10:01.06] Final daily status: 
+{"data_collected":{"AAPL":{"predictions":22206,"ticks":22206,"trades":2},"AMZN":{"predictions":22205,"ticks":22205,"trades":2},"GOOGL":{"predictions":22204,"ticks":22204,"trades":2},"MSFT":{"predictions":22202,"ticks":22202,"trades":0},"NVDA":{"predictions":22206,"ticks":22206,"trades":2}},"date":"2026-06-24","finetune_triggered":true,"portfolio":{"current_value":499.13,"pnl":-0.8702,"profitable":false,"start_value":500.08},"running":true,"snapshots_count":22207} 
+[24-06-2026 16:10:01.09] Stopping containers... 
+time="2026-06-24T16:10:01-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-frontend-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopped 
+ Container stock-market-ai-finetune-sidecar-1 Removing 
+ Container stock-market-ai-finetune-sidecar-1 Removed 
+ Container stock-market-ai-frontend-1 Stopped 
+ Container stock-market-ai-frontend-1 Removing 
+ Container stock-market-ai-frontend-1 Removed 
+ Container stock-market-ai-backend-1 Stopping 
+ Container stock-market-ai-backend-1 Stopped 
+ Container stock-market-ai-backend-1 Removing 
+ Container stock-market-ai-backend-1 Removed 
+ Container stock-market-ai-redis-1 Stopping 
+ Container stock-market-ai-redis-1 Stopped 
+ Container stock-market-ai-redis-1 Removing 
+ Container stock-market-ai-redis-1 Removed 
+ Network stock-market-ai_default Removing 
+ Network stock-market-ai_default Removed 
+[24-06-2026 16:10:07.14] All containers stopped 
+[24-06-2026 16:10:07.14] === SESSION COMPLETE === 
+ 
+[25-06-2026 10:06:29.12] === AUTO START === 
+[25-06-2026 16:10:00.76] === AUTO STOP === 
+[25-06-2026 16:10:00.76] Fetching final EOD report... 
+[25-06-2026 16:10:00.79] EOD report saved to reports/ 
+[25-06-2026 16:10:00.79] Final daily status: 
+{"data_collected":{"AAPL":{"predictions":21819,"ticks":21819,"trades":2},"AMZN":{"predictions":21816,"ticks":21816,"trades":2},"GOOGL":{"predictions":21817,"ticks":21817,"trades":1},"MSFT":{"predictions":21818,"ticks":21818,"trades":2},"NVDA":{"predictions":21823,"ticks":21823,"trades":2}},"date":"2026-06-25","finetune_triggered":true,"portfolio":{"current_value":496.31,"pnl":-3.6852,"profitable":false,"start_value":499.13},"running":true,"snapshots_count":21821} 
+[25-06-2026 16:10:00.81] Stopping containers... 
+time="2026-06-25T16:10:00-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-frontend-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopped 
+ Container stock-market-ai-finetune-sidecar-1 Removing 
+ Container stock-market-ai-finetune-sidecar-1 Removed 
+ Container stock-market-ai-frontend-1 Stopped 
+ Container stock-market-ai-frontend-1 Removing 
+ Container stock-market-ai-frontend-1 Removed 
+ Container stock-market-ai-backend-1 Stopping 
+ Container stock-market-ai-backend-1 Stopped 
+ Container stock-market-ai-backend-1 Removing 
+ Container stock-market-ai-backend-1 Removed 
+ Container stock-market-ai-redis-1 Stopping 
+ Container stock-market-ai-redis-1 Stopped 
+ Container stock-market-ai-redis-1 Removing 
+ Container stock-market-ai-redis-1 Removed 
+ Network stock-market-ai_default Removing 
+ Network stock-market-ai_default Removed 
+[25-06-2026 16:10:05.15] All containers stopped 
+[25-06-2026 16:10:05.15] === SESSION COMPLETE === 
+ 
+[26-06-2026  9:46:44.83] === AUTO START === 
+[26-06-2026 16:10:00.90] === AUTO STOP === 
+[26-06-2026 16:10:00.90] Fetching final EOD report... 
+[26-06-2026 16:10:00.95] EOD report saved to reports/ 
+[26-06-2026 16:10:00.95] Final daily status: 
+{"data_collected":{"AAPL":{"predictions":23227,"ticks":23227,"trades":2},"AMZN":{"predictions":23232,"ticks":23232,"trades":2},"GOOGL":{"predictions":23229,"ticks":23229,"trades":1},"MSFT":{"predictions":23229,"ticks":23229,"trades":3},"NVDA":{"predictions":23232,"ticks":23232,"trades":2}},"date":"2026-06-26","finetune_triggered":true,"portfolio":{"current_value":495.29,"pnl":-4.7139,"profitable":false,"start_value":496.12},"running":true,"snapshots_count":23231} 
+[26-06-2026 16:10:00.97] Stopping containers... 
+time="2026-06-26T16:10:01-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-frontend-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopped 
+ Container stock-market-ai-finetune-sidecar-1 Removing 
+ Container stock-market-ai-finetune-sidecar-1 Removed 
+ Container stock-market-ai-frontend-1 Stopped 
+ Container stock-market-ai-frontend-1 Removing 
+ Container stock-market-ai-frontend-1 Removed 
+ Container stock-market-ai-backend-1 Stopping 
+ Container stock-market-ai-backend-1 Stopped 
+ Container stock-market-ai-backend-1 Removing 
+ Container stock-market-ai-backend-1 Removed 
+ Container stock-market-ai-redis-1 Stopping 
+ Container stock-market-ai-redis-1 Stopped 
+ Container stock-market-ai-redis-1 Removing 
+ Container stock-market-ai-redis-1 Removed 
+ Network stock-market-ai_default Removing 
+ Network stock-market-ai_default Removed 
+[26-06-2026 16:10:06.71] All containers stopped 
+[26-06-2026 16:10:06.71] === SESSION COMPLETE === 
+ 
+[29-06-2026  9:25:00.59] === AUTO START === 
+[29-06-2026 16:10:00.60] === AUTO STOP === 
+[29-06-2026 16:10:00.60] Fetching final EOD report... 
+[29-06-2026 16:10:00.64] EOD report saved to reports/ 
+[29-06-2026 16:10:00.64] Final daily status: 
+{"data_collected":{"AAPL":{"predictions":23339,"ticks":23339,"trades":1},"AMZN":{"predictions":23337,"ticks":23337,"trades":2},"GOOGL":{"predictions":23339,"ticks":23339,"trades":1},"MSFT":{"predictions":23399,"ticks":23399,"trades":2},"NVDA":{"predictions":23283,"ticks":23283,"trades":1}},"date":"2026-06-29","finetune_triggered":true,"portfolio":{"current_value":496.22,"pnl":-3.7833,"profitable":false,"start_value":495.29},"running":true,"snapshots_count":24774} 
+[29-06-2026 16:10:00.66] Stopping containers... 
+time="2026-06-29T16:10:00-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-frontend-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopped 
+ Container stock-market-ai-finetune-sidecar-1 Removing 
+ Container stock-market-ai-finetune-sidecar-1 Removed 
+ Container stock-market-ai-frontend-1 Stopped 
+ Container stock-market-ai-frontend-1 Removing 
+ Container stock-market-ai-frontend-1 Removed 
+ Container stock-market-ai-backend-1 Stopping 
+ Container stock-market-ai-backend-1 Stopped 
+ Container stock-market-ai-backend-1 Removing 
+ Container stock-market-ai-backend-1 Removed 
+ Container stock-market-ai-redis-1 Stopping 
+ Container stock-market-ai-redis-1 Stopped 
+ Container stock-market-ai-redis-1 Removing 
+ Container stock-market-ai-redis-1 Removed 
+ Network stock-market-ai_default Removing 
+ Network stock-market-ai_default Removed 
+[29-06-2026 16:10:05.12] All containers stopped 
+[29-06-2026 16:10:05.12] === SESSION COMPLETE === 
+ 
+[30-06-2026  9:25:00.53] === AUTO START === 
+[30-06-2026 16:10:00.55] === AUTO STOP === 
+[30-06-2026 16:10:00.55] Fetching final EOD report... 
+[30-06-2026 16:10:00.58] EOD report saved to reports/ 
+[30-06-2026 16:10:00.58] Final daily status: 
+{"data_collected":{"AAPL":{"predictions":23997,"ticks":23997,"trades":1},"AMZN":{"predictions":23402,"ticks":23402,"trades":2},"GOOGL":{"predictions":23402,"ticks":23402,"trades":1},"MSFT":{"predictions":23402,"ticks":23402,"trades":1},"NVDA":{"predictions":23403,"ticks":23403,"trades":1}},"date":"2026-06-30","finetune_triggered":true,"portfolio":{"current_value":500.8,"pnl":0.8031,"profitable":true,"start_value":496.54},"running":true,"snapshots_count":24246} 
+[30-06-2026 16:10:00.60] Stopping containers... 
+time="2026-06-30T16:10:00-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-frontend-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopped 
+ Container stock-market-ai-finetune-sidecar-1 Removing 
+ Container stock-market-ai-finetune-sidecar-1 Removed 
+ Container stock-market-ai-frontend-1 Stopped 
+ Container stock-market-ai-frontend-1 Removing 
+ Container stock-market-ai-frontend-1 Removed 
+ Container stock-market-ai-backend-1 Stopping 
+ Container stock-market-ai-backend-1 Stopped 
+ Container stock-market-ai-backend-1 Removing 
+ Container stock-market-ai-backend-1 Removed 
+ Container stock-market-ai-redis-1 Stopping 
+ Container stock-market-ai-redis-1 Stopped 
+ Container stock-market-ai-redis-1 Removing 
+ Container stock-market-ai-redis-1 Removed 
+ Network stock-market-ai_default Removing 
+ Network stock-market-ai_default Removed 
+[30-06-2026 16:10:04.11] All containers stopped 
+[30-06-2026 16:10:04.11] === SESSION COMPLETE === 
+ 

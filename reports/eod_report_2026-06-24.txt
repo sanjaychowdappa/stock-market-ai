@@ -1,0 +1,51 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-06-24
+  Generated:  2026-06-24T20:10:01.048609983+00:00
+  Uptime:     6h 10m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $500.00
+  Current Value:    $499.13
+  Cash:             $499.13
+  Positions Value:  $-0.00
+  Total P&L:        -0.8702 (-0.17%)
+  Realized P&L:     $-0.8703
+  Challenge:        $100 → $150 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     4
+  Winning Trades:   1
+  Win Rate:         25.0%
+  Avg Hold Time:    10194s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $200.25     bearish     -0.138   —
+  AAPL     $294.59     bullish     0.177    —
+  MSFT     $365.26     bullish     0.377    —
+  GOOGL    $345.11     neutral     0.028    —
+  AMZN     $233.91     bullish     0.328    —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  18:40:35  SELL   AAPL     $295.12    $106.17  $-0.0827   TRAIL_STOP(-1.52% from peak,pnl=-0.08%)
+  18:17:47  SELL   GOOGL    $346.54    $58.73   $-1.0338   TRAIL_STOP(-1.89% from peak,pnl=-1.73%)
+  17:33:19  SELL   AMZN     $238.75    $37.76   $0.2562    TRAIL_STOP(-1.50% from peak,pnl=0.68%)
+  17:16:38  SELL   NVDA     $198.48    $78.92   $-0.7674   TRAIL_STOP(-1.50% from peak,pnl=-0.96%)
+  15:14:24  SELL   AMZN     $241.92    $38.26   $0.7575    PARTIAL_PROFIT(+2.02%,half)
+  14:55:09  BUY    GOOGL    $352.64    $59.77   $0.0000    ENTRY(s=0.207,K-,2of7)
+  14:31:26  BUY    NVDA     $200.41    $79.69   $0.0000    ENTRY(s=0.278,K+,1of7)
+  14:12:31  BUY    AAPL     $295.35    $106.25  $0.0000    ENTRY(s=0.508,K+,2of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

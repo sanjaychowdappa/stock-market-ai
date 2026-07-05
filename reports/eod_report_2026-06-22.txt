@@ -1,0 +1,48 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-06-22
+  Generated:  2026-06-22T20:10:00.577271484+00:00
+  Uptime:     0h 27m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $500.00
+  Current Value:    $500.16
+  Cash:             $450.00
+  Positions Value:  $50.16
+  Total P&L:        +0.1649 (+0.03%)
+  Realized P&L:     $0.0000
+  Challenge:        $100 → $150 (0.2% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     1
+  Winning Trades:   0
+  Win Rate:         0.0%
+  Avg Hold Time:    0s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $208.66     bullish     0.287    —
+  AAPL     $296.61     neutral     -0.023   —
+  MSFT     $367.98     bearish     -0.325   —
+  GOOGL    $349.94     bearish     -0.208   OPEN
+  AMZN     $232.99     neutral     0.079    —
+
+─────────────── OPEN POSITIONS ───────────────
+
+  GOOGL — 0.1434 shares @ $348.79 → $349.94  P&L: $0.1649 (0.33%)
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:45:02  BUY    GOOGL    $348.79    $50.00   $0.0000    ENTRY(s=0.226,K+,2of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

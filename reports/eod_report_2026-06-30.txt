@@ -1,0 +1,56 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-06-30
+  Generated:  2026-06-30T20:10:00.578113811+00:00
+  Uptime:     6h 44m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $500.00
+  Current Value:    $500.80
+  Cash:             $300.14
+  Positions Value:  $200.66
+  Total P&L:        +0.8031 (+0.16%)
+  Realized P&L:     $-3.1462
+  Challenge:        $100 → $150 (0.8% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     20
+  Winning Trades:   2
+  Win Rate:         10.0%
+  Avg Hold Time:    2499s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $200.02     bullish     0.261    OPEN
+  AAPL     $289.27     bearish     -0.226   OPEN
+  MSFT     $373.79     neutral     0.063    OPEN
+  GOOGL    $355.70     neutral     -0.051   OPEN
+  AMZN     $238.02     neutral     -0.016   —
+
+─────────────── OPEN POSITIONS ───────────────
+
+  NVDA — 0.2406 shares @ $193.19 → $200.02  P&L: $1.6443 (3.54%)
+  GOOGL — 0.0890 shares @ $348.10 → $355.70  P&L: $0.6766 (2.18%)
+  AAPL — 0.2009 shares @ $281.88 → $289.27  P&L: $1.4857 (2.62%)
+  MSFT — 0.1680 shares @ $372.94 → $373.79  P&L: $0.1428 (0.23%)
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  18:42:24  SELL   AMZN     $237.90    $62.05   $-0.5634   TRAIL_STOP(-1.50% from peak,pnl=-0.90%)
+  16:56:14  BUY    MSFT     $372.94    $62.64   $0.0000    ENTRY(s=0.218,K~,2of7)
+  15:55:43  BUY    AMZN     $240.06    $62.61   $0.0000    ENTRY(s=0.200,K~,3of7)
+  15:18:49  SELL   AAPL     $287.57    $57.77   $1.1441    PARTIAL_PROFIT(+2.02%,half)
+  14:56:09  SELL   GOOGL    $355.06    $31.59   $0.6196    PARTIAL_PROFIT(+2.00%,half)
+  13:39:57  SELL   NVDA     $197.32    $47.47   $0.9947    PARTIAL_PROFIT(+2.14%,half)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

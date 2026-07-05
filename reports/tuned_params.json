@@ -1,15 +1,15 @@
 {
-  "min_buy_signal": 0.16125,
-  "strong_buy_signal": 0.25,
+  "min_buy_signal": 0.22,
+  "strong_buy_signal": 0.35,
   "sell_signal_threshold": -0.1,
-  "trailing_stop_pct": 0.5,
-  "hard_stop_pct": -0.95,
-  "take_profit_pct": 2.0,
-  "trade_cooldown_secs": 120,
-  "flat_exit_secs": 900,
+  "trailing_stop_pct": 1.5,
+  "hard_stop_pct": -2.95,
+  "take_profit_pct": 4.0,
+  "trade_cooldown_secs": 10800,
+  "flat_exit_secs": 117000,
   "max_concurrent_positions": 5,
-  "max_daily_trades": 799,
-  "min_predicted_move_pct": 0.012,
-  "tuned_at": "2026-06-12T20:05:36.048279674+00:00",
-  "reason": "Diagnosis: Fees ($0.9179) are >50% of gross P&L ($0.6678) — overtrading; Net P&L negative: $-0.2501; Regression: today $-0.2501 < yesterday $4.2506. Actions: Raised MIN_BUY_SIGNAL, lowered daily cap; Slightly tightened hard stop (floor -0.50%); Blended toward yesterday's better-performing params"
+  "max_daily_trades": 5,
+  "min_predicted_move_pct": 0.015600000000000001,
+  "tuned_at": "2026-06-26T20:05:49.911828150+00:00",
+  "reason": "Diagnosis: Win rate 15.4% below 45% — entering bad trades; Net P&L negative: $-4.9285; Regression: today $-4.9285 < yesterday $-3.9326. Actions: Raised entry threshold and min predicted move; Slightly tightened hard stop (floor -0.50%); Blended toward yesterday's better-performing params"
 }

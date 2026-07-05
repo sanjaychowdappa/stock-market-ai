@@ -1,0 +1,56 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-06-25
+  Generated:  2026-06-25T20:10:00.789022711+00:00
+  Uptime:     6h 3m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $500.00
+  Current Value:    $496.31
+  Cash:             $411.87
+  Positions Value:  $84.44
+  Total P&L:        -3.6852 (-0.74%)
+  Realized P&L:     $-3.9811
+  Challenge:        $100 → $150 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     9
+  Winning Trades:   1
+  Win Rate:         11.1%
+  Avg Hold Time:    5873s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $195.91     bearish     -0.242   —
+  AAPL     $274.65     neutral     0.045    —
+  MSFT     $352.42     neutral     -0.005   —
+  GOOGL    $342.72     bullish     0.253    OPEN
+  AMZN     $227.37     bullish     0.270    —
+
+─────────────── OPEN POSITIONS ───────────────
+
+  GOOGL — 0.2464 shares @ $341.52 → $342.72  P&L: $0.2957 (0.35%)
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:36:19  SELL   AAPL     $275.98    $76.53   $-0.8555   TRAIL_STOP(-1.50% from peak,pnl=-1.11%)
+  18:17:20  BUY    AAPL     $279.06    $77.39   $0.0000    ENTRY(s=0.259,K+,1of7)
+  18:02:17  SELL   NVDA     $194.08    $83.60   $-0.6246   TRAIL_STOP(-1.52% from peak,pnl=-0.74%)
+  16:34:46  SELL   AMZN     $227.34    $76.68   $-0.9934   TRAIL_STOP(-1.52% from peak,pnl=-1.28%)
+  16:06:50  BUY    GOOGL    $341.52    $84.15   $0.0000    ENTRY(s=0.396,K+,2of7)
+  15:34:49  BUY    AMZN     $230.28    $77.67   $0.0000    ENTRY(s=0.253,K+,2of7)
+  15:06:22  SELL   MSFT     $354.51    $49.28   $-0.6373   TRAIL_STOP(-1.52% from peak,pnl=-1.28%)
+  14:33:21  BUY    NVDA     $195.53    $84.23   $0.0000    ENTRY(s=0.286,K+,1of7)
+  14:22:41  BUY    MSFT     $359.10    $49.91   $0.0000    ENTRY(s=0.223,K+,1of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

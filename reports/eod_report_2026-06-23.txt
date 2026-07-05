@@ -1,0 +1,56 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-06-23
+  Generated:  2026-06-23T20:10:00.790930032+00:00
+  Uptime:     6h 9m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $500.00
+  Current Value:    $496.41
+  Cash:             $297.94
+  Positions Value:  $198.46
+  Total P&L:        -3.5936 (-0.72%)
+  Realized P&L:     $-2.4223
+  Challenge:        $100 → $150 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     5
+  Winning Trades:   0
+  Win Rate:         0.0%
+  Avg Hold Time:    9574s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $200.30     bullish     0.139    OPEN
+  AAPL     $294.32     bearish     -0.309   —
+  MSFT     $374.17     bullish     0.230    OPEN
+  GOOGL    $346.61     bullish     0.297    OPEN
+  AMZN     $234.13     bullish     0.125    —
+
+─────────────── OPEN POSITIONS ───────────────
+
+  GOOGL — 0.1616 shares @ $348.07 → $346.61  P&L: $-0.2359 (-0.42%)
+  MSFT — 0.1334 shares @ $374.70 → $374.17  P&L: $-0.0714 (-0.14%)
+  NVDA — 0.4619 shares @ $202.17 → $200.30  P&L: $-0.8638 (-0.92%)
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:19:07  SELL   AAPL     $295.56    $92.31   $-1.3336   TRAIL_STOP(-1.51% from peak,pnl=-1.42%)
+  16:01:04  BUY    NVDA     $202.17    $93.38   $0.0000    ENTRY(s=0.388,K~,1of7)
+  15:33:18  SELL   AMZN     $233.28    $92.69   $-1.0886   TRAIL_STOP(-1.51% from peak,pnl=-1.16%)
+  15:01:49  BUY    AAPL     $299.83    $93.64   $0.0000    ENTRY(s=0.300,K~,2of7)
+  14:31:30  BUY    AMZN     $236.02    $93.77   $0.0000    ENTRY(s=0.313,K~,3of7)
+  14:17:45  BUY    GOOGL    $348.07    $56.25   $0.0000    ENTRY(s=0.216,K+,1of7)
+  14:04:43  BUY    MSFT     $374.70    $50.00   $0.0000    ENTRY(s=0.244,K~,3of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

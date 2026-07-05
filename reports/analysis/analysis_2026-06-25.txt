@@ -1,0 +1,48 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-06-25 16:04   |   Report date: 2026-06-25   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-06-25) ===
+  Trades:       4   (W 0 / L 4)
+  Win rate:     0%
+  Gross P/L:    $-3.1108
+  Avg win:      $0    Avg loss: $-0.7777
+  Expectancy:   $-0.7777/trade gross  ->  ~$-0.8902/trade after est. fees
+  Per symbol:
+    NVDA    1 trades  W0   $-0.6246
+    MSFT    1 trades  W0   $-0.6373
+    AAPL    1 trades  W0   $-0.8555
+    AMZN    1 trades  W0   $-0.9934
+  Exit reasons:
+    TRAIL_STOP         4
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       56   (W 15 / L 41)
+  Win rate:     26.8%
+  Gross P/L:    $-12.8156
+  Avg win:      $0.1445    Avg loss: $-0.3654
+  Expectancy:   $-0.2289/trade gross  ->  ~$-0.3414/trade after est. fees
+  Per symbol:
+    MSFT   10 trades  W5   $-1.0831
+    NVDA   10 trades  W3   $-2.2998
+    AAPL    9 trades  W1   $-2.7027
+    GOOGL  15 trades  W3   $-3.1887
+    AMZN   12 trades  W3   $-3.5413
+  Exit reasons:
+    TRAIL_STOP         26
+    FLAT_EXIT          24
+    MOMENTUM_DEAD      6
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $-0.2289/trade  (56 trades)
+  model_A_all_layers       expectancy $-0.0607/trade  (49 trades)
+  model_B_vp_heavy         expectancy $-0.089/trade  (63 trades)
+  model_C_random_baseline  expectancy $-0.0756/trade  (30 trades)  <-- the bar to beat
+  trend_30min              expectancy $-0.0257/trade  (18 trades)
+  trend_off                expectancy $0.0063/trade  (22 trades)
+  random_baseline          expectancy $-0.025/trade  (17 trades)  <-- the bar to beat
+  trend_fullday            expectancy $0.0553/trade  (15 trades)
+  VERDICT: real does NOT beat random - no demonstrated edge yet
+
+LIVE: portfolio $496.22  (P/L $-3.7837)  running=True

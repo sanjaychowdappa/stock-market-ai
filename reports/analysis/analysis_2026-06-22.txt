@@ -1,0 +1,51 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-06-22 19:10   |   Report date: 2026-06-22   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-06-22) ===
+  Trades:       46   (W 14 / L 32)
+  Win rate:     30.4%
+  Gross P/L:    $-5.6548
+  Avg win:      $0.1365    Avg loss: $-0.2364
+  Expectancy:   $-0.1229/trade gross  ->  ~$-0.2354/trade after est. fees
+  Per symbol:
+    AAPL    6 trades  W1   $-0.4308
+    MSFT    9 trades  W5   $-0.4458
+    NVDA    8 trades  W3   $-0.9078
+    AMZN    9 trades  W2   $-1.7155
+    GOOGL  14 trades  W3   $-2.1549
+  Exit reasons:
+    FLAT_EXIT          24
+    TRAIL_STOP         16
+    MOMENTUM_DEAD      6
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       46   (W 14 / L 32)
+  Win rate:     30.4%
+  Gross P/L:    $-5.6548
+  Avg win:      $0.1365    Avg loss: $-0.2364
+  Expectancy:   $-0.1229/trade gross  ->  ~$-0.2354/trade after est. fees
+  Per symbol:
+    AAPL    6 trades  W1   $-0.4308
+    MSFT    9 trades  W5   $-0.4458
+    NVDA    8 trades  W3   $-0.9078
+    AMZN    9 trades  W2   $-1.7155
+    GOOGL  14 trades  W3   $-2.1549
+  Exit reasons:
+    FLAT_EXIT          24
+    TRAIL_STOP         16
+    MOMENTUM_DEAD      6
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $-0.1229/trade  (46 trades)
+  model_A_all_layers       expectancy $-0.0607/trade  (49 trades)
+  model_B_vp_heavy         expectancy $-0.089/trade  (63 trades)
+  model_C_random_baseline  expectancy $-0.0756/trade  (30 trades)  <-- the bar to beat
+  trend_30min              expectancy $-0.0068/trade  (3 trades)
+  trend_off                expectancy $-0.0469/trade  (6 trades)
+  random_baseline          expectancy $-0.0115/trade  (2 trades)  <-- the bar to beat
+  trend_fullday            expectancy $-0.0129/trade  (1 trades)
+  VERDICT: real does NOT beat random - no demonstrated edge yet
+
+LIVE: backend not reachable (Docker stopped?) - analysis above is from logs.

@@ -1,0 +1,53 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-06-26
+  Generated:  2026-06-26T20:10:00.940068729+00:00
+  Uptime:     6h 27m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $500.00
+  Current Value:    $495.29
+  Cash:             $495.29
+  Positions Value:  $-0.00
+  Total P&L:        -4.7139 (-0.94%)
+  Realized P&L:     $-4.7142
+  Challenge:        $100 → $150 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     13
+  Winning Trades:   2
+  Win Rate:         15.4%
+  Avg Hold Time:    12491s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $192.32     bearish     -0.362   —
+  AAPL     $282.12     bearish     -0.197   —
+  MSFT     $371.74     bearish     -0.216   —
+  GOOGL    $336.82     bullish     0.244    —
+  AMZN     $232.43     bearish     -0.309   —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   MSFT     $375.31    $27.20   $0.8929    WEEKEND_FLAT(Fri 3:55pm)
+  19:55:00  SELL   NVDA     $193.17    $61.30   $-0.0825   WEEKEND_FLAT(Fri 3:55pm)
+  19:09:27  SELL   AMZN     $228.56    $61.13   $-0.8772   TRAIL_STOP(-1.51% from peak,pnl=-1.41%)
+  16:06:05  BUY    AMZN     $231.84    $62.00   $0.0000    ENTRY(s=0.221,K+,1of7)
+  16:05:26  SELL   AAPL     $276.22    $73.91   $-0.3733   TRAIL_STOP(-1.51% from peak,pnl=-0.50%)
+  14:57:42  SELL   MSFT     $370.25    $26.83   $0.5262    PARTIAL_PROFIT(+2.00%,half)
+  14:17:34  BUY    NVDA     $193.43    $61.38   $0.0000    ENTRY(s=0.249,K+,1of7)
+  13:51:44  BUY    MSFT     $362.99    $52.61   $0.0000    ENTRY(s=0.242,K+,1of7)
+  13:43:19  BUY    AAPL     $277.62    $74.28   $0.0000    ENTRY(s=0.396,K+,2of7)
+  13:42:51  SELL   GOOGL    $338.19    $83.33   $-0.8193   TRAIL_STOP(-1.74% from peak,pnl=-0.97%)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

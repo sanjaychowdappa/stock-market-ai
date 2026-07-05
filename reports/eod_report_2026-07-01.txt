@@ -1,0 +1,59 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-07-01
+  Generated:  2026-07-01T20:10:00.792403158+00:00
+  Uptime:     6h 8m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $500.00
+  Current Value:    $502.44
+  Cash:             $172.42
+  Positions Value:  $330.02
+  Total P&L:        +2.4373 (+0.49%)
+  Realized P&L:     $2.7482
+  Challenge:        $100 → $150 (2.4% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     24
+  Winning Trades:   6
+  Win Rate:         25.0%
+  Avg Hold Time:    27895s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $197.10     bullish     0.308    OPEN
+  AAPL     $293.88     neutral     -0.016   OPEN
+  MSFT     $383.40     bearish     -0.228   —
+  GOOGL    $361.22     neutral     0.073    OPEN
+  AMZN     $241.12     bullish     0.225    OPEN
+
+─────────────── OPEN POSITIONS ───────────────
+
+  NVDA — 0.4778 shares @ $197.29 → $197.10  P&L: $-0.0908 (-0.10%)
+  AAPL — 0.3215 shares @ $294.01 → $293.88  P&L: $-0.0418 (-0.04%)
+  AMZN — 0.3639 shares @ $242.28 → $241.12  P&L: $-0.4221 (-0.48%)
+  GOOGL — 0.1485 shares @ $359.58 → $361.22  P&L: $0.2435 (0.46%)
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  18:07:23  BUY    AAPL     $294.01    $94.52   $0.0000    ENTRY(s=0.307,K+,3of7)
+  18:00:06  BUY    GOOGL    $359.58    $53.39   $0.0000    ENTRY(s=0.203,K~,2of7)
+  17:19:36  SELL   MSFT     $387.87    $32.57   $1.2534    TAKE_PROFIT(4.00%)
+  17:01:50  BUY    NVDA     $197.29    $94.26   $0.0000    ENTRY(s=0.300,K~,2of7)
+  16:01:53  BUY    AMZN     $242.28    $88.16   $0.0000    ENTRY(s=0.253,K+,2of7)
+  14:42:58  SELL   GOOGL    $362.11    $32.21   $1.2468    TAKE_PROFIT(4.03%)
+  14:16:21  SELL   AAPL     $293.15    $58.89   $2.2652    TAKE_PROFIT(4.00%)
+  14:13:01  SELL   MSFT     $380.41    $31.95   $0.6273    PARTIAL_PROFIT(+2.00%,half)
+  14:01:24  SELL   NVDA     $195.27    $46.98   $0.5016    TRAIL_STOP(-2.17% from peak,pnl=1.08%)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════
