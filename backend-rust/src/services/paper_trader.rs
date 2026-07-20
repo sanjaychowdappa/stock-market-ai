@@ -747,10 +747,18 @@ impl PaperTrader {
                     cvd_bearish,     // CVD: sellers dominating
                 ].iter().filter(|&&b| b).count();
 
+                let regime_off = !self.market_risk_on.load(Ordering::Relaxed);
+
                 // === ATR-SCALED EXIT LADDER ===
                 // 1. HARD STOP — protect capital, IMMEDIATE (ATR-scaled)
                 if pnl_pct <= hard_stop_lvl {
                     Some(format!("HARD_STOP({:.2}%,atr={:.2}%)", pnl_pct, atr))
+                }
+                // 1b. REGIME EXIT — the broad market turned risk-off. In an
+                // aggressive/max-exposure posture, retreat to cash promptly
+                // rather than ride a falling market down to the stops.
+                else if regime_off && held_long_enough {
+                    Some(format!("REGIME_EXIT(risk-off,pnl={:.2}%)", pnl_pct))
                 }
                 // 2. VP-CONFIRMED BEARISH — thesis invalidated: VP turns bearish
                 // + another signal, and we're down enough that it's not noise.
@@ -986,10 +994,10 @@ impl PaperTrader {
             );
 
             // ── HARD VETO 0: don't fight the trend (regime filter) ──
-            // Long-only must not buy into downtrends. Price below its intraday
-            // average = stand aside. This is the most robust effect in trading
-            // and directly targets the long-into-decline losses (GOOGL/AMZN).
-            if !data.uptrend {
+            // Long-only must not buy into downtrends. Skipped in max-exposure
+            // mode — the market-wide regime filter already confirms it's risk-on,
+            // and intraday dips are acceptable when the goal is full deployment.
+            if !MAX_EXPOSURE_MODE && !data.uptrend {
                 if self.layer_blocks.consensus % 50 == 0 {
                     info!("[TREND_VETO] {} — price ${:.2} below intraday avg, standing aside (downtrend)", sym, data.price);
                 }
@@ -1036,8 +1044,9 @@ impl PaperTrader {
             } else { 0.0 };
             let score = score + mom_tilt;
 
-            // ── MINIMUM SCORE THRESHOLD ──
-            if score <= MIN_BUY_SIGNAL {
+            // ── MINIMUM SCORE THRESHOLD ── (skipped in max-exposure mode so
+            // weak-but-not-vetoed names still fill slots — deploy the cash)
+            if !MAX_EXPOSURE_MODE && score <= MIN_BUY_SIGNAL {
                 if self.layer_blocks.score_too_low % 50 == 0 {
                     info!("[WEAK] {} — {} mom_tilt={:.2} (need > {:.2})", sym, agent_report, mom_tilt, MIN_BUY_SIGNAL);
                 }
@@ -1080,8 +1089,10 @@ impl PaperTrader {
             let price = self.market_data[best_sym].price;
             let bias = *self.kronos_daily_bias.get(best_sym.as_str()).unwrap_or(&0.0);
 
-            // Confidence-scaled sizing: stronger signal = bigger position
-            let confidence_scale = if *score >= 0.40 { 1.0 }
+            // Sizing: max-exposure mode always uses full slot size (deploy the
+            // cash); otherwise scale the bet by signal confidence.
+            let confidence_scale = if MAX_EXPOSURE_MODE { 1.0 }
+                else if *score >= 0.40 { 1.0 }
                 else if *score >= 0.25 { 0.75 }
                 else { 0.50 };
             let alloc = (per_slot * confidence_scale).min(self.cash);

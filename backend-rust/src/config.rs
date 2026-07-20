@@ -18,6 +18,16 @@ pub const INITIAL_CASH: f64 = 500.0;
 /// now addressed by a market-regime filter (see MARKET_REGIME in state.rs).
 pub const SIGNAL_TRADER_ENABLED: bool = true;
 
+/// MAX-EXPOSURE MODE: deploy as much cash as possible instead of leaving it
+/// idle. When the market regime is risk-on, fill EVERY position slot at full
+/// size, skipping the selectivity gates (per-symbol trend veto, minimum-score
+/// threshold, and confidence-based size discount). The evidence pointed here:
+/// time-in-market, not clever entry timing, was what actually made money.
+/// Risk is contained by the market-regime filter (retreat to all-cash when the
+/// broad market turns risk-off), the ATR stops, and the hard stop. This is a
+/// higher risk/reward setting than the selective default.
+pub const MAX_EXPOSURE_MODE: bool = true;
+
 pub const MAX_POSITION_PCT: f64 = 0.25;
 
 // More selective entries — swing wants conviction, not volume.
