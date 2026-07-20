@@ -13,6 +13,11 @@ pub const TOP_SYMBOLS: &[&str] = &["NVDA", "AAPL", "MSFT", "GOOGL", "AMZN"];
 
 pub const INITIAL_CASH: f64 = 500.0;
 
+/// The 5-megacap signal trader is retired — it lost to a random baseline over
+/// a month of data. Disabled so it stops opening new positions (existing ones
+/// still exit normally). The ETF momentum rotation is now the primary strategy.
+pub const SIGNAL_TRADER_ENABLED: bool = false;
+
 pub const MAX_POSITION_PCT: f64 = 0.25;
 
 // More selective entries — swing wants conviction, not volume.

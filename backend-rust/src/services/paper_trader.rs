@@ -652,7 +652,9 @@ impl PaperTrader {
 
         // Don't open new positions in last 10 minutes
         if et_mins >= 15 * 60 + 50 { return; }
-        if !self.circuit_breaker_tripped {
+        // Signal trader retired (lost to random) — it no longer opens new
+        // positions; existing ones exit normally. ETF momentum is primary.
+        if SIGNAL_TRADER_ENABLED && !self.circuit_breaker_tripped {
             self.find_best_entry();
         }
 

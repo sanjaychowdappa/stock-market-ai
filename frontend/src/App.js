@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import CandlestickChart from './components/CandlestickChart';
 import LiveTicker from './components/LiveTicker';
 import LiveTrading from './components/LiveTrading';
+import MomentumPanel from './components/MomentumPanel';
 import './App.css';
 
 function App() {
   const [symbol, setSymbol] = useState('NVDA');
   const [inputSymbol, setInputSymbol] = useState('NVDA');
-  const [activeTab, setActiveTab] = useState('live-trading');
+  const [activeTab, setActiveTab] = useState('momentum');
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -37,7 +38,8 @@ function App() {
 
       <nav className="tabs">
         {[
-          { id: 'live-trading', label: 'Live Trading' },
+          { id: 'momentum', label: 'Momentum Portfolio' },
+          { id: 'live-trading', label: 'Signal Trader (legacy)' },
           { id: 'chart', label: 'Chart' },
         ].map((tab) => (
           <button
@@ -51,6 +53,10 @@ function App() {
       </nav>
 
       <main className="main-content">
+        {activeTab === 'momentum' && (
+          <MomentumPanel />
+        )}
+
         {activeTab === 'live-trading' && (
           <LiveTrading symbol={symbol} />
         )}
