@@ -60,6 +60,27 @@ impl AppState {
             institutional: institutional.clone(),
         });
 
+        // ── Spawn market-regime updater (day-trader risk-on/off filter) ──
+        let regime = state.trader.lock().regime_handle();
+        tokio::spawn(async move {
+            use std::sync::atomic::Ordering;
+            loop {
+                if let Ok(bars) = alpaca_stream::fetch_daily_bars("QQQ", 60).await {
+                    let closes: Vec<f64> = bars.iter().filter_map(|b| b["close"].as_f64()).collect();
+                    if closes.len() >= 50 {
+                        let sma: f64 = closes.iter().rev().take(50).sum::<f64>() / 50.0;
+                        let price = *closes.last().unwrap();
+                        let risk_on = price >= sma;
+                        regime.store(risk_on, Ordering::Relaxed);
+                        tracing::info!("[REGIME] QQQ ${:.2} vs 50d SMA ${:.2} → {}",
+                            price, sma,
+                            if risk_on { "RISK-ON (day-trading active)" } else { "RISK-OFF (new longs paused)" });
+                    }
+                }
+                tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
+            }
+        });
+
         // ── Spawn momentum portfolio (daily rebalance, QQQ-benchmarked) ──
         let mom2 = momentum.clone();
         tokio::spawn(async move {

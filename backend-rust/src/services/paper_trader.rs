@@ -14,6 +14,8 @@ use crate::models::{Position, Trade};
 use chrono::{Datelike, Local, Timelike};
 use serde_json::json;
 use std::collections::{HashMap, VecDeque};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Instant;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
@@ -76,6 +78,11 @@ pub struct PaperTrader {
     veto_log: VecDeque<VetoEntry>,
     last_veto_check: Instant,
     last_save: Instant,
+    /// Market-regime flag: true = broad market risk-on (QQQ above its 50-day
+    /// average). When false, the signal trader stops opening new longs — its
+    /// biggest failure mode was buying into down/choppy markets. Updated by a
+    /// background task in state.rs.
+    market_risk_on: Arc<AtomicBool>,
     /// Daily circuit breaker state: portfolio value at day start and
     /// whether the -2% loss limit has tripped (blocks new entries only).
     day_start_value: f64,
@@ -284,6 +291,7 @@ impl PaperTrader {
             veto_log: VecDeque::with_capacity(100),
             last_veto_check: Instant::now(),
             last_save: Instant::now(),
+            market_risk_on: Arc::new(AtomicBool::new(true)),
             day_start_value: INITIAL_CASH,
             last_trading_date: String::new(),
             circuit_breaker_tripped: false,
@@ -790,9 +798,18 @@ impl PaperTrader {
         }
     }
 
+    /// Share the market-regime flag so a background task can update it.
+    pub fn regime_handle(&self) -> Arc<AtomicBool> {
+        self.market_risk_on.clone()
+    }
+
     fn find_best_entry(&mut self) {
         if self.daily_trades >= MAX_DAILY_TRADES { return; }
         if self.positions.len() >= MAX_CONCURRENT_POSITIONS { return; }
+        // Market-regime filter: don't open new longs when the broad market is
+        // risk-off (QQQ below its 50-day average). This is the single most
+        // evidence-backed fix for a long-only intraday system.
+        if !self.market_risk_on.load(Ordering::Relaxed) { return; }
 
         let open_slots_available = MAX_CONCURRENT_POSITIONS.saturating_sub(self.positions.len());
         // Divide available cash evenly across remaining slots so full budget gets deployed

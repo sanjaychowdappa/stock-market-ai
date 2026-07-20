@@ -13,10 +13,10 @@ pub const TOP_SYMBOLS: &[&str] = &["NVDA", "AAPL", "MSFT", "GOOGL", "AMZN"];
 
 pub const INITIAL_CASH: f64 = 500.0;
 
-/// The 5-megacap signal trader is retired — it lost to a random baseline over
-/// a month of data. Disabled so it stops opening new positions (existing ones
-/// still exit normally). The ETF momentum rotation is now the primary strategy.
-pub const SIGNAL_TRADER_ENABLED: bool = false;
+/// The 5-megacap signal trader. Kept running alongside the ETF momentum
+/// strategy. Its biggest weakness (long-only losing in down/choppy markets) is
+/// now addressed by a market-regime filter (see MARKET_REGIME in state.rs).
+pub const SIGNAL_TRADER_ENABLED: bool = true;
 
 pub const MAX_POSITION_PCT: f64 = 0.25;
 
