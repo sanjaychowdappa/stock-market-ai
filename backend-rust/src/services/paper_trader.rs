@@ -227,6 +227,7 @@ struct MarketSnapshot {
     // Don't fight the trend — long-only should not buy into downtrends.
     uptrend: bool,        // full-day average reference
     uptrend_short: bool,  // 30-min average reference (for A/B test)
+    atr_pct: f64,         // Average True Range as % of price (for ATR exits)
     // ML agent scores from sidecar (None = use hardcoded fallback)
     ml_agent_scores: Option<CachedAgentScores>,
 }
@@ -426,7 +427,7 @@ impl PaperTrader {
             gex_signal: 0.0, gex_regime: "neutral".to_string(),
             vp_signal: 0.0, vp_position: "unknown".to_string(),
             cot_signal: 0.0, session_high: 0.0, session_low: 0.0,
-            uptrend: true, uptrend_short: true,
+            uptrend: true, uptrend_short: true, atr_pct: 0.0,
             ml_agent_scores: None,
         });
         snap.gex_signal = gex_signal;
@@ -543,6 +544,7 @@ impl PaperTrader {
             // Fail-open (true) when the engine hasn't computed it yet.
             uptrend: data["trend_filter"]["uptrend"].as_bool().unwrap_or(true),
             uptrend_short: data["trend_filter"]["uptrend_short"].as_bool().unwrap_or(true),
+            atr_pct: { let a = data["atr"].as_f64().unwrap_or(0.0); if price > 0.0 { a / price * 100.0 } else { 0.0 } },
             ml_agent_scores,
         });
 
@@ -683,12 +685,14 @@ impl PaperTrader {
     }
 
     fn manage_position(&mut self, symbol: &str) {
-        // Partial profit booking: sell half at +PARTIAL_PROFIT_PCT, let the
-        // rest run behind the trailing stop. (TAKE_PROFIT at +2% never fires
-        // intraday — this actually captures the winners.)
+        // Partial profit booking: sell half at the ATR-scaled partial level,
+        // let the rest run behind the trailing stop — this captures winners
+        // that the full take-profit rarely reaches.
         let book_partial = self.positions.get(symbol).map_or(false, |pos| {
+            let atr = pos.entry_atr_pct.max(ATR_PCT_FLOOR);
+            let partial_lvl = (PARTIAL_ATR_MULT * atr).clamp(1.0, 4.0);
             !pos.partial_taken
-                && pos.unrealized_pnl_pct() >= PARTIAL_PROFIT_PCT
+                && pos.unrealized_pnl_pct() >= partial_lvl
                 && pos.hold_seconds >= MIN_HOLD_SECS
         });
         if book_partial {
@@ -723,6 +727,15 @@ impl PaperTrader {
                 // Only HARD_STOP bypasses this — capital protection is always immediate.
                 let held_long_enough = pos.hold_seconds >= MIN_HOLD_SECS;
 
+                // === ATR-SCALED EXIT THRESHOLDS ===
+                // Each position's stops/targets are sized to its own volatility,
+                // then clamped to a sane band. A calm name exits tight; a wild
+                // one gets room to breathe instead of a one-size-fits-all stop.
+                let atr = pos.entry_atr_pct.max(ATR_PCT_FLOOR);
+                let hard_stop_lvl = -(HARD_STOP_ATR_MULT * atr).clamp(1.0, 5.0);
+                let take_profit_lvl = (TAKE_PROFIT_ATR_MULT * atr).clamp(2.0, 8.0);
+                let trail_lvl = (TRAIL_ATR_MULT * atr).clamp(0.5, 3.0);
+
                 // === EXIT LOGIC — VP-ANCHORED (fixed based on accuracy data) ===
                 // VP is 72.6% accurate. Kalman/Pattern fire false bearish constantly.
                 // Require VP confirmation for bearish exits, not just noisy layers.
@@ -734,10 +747,10 @@ impl PaperTrader {
                     cvd_bearish,     // CVD: sellers dominating
                 ].iter().filter(|&&b| b).count();
 
-                // === SWING EXIT LADDER ===
-                // 1. HARD STOP — protect capital, IMMEDIATE (-3% in swing mode)
-                if pnl_pct <= HARD_STOP_PCT {
-                    Some("HARD_STOP".to_string())
+                // === ATR-SCALED EXIT LADDER ===
+                // 1. HARD STOP — protect capital, IMMEDIATE (ATR-scaled)
+                if pnl_pct <= hard_stop_lvl {
+                    Some(format!("HARD_STOP({:.2}%,atr={:.2}%)", pnl_pct, atr))
                 }
                 // 2. VP-CONFIRMED BEARISH — thesis invalidated: VP turns bearish
                 // + another signal, and we're down enough that it's not noise.
@@ -745,18 +758,18 @@ impl PaperTrader {
                 else if vp_bearish && strong_bearish >= 2 && held_long_enough && pnl_pct < -0.5 {
                     Some(format!("BEARISH_EXIT({}signals,vp_confirmed,pnl={:.2}%)", strong_bearish, pnl_pct))
                 }
-                // 3. TAKE PROFIT — hit the +4% swing target
-                else if held_long_enough && pnl_pct >= TAKE_PROFIT_PCT {
-                    Some(format!("TAKE_PROFIT({:.2}%)", pnl_pct))
+                // 3. TAKE PROFIT — hit the ATR-scaled target
+                else if held_long_enough && pnl_pct >= take_profit_lvl {
+                    Some(format!("TAKE_PROFIT({:.2}%,tgt={:.2}%)", pnl_pct, take_profit_lvl))
                 }
                 // 4. VP RESISTANCE — overbought per volume profile, lock gains
                 // (only meaningful gains now — swing rides small wobbles)
                 else if at_resistance && pnl_pct > 1.0 && held_long_enough {
                     Some(format!("VP_PROFIT_LOCK(pnl={:.2}%)", pnl_pct))
                 }
-                // 5. TRAILING STOP — protect gains from peak. After a partial
-                // booking, the runner exits on drawdown even while in profit.
-                else if drawdown <= -TRAILING_STOP_PCT && held_long_enough
+                // 5. TRAILING STOP — protect gains from peak (ATR-scaled). After
+                // a partial booking, the runner exits on drawdown even in profit.
+                else if drawdown <= -trail_lvl && held_long_enough
                     && (pnl_pct < 0.0 || partial_taken) {
                     Some(format!("TRAIL_STOP({:.2}% from peak,pnl={:.2}%)", drawdown, pnl_pct))
                 }
@@ -1085,6 +1098,7 @@ impl PaperTrader {
                 let mut pos = Position::new(best_sym.clone(), shares, price,
                     Local::now().format("%H:%M:%S").to_string());
                 pos.entry_prediction = Some(prediction.clone());
+                pos.entry_atr_pct = self.market_data[best_sym].atr_pct;
                 self.positions.insert(best_sym.clone(), pos);
                 self.cash -= shares * price;
 

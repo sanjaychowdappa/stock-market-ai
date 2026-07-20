@@ -27,9 +27,13 @@ pub struct Position {
     pub current_price: f64,
     pub high_price: f64,
     pub hold_seconds: u64,
-    /// True once half the position was sold at PARTIAL_PROFIT_PCT —
+    /// True once half the position was sold at the partial-profit level —
     /// the remainder rides with trailing-stop protection.
     pub partial_taken: bool,
+    /// The symbol's ATR (as % of price) captured at entry — drives the
+    /// volatility-scaled exit thresholds for this position.
+    #[serde(default)]
+    pub entry_atr_pct: f64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub entry_prediction: Option<EntryPrediction>,
 }
@@ -45,6 +49,7 @@ impl Position {
             high_price: entry_price,
             hold_seconds: 0,
             partial_taken: false,
+            entry_atr_pct: 0.0,
             entry_prediction: None,
         }
     }

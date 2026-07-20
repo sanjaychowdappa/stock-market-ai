@@ -26,11 +26,24 @@ pub const STRONG_BUY_SIGNAL: f64 = 0.35;
 pub const SELL_SIGNAL_THRESHOLD: f64 = -0.10;
 
 // Wide, multi-day risk bands. Swings need room to breathe.
+// These now act as CLAMP BOUNDS for the ATR-based exits below (fallbacks when
+// ATR is unavailable), not fixed thresholds.
 pub const TRAILING_STOP_PCT: f64 = 1.5;
 
 pub const HARD_STOP_PCT: f64 = -3.0;
 
 pub const TAKE_PROFIT_PCT: f64 = 4.0;
+
+// ── ATR-based dynamic exits ──────────────────────────────────
+// Stops/targets scale with each name's own volatility (Average True Range)
+// instead of one-size-fits-all percentages: a volatile stock gets wider stops,
+// a calm one tighter. Expressed as multiples of ATR%, then clamped to a sane
+// band so a bad ATR reading can't produce an absurd stop.
+pub const HARD_STOP_ATR_MULT: f64 = 2.0;    // stop ~2x ATR below entry
+pub const TAKE_PROFIT_ATR_MULT: f64 = 3.0;  // target ~3x ATR
+pub const TRAIL_ATR_MULT: f64 = 1.5;        // trail ~1.5x ATR off the peak
+pub const PARTIAL_ATR_MULT: f64 = 1.5;      // book half at ~1.5x ATR
+pub const ATR_PCT_FLOOR: f64 = 0.3;         // treat ATR as >= 0.3% of price
 
 // Cooldown is wall-clock: ~3h before re-entering the same symbol.
 pub const TRADE_COOLDOWN_SECS: u64 = 10800;
