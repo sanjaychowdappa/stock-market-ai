@@ -134,6 +134,10 @@ struct ShadowTrader {
     /// hypothesis the weekly data keeps pointing at: time-in-market with
     /// the swing exit ladder is the driver, and every entry gate hurts.
     is_always_in: bool,
+    /// exp1: short-horizon prediction trader. Buys when the engine's
+    /// next-minute forecast predicts an up-move big enough to clear the
+    /// spread; holds ~5 minutes; exits on target/stop/time/prediction-flip.
+    is_exp1: bool,
     /// Trend filter mode for A/B testing: "fullday", "short", or "off".
     trend_mode: String,
 }
@@ -152,6 +156,7 @@ impl ShadowTrader {
             weights,
             is_random: false,
             is_always_in: false,
+            is_exp1: false,
             trend_mode: trend_mode.to_string(),
         }
     }
@@ -165,6 +170,12 @@ impl ShadowTrader {
     fn new_always_in(model_id: &str) -> Self {
         let mut s = Self::new(model_id, [0.0; 7], "off");
         s.is_always_in = true;
+        s
+    }
+
+    fn new_exp1(model_id: &str) -> Self {
+        let mut s = Self::new(model_id, [0.0; 7], "off");
+        s.is_exp1 = true;
         s
     }
 
@@ -268,6 +279,8 @@ impl PaperTrader {
                          "description": "Null hypothesis: random coin-flip entries — the bar every model must beat"},
                         {"id": "always_in_max_exposure", "trend": "off",
                          "description": "Max exposure: always fully invested, no entry gates — tests whether time-in-market is the real driver"},
+                        {"id": "exp1", "trend": "off",
+                         "description": "exp1: short-horizon prediction trader — buys when the next-minute forecast predicts an up-move that clears the spread, ~5-min holds"},
                     ]
                 });
                 let mut line = serde_json::to_string(&marker).unwrap_or_default();
@@ -319,6 +332,9 @@ impl PaperTrader {
                     // do all the risk work. If this beats random, exposure is
                     // the driver and entry timing is irrelevant.
                     ShadowTrader::new_always_in("always_in_max_exposure"),
+                    // exp1: short-horizon prediction trader — trades on the
+                    // engine's next-minute forecast, ~5-minute holds.
+                    ShadowTrader::new_exp1("exp1"),
                 ]
             },
         };
@@ -846,6 +862,50 @@ impl PaperTrader {
         self.market_risk_on.clone()
     }
 
+    /// A/B experiment summary: the real trader plus every shadow model,
+    /// with value, trades, win rate, and realized P&L — for /api/experiments.
+    pub fn experiments_json(&self) -> serde_json::Value {
+        let mut models: Vec<serde_json::Value> = Vec::new();
+        models.push(json!({
+            "model_id": "REAL_TRADER",
+            "kind": "real",
+            "description": "The live paper trader (max-exposure, $3000/day, daily profit skim)",
+            "portfolio_value": (self.total_value() * 100.0).round() / 100.0,
+            "cash": (self.cash * 100.0).round() / 100.0,
+            "open_positions": self.positions.len(),
+            "total_trades": self.total_trades,
+            "win_rate_pct": if self.total_trades > 0 {
+                ((self.winning_trades as f64 / self.total_trades as f64) * 10000.0).round() / 100.0
+            } else { 0.0 },
+            "realized_pnl": (self.realized_pnl * 100.0).round() / 100.0,
+        }));
+        for s in &self.shadow_traders {
+            let desc = if s.is_exp1 {
+                "exp1: buys on next-minute forecast (>0.08% predicted), ~5-min holds"
+            } else if s.is_random {
+                "Random coin-flip entries — the null-hypothesis bar to beat"
+            } else if s.is_always_in {
+                "Always fully invested, no entry gates"
+            } else {
+                "Signal-weighted entries with trend-filter variant"
+            };
+            models.push(json!({
+                "model_id": s.model_id,
+                "kind": if s.is_exp1 { "experiment" } else { "shadow" },
+                "description": desc,
+                "portfolio_value": (s.total_value() * 100.0).round() / 100.0,
+                "cash": (s.cash * 100.0).round() / 100.0,
+                "open_positions": s.positions.len(),
+                "total_trades": s.total_trades,
+                "win_rate_pct": if s.total_trades > 0 {
+                    ((s.winning_trades as f64 / s.total_trades as f64) * 10000.0).round() / 100.0
+                } else { 0.0 },
+                "realized_pnl": (s.realized_pnl * 100.0).round() / 100.0,
+            }));
+        }
+        json!({ "note": "All models trade the same live market data in parallel (paper only).", "models": models })
+    }
+
     fn find_best_entry(&mut self) {
         // Max-exposure mode ignores the daily trade cap so freed cash can be
         // redeployed immediately and the book stays fully invested all day.
@@ -1225,6 +1285,9 @@ impl PaperTrader {
         let cvd_sig = data.cvd_signal;
         let cvd_bearish = cvd_sig < -0.4 && data.cvd_buy_sell_ratio < 0.7;
         let at_resistance = data.vp_position == "above_value" && data.vp_signal < -0.3;
+        // Short-horizon forecast for exp1: predicted %-change over the next
+        // ~60 seconds (Kronos + pattern blend from the engine).
+        let pred_next_min = data.kronos_direction;
 
         for shadow in &mut self.shadow_traders {
             // Update existing positions
@@ -1238,7 +1301,21 @@ impl PaperTrader {
                     vp_score < -0.5, cvd_bearish, at_resistance]
                     .iter().filter(|&&b| b).count();
 
-                let exit_reason = if pnl_pct <= HARD_STOP_PCT {
+                let exit_reason = if shadow.is_exp1 {
+                    // exp1: minutes-scale exits — target, stop, prediction
+                    // flip, or a 5-minute time box. No long-hold gates.
+                    if pnl_pct >= 0.4 {
+                        Some(format!("EXP1_TARGET({:.2}%)", pnl_pct))
+                    } else if pnl_pct <= -0.4 {
+                        Some(format!("EXP1_STOP({:.2}%)", pnl_pct))
+                    } else if pred_next_min < -0.05 && pos.hold_seconds >= 60 {
+                        Some(format!("EXP1_PRED_FLIP(pred={:.2}%,pnl={:.2}%)", pred_next_min, pnl_pct))
+                    } else if pos.hold_seconds >= 300 {
+                        Some(format!("EXP1_TIME_EXIT(300s,{:.2}%)", pnl_pct))
+                    } else {
+                        None
+                    }
+                } else if pnl_pct <= HARD_STOP_PCT {
                     Some("HARD_STOP".to_string())
                 } else if bearish_count >= 2 && pnl_pct < 0.0 {
                     Some(format!("BEARISH_EXIT({}signals,pnl={:.2}%)", bearish_count, pnl_pct))
@@ -1298,12 +1375,15 @@ impl PaperTrader {
             // Try to enter
             if shadow.positions.contains_key(symbol) { continue; }
             if shadow.positions.len() >= MAX_CONCURRENT_POSITIONS { continue; }
-            if shadow.daily_trades >= MAX_DAILY_TRADES { continue; }
-            // Max-exposure model skips the cooldown — being out of the market
-            // for 3h after an exit is exactly the drag it exists to measure.
-            if !shadow.is_always_in {
+            // exp1 is a fast trader — the 5/day cap would strangle it.
+            if !shadow.is_exp1 && shadow.daily_trades >= MAX_DAILY_TRADES { continue; }
+            // Cooldowns: always_in = none; exp1 = 90s breather; others = 3h.
+            let cd_secs = if shadow.is_always_in { 0 }
+                else if shadow.is_exp1 { 90 }
+                else { TRADE_COOLDOWN_SECS };
+            if cd_secs > 0 {
                 if let Some(cd) = shadow.cooldowns.get(symbol) {
-                    if cd.elapsed().as_secs() < TRADE_COOLDOWN_SECS { continue; }
+                    if cd.elapsed().as_secs() < cd_secs { continue; }
                 }
             }
 
@@ -1328,6 +1408,11 @@ impl PaperTrader {
                 rand::random::<f64>() < 0.001
             } else if shadow.is_always_in {
                 true
+            } else if shadow.is_exp1 {
+                // exp1: enter only when the next-minute forecast predicts an
+                // up-move big enough to clear a typical spread (~0.08%), with
+                // the 30s trend agreeing.
+                pred_next_min > 0.08 && data.trend > 0.0
             } else {
                 weighted_score > MIN_BUY_SIGNAL && kronos_score >= -0.1 && trend_ok
             };
@@ -1335,7 +1420,7 @@ impl PaperTrader {
             if should_enter {
                 let shadow_open = MAX_CONCURRENT_POSITIONS.saturating_sub(shadow.positions.len());
                 let per_slot = (shadow.cash / shadow_open as f64).min(shadow.total_value() * MAX_POSITION_PCT);
-                let shadow_conf = if shadow.is_always_in { 1.0 } // full size: exposure IS the thesis
+                let shadow_conf = if shadow.is_always_in || shadow.is_exp1 { 1.0 } // full slot
                     else if weighted_score >= 0.40 { 1.0 }
                     else if weighted_score >= 0.25 { 0.75 }
                     else { 0.50 };
