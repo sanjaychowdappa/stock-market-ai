@@ -11,7 +11,12 @@ pub const TOP_SYMBOLS: &[&str] = &["NVDA", "AAPL", "MSFT", "GOOGL", "AMZN"];
 //  Few, high-conviction trades. Wide targets. Hold through noise.
 // ══════════════════════════════════════════════════════════════
 
-pub const INITIAL_CASH: f64 = 500.0;
+/// Fixed working capital for the day trader. Each trading day starts flat at
+/// this amount; at 3:55pm ET everything is liquidated, the day's profit/loss is
+/// banked to the profit ledger (reports/daily_profit.jsonl), and capital resets
+/// to this amount for the next day. Profit is never compounded — position size
+/// stays constant, and losses can't snowball into the next day's risk.
+pub const INITIAL_CASH: f64 = 3000.0;
 
 /// The 5-megacap signal trader. Kept running alongside the ETF momentum
 /// strategy. Its biggest weakness (long-only losing in down/choppy markets) is

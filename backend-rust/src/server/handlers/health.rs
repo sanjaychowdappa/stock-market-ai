@@ -2,6 +2,7 @@ use axum::extract::State;
 use axum::Json;
 use crate::state::AppState;
 use std::sync::Arc;
+use chrono::Datelike;
 
 pub async fn health(State(_state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     Json(serde_json::json!({
@@ -81,6 +82,44 @@ pub async fn sp500_scan(State(state): State<Arc<AppState>>) -> Json<serde_json::
 
 pub async fn momentum(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     Json(state.momentum.lock().to_json())
+}
+
+/// Daily profit ledger + weekly aggregation for the fixed-capital day trader.
+pub async fn profit(State(_state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    use std::collections::BTreeMap;
+    let content = tokio::fs::read_to_string("/app/reports/daily_profit.jsonl").await.unwrap_or_default();
+    let mut days: Vec<serde_json::Value> = Vec::new();
+    let mut weekly: BTreeMap<String, (f64, u32)> = BTreeMap::new();
+    let mut total = 0.0;
+    for line in content.lines() {
+        if line.trim().is_empty() { continue; }
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+            let date = v["date"].as_str().unwrap_or("").to_string();
+            let pnl = v["day_pnl"].as_f64().unwrap_or(0.0);
+            total += pnl;
+            // ISO-ish week key: year + week number via naive date
+            if let Ok(d) = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d") {
+                let iso = d.iso_week();
+                let key = format!("{}-W{:02}", iso.year(), iso.week());
+                let e = weekly.entry(key).or_insert((0.0, 0));
+                e.0 += pnl; e.1 += 1;
+            }
+            days.push(serde_json::json!({"date": date, "day_pnl": pnl,
+                "cumulative_pnl": v["cumulative_pnl"].as_f64().unwrap_or(0.0)}));
+        }
+    }
+    let weeks: Vec<serde_json::Value> = weekly.iter().map(|(k, (p, n))| serde_json::json!({
+        "week": k, "profit": (p*100.0).round()/100.0, "days": n,
+    })).collect();
+    let recent: Vec<&serde_json::Value> = days.iter().rev().take(15).collect();
+    Json(serde_json::json!({
+        "model": "fixed-capital day trader: $3000/day, profit banked daily, reset each day",
+        "capital_per_day": crate::config::INITIAL_CASH,
+        "days_recorded": days.len(),
+        "total_banked_profit": (total*100.0).round()/100.0,
+        "weekly_profit": weeks,
+        "recent_days": recent,
+    }))
 }
 
 pub async fn layer_monitor(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {

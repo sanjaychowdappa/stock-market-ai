@@ -48,6 +48,8 @@ struct PersistedState {
     last_trading_date: String,
     day_start_value: f64,
     circuit_breaker_tripped: bool,
+    #[serde(default)]
+    did_daily_skim: bool,
     shadows: Vec<PersistedShadow>,
     saved_at: String,
 }
@@ -88,6 +90,9 @@ pub struct PaperTrader {
     day_start_value: f64,
     last_trading_date: String,
     circuit_breaker_tripped: bool,
+    /// True once today's 3:55pm profit-skim + reset has run, so it happens
+    /// exactly once per day and no further trading occurs afterwards.
+    did_daily_skim: bool,
     /// Market intraday momentum (Gao, Han, Li & Zhou 2018): each symbol's
     /// 9:30 open price and its first-half-hour (9:30–10:00 ET) return %.
     /// The first-half-hour return predicts the last-half-hour return, so we
@@ -296,6 +301,7 @@ impl PaperTrader {
             day_start_value: INITIAL_CASH,
             last_trading_date: String::new(),
             circuit_breaker_tripped: false,
+            did_daily_skim: false,
             day_open_price: HashMap::new(),
             first_hh_return: HashMap::new(),
             shadow_traders: {
@@ -330,6 +336,7 @@ impl PaperTrader {
             trader.last_trading_date = ps.last_trading_date;
             trader.day_start_value = ps.day_start_value;
             trader.circuit_breaker_tripped = ps.circuit_breaker_tripped;
+            trader.did_daily_skim = ps.did_daily_skim;
             for psh in ps.shadows {
                 if let Some(sh) = trader.shadow_traders.iter_mut().find(|s| s.model_id == psh.model_id) {
                     sh.cash = psh.cash;
@@ -375,6 +382,7 @@ impl PaperTrader {
             last_trading_date: self.last_trading_date.clone(),
             day_start_value: self.day_start_value,
             circuit_breaker_tripped: self.circuit_breaker_tripped,
+            did_daily_skim: self.did_daily_skim,
             shadows,
             saved_at: Local::now().to_rfc3339(),
         };
@@ -570,18 +578,17 @@ impl PaperTrader {
         let et_hour = (utc_now.hour() as i64 - offset_hours).rem_euclid(24) as u32;
         let et_minute = utc_now.minute();
         let et_mins = et_hour * 60 + et_minute;
-        // Swing mode: hold overnight Mon–Thu, but flatten before the weekend.
-        // A $500 unattended system shouldn't carry 2+ days of gap risk.
-        let et_dt = utc_now - chrono::Duration::hours(offset_hours);
-        let is_friday = et_dt.weekday() == chrono::Weekday::Fri;
-        let eod_liquidation = is_friday && et_mins >= 15 * 60 + 55; // Fri 3:55 PM ET
+        // Daily model: flatten EVERY day at 3:55pm ET, bank the day's profit,
+        // reset capital to the fixed budget for tomorrow.
+        let eod_liquidation = et_mins >= 15 * 60 + 55; // 3:55 PM ET, any day
 
-        // New trading day: reset circuit breaker and daily counters
+        // New trading day: reset circuit breaker, daily counters, and the skim flag
         let et_date = (utc_now - chrono::Duration::hours(offset_hours)).date_naive().to_string();
         if self.last_trading_date != et_date {
             self.last_trading_date = et_date.clone();
             self.day_start_value = self.total_value();
             self.circuit_breaker_tripped = false;
+            self.did_daily_skim = false;
             self.daily_trades = 0;
             for shadow in &mut self.shadow_traders { shadow.daily_trades = 0; }
             self.day_open_price.clear();
@@ -612,39 +619,54 @@ impl PaperTrader {
             }
         }
 
-        if eod_liquidation && self.positions.contains_key(symbol) {
-            info!("[WEEKEND_FLAT] {} — flattening before the weekend ({}:{})", symbol, et_hour, et_minute);
-            self.sell(symbol, "WEEKEND_FLAT(Fri 3:55pm)");
-            // EOD liquidate shadow traders too
+        // ── DAILY PROFIT SKIM ──────────────────────────────────────
+        // At 3:55pm ET: flatten everything, bank the day's P&L to the profit
+        // ledger, and reset working capital to the fixed budget. Runs once/day.
+        if eod_liquidation && !self.did_daily_skim {
+            // Flatten all real positions.
+            let syms: Vec<String> = self.positions.keys().cloned().collect();
+            for s in &syms { self.sell(s, "EOD_DAILY_SKIM"); }
+            // Flatten shadow positions too (they keep their own running books).
             for shadow in &mut self.shadow_traders {
-                if let Some(pos) = shadow.positions.remove(symbol) {
-                    let pnl = pos.unrealized_pnl();
-                    shadow.cash += pos.market_value();
-                    shadow.realized_pnl += pnl;
-                    if pnl > 0.0 { shadow.winning_trades += 1; }
-                    let log_entry = json!({
-                        "type": "shadow_trade", "model_id": shadow.model_id,
-                        "timestamp": Local::now().to_rfc3339(), "action": "SELL",
-                        "symbol": symbol, "entry_price": pos.entry_price,
-                        "exit_price": pos.current_price, "pnl": pnl,
-                        "pnl_pct": pos.unrealized_pnl_pct(),
-                        "hold_seconds": pos.hold_seconds,
-                        "exit_reason": "WEEKEND_FLAT",
-                        "portfolio_value": shadow.total_value(),
-                        "realized_pnl": shadow.realized_pnl,
-                    });
-                    tokio::spawn(async move {
-                        let path = "/app/reports/prediction_accuracy.jsonl";
-                        if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path).await {
-                            let mut line = serde_json::to_string(&log_entry).unwrap_or_default();
-                            line.push('\n');
-                            let _ = f.write_all(line.as_bytes()).await;
-                        }
-                    });
+                let ss: Vec<String> = shadow.positions.keys().cloned().collect();
+                for s in &ss {
+                    if let Some(pos) = shadow.positions.remove(s) {
+                        let pnl = pos.unrealized_pnl();
+                        shadow.cash += pos.market_value();
+                        shadow.realized_pnl += pnl;
+                        if pnl > 0.0 { shadow.winning_trades += 1; }
+                    }
                 }
             }
+            // The day's P&L = whatever the flat cash is above/below the budget.
+            let day_pnl = self.cash - INITIAL_CASH;
+            let cumulative = self.realized_pnl; // all-time banked P&L
+            info!("[DAILY_SKIM] {} — day P&L ${:.2} banked | cumulative ${:.2} | reset to ${:.0}",
+                et_date, day_pnl, cumulative, INITIAL_CASH);
+            let ledger = json!({
+                "date": et_date,
+                "day_pnl": (day_pnl * 100.0).round() / 100.0,
+                "cumulative_pnl": (cumulative * 100.0).round() / 100.0,
+                "capital": INITIAL_CASH,
+                "timestamp": Local::now().to_rfc3339(),
+            });
+            tokio::spawn(async move {
+                let path = "/app/reports/daily_profit.jsonl";
+                if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path).await {
+                    let mut line = serde_json::to_string(&ledger).unwrap_or_default();
+                    line.push('\n');
+                    let _ = f.write_all(line.as_bytes()).await;
+                }
+            });
+            // Reset working capital for tomorrow. Profit is "taken out".
+            self.cash = INITIAL_CASH;
+            self.did_daily_skim = true;
+            self.day_start_value = INITIAL_CASH;
+            self.save_state();
             return;
         }
+        // After the skim, do nothing else for the rest of the day.
+        if self.did_daily_skim { return; }
 
         self.manage_position(symbol);
 
