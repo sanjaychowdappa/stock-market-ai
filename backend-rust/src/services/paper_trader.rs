@@ -35,6 +35,8 @@ struct PersistedShadow {
     realized_pnl: f64,
     total_trades: u32,
     winning_trades: u32,
+    #[serde(default)]
+    started_date: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -140,6 +142,8 @@ struct ShadowTrader {
     is_exp1: bool,
     /// Recent trade log (kept for the dashboard's live exp1 panel).
     trades: VecDeque<Trade>,
+    /// Date this model started trading (kill-criterion clock for exp1).
+    started_date: String,
     /// Trend filter mode for A/B testing: "fullday", "short", or "off".
     trend_mode: String,
 }
@@ -160,6 +164,7 @@ impl ShadowTrader {
             is_always_in: false,
             is_exp1: false,
             trades: VecDeque::with_capacity(60),
+            started_date: chrono::Local::now().format("%Y-%m-%d").to_string(),
             trend_mode: trend_mode.to_string(),
         }
     }
@@ -368,6 +373,7 @@ impl PaperTrader {
                     sh.realized_pnl = psh.realized_pnl;
                     sh.total_trades = psh.total_trades;
                     sh.winning_trades = psh.winning_trades;
+                    if !psh.started_date.is_empty() { sh.started_date = psh.started_date; }
                 }
             }
             info!("[STATE_RESTORE] resumed: cash ${:.2}, {} open positions, realized ${:.2}",
@@ -395,6 +401,7 @@ impl PaperTrader {
             realized_pnl: s.realized_pnl,
             total_trades: s.total_trades,
             winning_trades: s.winning_trades,
+            started_date: s.started_date.clone(),
         }).collect();
         let state = PersistedState {
             cash: self.cash,
@@ -655,8 +662,9 @@ impl PaperTrader {
                 let ss: Vec<String> = shadow.positions.keys().cloned().collect();
                 for s in &ss {
                     if let Some(pos) = shadow.positions.remove(s) {
-                        let pnl = pos.unrealized_pnl();
-                        shadow.cash += pos.market_value();
+                        let cost = pos.market_value() * SHADOW_COST_PCT / 100.0;
+                        let pnl = pos.unrealized_pnl() - cost;
+                        shadow.cash += pos.market_value() - cost;
                         shadow.realized_pnl += pnl;
                         if pnl > 0.0 { shadow.winning_trades += 1; }
                     }
@@ -911,7 +919,43 @@ impl PaperTrader {
                 "realized_pnl": (s.realized_pnl * 100.0).round() / 100.0,
             }));
         }
-        json!({ "note": "All models trade the same live market data in parallel (paper only).", "models": models })
+        // exp1 kill-criterion status (pre-committed 2026-07-21): after
+        // EXP1_KILL_DAYS or EXP1_KILL_TRADES closed trades, expectancy after
+        // costs must be > 0 AND beat the random baseline, or exp1 is dead.
+        let exp1_status = {
+            let exp1 = self.shadow_traders.iter().find(|s| s.is_exp1);
+            let rand = self.shadow_traders.iter().find(|s| s.is_random);
+            match exp1 {
+                Some(e) => {
+                    let exp = if e.total_trades > 0 { e.realized_pnl / e.total_trades as f64 } else { 0.0 };
+                    let rand_exp = rand.map(|r| if r.total_trades > 0 { r.realized_pnl / r.total_trades as f64 } else { 0.0 }).unwrap_or(0.0);
+                    let days = chrono::NaiveDate::parse_from_str(&e.started_date, "%Y-%m-%d").ok()
+                        .map(|d| (chrono::Local::now().date_naive() - d).num_days()).unwrap_or(0);
+                    let due = days >= EXP1_KILL_DAYS || e.total_trades >= EXP1_KILL_TRADES;
+                    let verdict = if !due { "in trial" }
+                        else if exp > 0.0 && exp > rand_exp { "PASSED — expectancy positive and beats random" }
+                        else { "DEAD per pre-committed kill criterion" };
+                    json!({
+                        "criterion": format!("by {} days or {} trades: expectancy after costs > 0 AND > random baseline", EXP1_KILL_DAYS, EXP1_KILL_TRADES),
+                        "started": e.started_date,
+                        "days_elapsed": days,
+                        "trades": e.total_trades,
+                        "expectancy_per_trade": (exp * 10000.0).round() / 10000.0,
+                        "random_expectancy": (rand_exp * 10000.0).round() / 10000.0,
+                        "verdict": verdict,
+                    })
+                }
+                None => json!(null),
+            }
+        };
+        json!({
+            "version": MODEL_VERSION,
+            "config_frozen_until": CONFIG_FREEZE_UNTIL,
+            "cost_model_pct_round_trip": SHADOW_COST_PCT,
+            "note": "All models trade the same live market data in parallel (paper only). Shadow trades are charged a modeled round-trip cost at exit.",
+            "exp1_kill_criterion": exp1_status,
+            "models": models,
+        })
     }
 
     /// Detailed live view of the exp1 experiment (positions + trade log),
@@ -941,9 +985,14 @@ impl PaperTrader {
             "hold_seconds": t.hold_seconds,
         })).collect();
         let invested: f64 = s.positions.values().map(|p| p.market_value()).sum();
+        let days = chrono::NaiveDate::parse_from_str(&s.started_date, "%Y-%m-%d").ok()
+            .map(|d| (chrono::Local::now().date_naive() - d).num_days()).unwrap_or(0);
         json!({
             "model_id": s.model_id,
-            "strategy": "Buys when the next-minute forecast predicts an up-move >0.08% (30s trend agreeing). Exits: +0.4% target / -0.4% stop / prediction flip / 5-min time box.",
+            "version": MODEL_VERSION,
+            "cost_model_pct_round_trip": SHADOW_COST_PCT,
+            "kill_criterion": format!("pre-committed: by day {} or trade {}, expectancy after costs must be > 0 and beat random ({}d elapsed, {} trades)", EXP1_KILL_DAYS, EXP1_KILL_TRADES, days, s.total_trades),
+            "strategy": "Buys when the next-minute forecast predicts an up-move >0.08% (30s trend agreeing). Exits: +0.4% target / -0.4% stop / prediction flip / 5-min time box. Round-trip cost charged at exit.",
             "portfolio_value": ((s.cash + invested) * 100.0).round() / 100.0,
             "cash": (s.cash * 100.0).round() / 100.0,
             "invested": (invested * 100.0).round() / 100.0,
@@ -1382,16 +1431,19 @@ impl PaperTrader {
                 };
 
                 if let Some(reason) = exit_reason {
-                    let pnl = pos.unrealized_pnl();
+                    // Charge the modeled round-trip cost (spread + slippage)
+                    // at exit so shadow results reflect tradable reality.
+                    let cost = pos.market_value() * SHADOW_COST_PCT / 100.0;
+                    let pnl = pos.unrealized_pnl() - cost;
                     let actual_dir = if pnl >= 0.0 { "bullish" } else { "bearish" };
-                    shadow.cash += pos.market_value();
+                    shadow.cash += pos.market_value() - cost;
                     shadow.realized_pnl += pnl;
                     if pnl > 0.0 { shadow.winning_trades += 1; }
                     let sell_rec = Trade {
                         symbol: symbol.to_string(), action: "SELL".into(),
                         shares: pos.shares, price: pos.current_price,
                         value: pos.market_value(), pnl: Some(pnl),
-                        pnl_pct: Some(pnl_pct), reason: reason.clone(),
+                        pnl_pct: Some(pnl_pct), reason: format!("{} (cost ${:.2})", reason, cost),
                         time: Local::now().format("%H:%M:%S").to_string(),
                         hold_seconds: Some(pos.hold_seconds),
                     };

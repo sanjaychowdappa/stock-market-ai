@@ -2,6 +2,32 @@
 pub const TOP_SYMBOLS: &[&str] = &["NVDA", "AAPL", "MSFT", "GOOGL", "AMZN"];
 
 // ══════════════════════════════════════════════════════════════
+//  VERSION: claude_1  (2026-07-21)
+//  1. Shadow/experiment trades now charge a modeled round-trip cost
+//     (spread+slippage) so the A/B scoreboard can't flatter itself.
+//  2. exp1 has a PRE-COMMITTED kill criterion (below) — decided before
+//     results accumulated, so the goalposts can't move.
+//  3. Config freeze: no parameter changes until CONFIG_FREEZE_UNTIL so
+//     a clean, comparable week of data can accumulate.
+// ══════════════════════════════════════════════════════════════
+pub const MODEL_VERSION: &str = "claude_1";
+
+/// Modeled round-trip trading cost for SHADOW/experiment trades, as % of
+/// trade value, charged at exit (spread + slippage on liquid megacaps).
+/// Without this, fast traders like exp1 look better than reality.
+pub const SHADOW_COST_PCT: f64 = 0.04;
+
+/// exp1 kill criterion, pre-committed 2026-07-21: after EXP1_KILL_DAYS days
+/// or EXP1_KILL_TRADES closed trades (whichever first), exp1's expectancy per
+/// trade AFTER costs must be positive AND beat the random baseline — or exp1
+/// is declared dead. No retuning before the deadline.
+pub const EXP1_KILL_DAYS: i64 = 14;
+pub const EXP1_KILL_TRADES: u32 = 200;
+
+/// No config/parameter changes before this date — clean-data window.
+pub const CONFIG_FREEZE_UNTIL: &str = "2026-07-28";
+
+// ══════════════════════════════════════════════════════════════
 //  PAPER TRADING — v7 SWING MODE (multi-day holds)
 //
 //  Budget: $500. Goal: profit over ~1 week, not intraday scalping.

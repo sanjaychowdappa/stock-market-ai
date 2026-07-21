@@ -48,6 +48,11 @@ function Exp1Live() {
           <div style={{ marginTop: 4, color: '#475569', fontSize: '0.6rem', maxWidth: 340, lineHeight: 1.4 }}>
             {d.strategy}
           </div>
+          {d.kill_criterion && (
+            <div style={{ marginTop: 4, color: '#f59e0b', fontSize: '0.6rem', maxWidth: 340, lineHeight: 1.4 }}>
+              {d.kill_criterion}
+            </div>
+          )}
         </div>
       </div>
 
@@ -145,10 +150,23 @@ function ExperimentsPanel() {
 
   return (
     <div style={S.wrap}>
-      <div style={S.title}>A/B Experiments</div>
+      <div style={S.title}>A/B Experiments{data.version ? <span style={S.ver}> {data.version}</span> : null}</div>
       <div style={S.sub}>
         All models run in parallel on the same live prices (paper only).
+        {data.cost_model_pct_round_trip != null && (
+          <> Shadow trades charge a modeled {data.cost_model_pct_round_trip}% round-trip cost at exit.</>
+        )}
+        {data.config_frozen_until && (
+          <span style={{ color: '#f59e0b' }}> Config frozen until {data.config_frozen_until} for clean data.</span>
+        )}
       </div>
+      {data.exp1_kill_criterion && (
+        <div style={S.killBox}>
+          <b>exp1 kill criterion:</b> {data.exp1_kill_criterion.criterion} — {data.exp1_kill_criterion.days_elapsed}d elapsed,
+          {' '}{data.exp1_kill_criterion.trades} trades, expectancy ${data.exp1_kill_criterion.expectancy_per_trade}/trade
+          vs random ${data.exp1_kill_criterion.random_expectancy}/trade → <b>{data.exp1_kill_criterion.verdict}</b>
+        </div>
+      )}
 
       <Exp1Live />
 
@@ -211,6 +229,8 @@ const E = {
 const S = {
   wrap: { padding: 20, maxWidth: 1080, margin: '0 auto' },
   title: { fontSize: 22, fontWeight: 700, color: '#f3f4f6' },
+  ver: { fontSize: 11, fontWeight: 800, color: '#60a5fa', verticalAlign: 'middle', border: '1px solid #1d4ed8', borderRadius: 4, padding: '2px 6px', marginLeft: 8 },
+  killBox: { fontSize: 11.5, color: '#fbbf24', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 12px', marginBottom: 12, lineHeight: 1.5 },
   sub: { fontSize: 13, color: '#9ca3af', margin: '6px 0 14px 0', lineHeight: 1.5 },
   table: { width: '100%', borderCollapse: 'collapse', background: '#111827', borderRadius: 10, overflow: 'hidden' },
   th: { textAlign: 'left', padding: '10px 12px', fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #374151' },

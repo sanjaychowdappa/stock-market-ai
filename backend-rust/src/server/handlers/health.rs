@@ -8,6 +8,8 @@ pub async fn health(State(_state): State<Arc<AppState>>) -> Json<serde_json::Val
     Json(serde_json::json!({
         "status": "ok",
         "engine": "rust",
+        "version": crate::config::MODEL_VERSION,
+        "config_frozen_until": crate::config::CONFIG_FREEZE_UNTIL,
         "symbols": crate::config::TOP_SYMBOLS,
     }))
 }
