@@ -89,6 +89,11 @@ pub async fn experiments(State(state): State<Arc<AppState>>) -> Json<serde_json:
     Json(trader.experiments_json())
 }
 
+pub async fn exp1(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    let trader = state.trader.lock();
+    Json(trader.exp1_json())
+}
+
 /// Daily profit ledger + weekly aggregation for the fixed-capital day trader.
 pub async fn profit(State(_state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     use std::collections::BTreeMap;

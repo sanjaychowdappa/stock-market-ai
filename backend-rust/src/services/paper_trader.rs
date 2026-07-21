@@ -138,6 +138,8 @@ struct ShadowTrader {
     /// next-minute forecast predicts an up-move big enough to clear the
     /// spread; holds ~5 minutes; exits on target/stop/time/prediction-flip.
     is_exp1: bool,
+    /// Recent trade log (kept for the dashboard's live exp1 panel).
+    trades: VecDeque<Trade>,
     /// Trend filter mode for A/B testing: "fullday", "short", or "off".
     trend_mode: String,
 }
@@ -157,8 +159,14 @@ impl ShadowTrader {
             is_random: false,
             is_always_in: false,
             is_exp1: false,
+            trades: VecDeque::with_capacity(60),
             trend_mode: trend_mode.to_string(),
         }
+    }
+
+    fn record_trade(&mut self, t: Trade) {
+        if self.trades.len() >= 60 { self.trades.pop_front(); }
+        self.trades.push_back(t);
     }
 
     fn new_random(model_id: &str) -> Self {
@@ -906,6 +914,50 @@ impl PaperTrader {
         json!({ "note": "All models trade the same live market data in parallel (paper only).", "models": models })
     }
 
+    /// Detailed live view of the exp1 experiment (positions + trade log),
+    /// mirroring the legacy trader panel — for /api/exp1.
+    pub fn exp1_json(&self) -> serde_json::Value {
+        let s = match self.shadow_traders.iter().find(|s| s.is_exp1) {
+            Some(s) => s,
+            None => return json!({"error": "exp1 not running"}),
+        };
+        let positions: Vec<serde_json::Value> = s.positions.values().map(|p| json!({
+            "symbol": p.symbol,
+            "shares": (p.shares * 10000.0).round() / 10000.0,
+            "entry_price": (p.entry_price * 100.0).round() / 100.0,
+            "current_price": (p.current_price * 100.0).round() / 100.0,
+            "value": (p.market_value() * 100.0).round() / 100.0,
+            "pnl": (p.unrealized_pnl() * 100.0).round() / 100.0,
+            "pnl_pct": (p.unrealized_pnl_pct() * 100.0).round() / 100.0,
+            "hold_seconds": p.hold_seconds,
+            "entry_time": p.entry_time,
+        })).collect();
+        let trades: Vec<serde_json::Value> = s.trades.iter().rev().take(30).map(|t| json!({
+            "time": t.time, "action": t.action, "symbol": t.symbol,
+            "shares": (t.shares * 10000.0).round() / 10000.0,
+            "price": (t.price * 100.0).round() / 100.0,
+            "value": (t.value * 100.0).round() / 100.0,
+            "pnl": t.pnl, "pnl_pct": t.pnl_pct, "reason": t.reason,
+            "hold_seconds": t.hold_seconds,
+        })).collect();
+        let invested: f64 = s.positions.values().map(|p| p.market_value()).sum();
+        json!({
+            "model_id": s.model_id,
+            "strategy": "Buys when the next-minute forecast predicts an up-move >0.08% (30s trend agreeing). Exits: +0.4% target / -0.4% stop / prediction flip / 5-min time box.",
+            "portfolio_value": ((s.cash + invested) * 100.0).round() / 100.0,
+            "cash": (s.cash * 100.0).round() / 100.0,
+            "invested": (invested * 100.0).round() / 100.0,
+            "realized_pnl": (s.realized_pnl * 100.0).round() / 100.0,
+            "total_trades": s.total_trades,
+            "winning_trades": s.winning_trades,
+            "win_rate_pct": if s.total_trades > 0 {
+                ((s.winning_trades as f64 / s.total_trades as f64) * 10000.0).round() / 100.0
+            } else { 0.0 },
+            "positions": positions,
+            "recent_trades": trades,
+        })
+    }
+
     fn find_best_entry(&mut self) {
         // Max-exposure mode ignores the daily trade cap so freed cash can be
         // redeployed immediately and the book stays fully invested all day.
@@ -1335,6 +1387,16 @@ impl PaperTrader {
                     shadow.cash += pos.market_value();
                     shadow.realized_pnl += pnl;
                     if pnl > 0.0 { shadow.winning_trades += 1; }
+                    let sell_rec = Trade {
+                        symbol: symbol.to_string(), action: "SELL".into(),
+                        shares: pos.shares, price: pos.current_price,
+                        value: pos.market_value(), pnl: Some(pnl),
+                        pnl_pct: Some(pnl_pct), reason: reason.clone(),
+                        time: Local::now().format("%H:%M:%S").to_string(),
+                        hold_seconds: Some(pos.hold_seconds),
+                    };
+                    if shadow.trades.len() >= 60 { shadow.trades.pop_front(); }
+                    shadow.trades.push_back(sell_rec);
 
                     let log_entry = json!({
                         "type": "shadow_trade",
@@ -1467,6 +1529,17 @@ impl PaperTrader {
                             let _ = f.write_all(line.as_bytes()).await;
                         }
                     });
+                    let buy_rec = Trade {
+                        symbol: symbol.to_string(), action: "BUY".into(),
+                        shares, price, value: shares * price,
+                        pnl: None, pnl_pct: None,
+                        reason: if shadow.is_exp1 {
+                            format!("EXP1_ENTRY(pred={:+.2}%)", pred_next_min)
+                        } else { format!("ENTRY(s={:.3})", weighted_score) },
+                        time: Local::now().format("%H:%M:%S").to_string(),
+                        hold_seconds: None,
+                    };
+                    shadow.record_trade(buy_rec);
                 }
             }
         }
