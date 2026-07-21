@@ -710,7 +710,7 @@ impl PaperTrader {
         // Partial profit booking: sell half at the ATR-scaled partial level,
         // let the rest run behind the trailing stop — this captures winners
         // that the full take-profit rarely reaches.
-        let book_partial = self.positions.get(symbol).map_or(false, |pos| {
+        let book_partial = !MAX_EXPOSURE_MODE && self.positions.get(symbol).map_or(false, |pos| {
             let atr = pos.entry_atr_pct.max(ATR_PCT_FLOOR);
             let partial_lvl = (PARTIAL_ATR_MULT * atr).clamp(1.0, 4.0);
             !pos.partial_taken
@@ -782,25 +782,25 @@ impl PaperTrader {
                 else if regime_off && held_long_enough {
                     Some(format!("REGIME_EXIT(risk-off,pnl={:.2}%)", pnl_pct))
                 }
-                // 2. VP-CONFIRMED BEARISH — thesis invalidated: VP turns bearish
-                // + another signal, and we're down enough that it's not noise.
-                // Gated behind min-hold so intraday wobble can't cut a swing.
-                else if vp_bearish && strong_bearish >= 2 && held_long_enough && pnl_pct < -0.5 {
+                // 2. VP-CONFIRMED BEARISH — disabled in max-exposure mode (hold
+                // through noise; only the hard stop / trailing / regime bail).
+                else if !MAX_EXPOSURE_MODE && vp_bearish && strong_bearish >= 2 && held_long_enough && pnl_pct < -0.5 {
                     Some(format!("BEARISH_EXIT({}signals,vp_confirmed,pnl={:.2}%)", strong_bearish, pnl_pct))
                 }
-                // 3. TAKE PROFIT — hit the ATR-scaled target
-                else if held_long_enough && pnl_pct >= take_profit_lvl {
+                // 3. TAKE PROFIT — disabled in max-exposure mode so winners run
+                // (they are protected by the trailing stop instead of capped).
+                else if !MAX_EXPOSURE_MODE && held_long_enough && pnl_pct >= take_profit_lvl {
                     Some(format!("TAKE_PROFIT({:.2}%,tgt={:.2}%)", pnl_pct, take_profit_lvl))
                 }
-                // 4. VP RESISTANCE — overbought per volume profile, lock gains
-                // (only meaningful gains now — swing rides small wobbles)
-                else if at_resistance && pnl_pct > 1.0 && held_long_enough {
+                // 4. VP RESISTANCE — disabled in max-exposure mode.
+                else if !MAX_EXPOSURE_MODE && at_resistance && pnl_pct > 1.0 && held_long_enough {
                     Some(format!("VP_PROFIT_LOCK(pnl={:.2}%)", pnl_pct))
                 }
-                // 5. TRAILING STOP — protect gains from peak (ATR-scaled). After
-                // a partial booking, the runner exits on drawdown even in profit.
+                // 5. TRAILING STOP — protect gains from peak (ATR-scaled). In
+                // max-exposure mode it also fires while in profit, so a winner
+                // that reverses is locked in (then the cash redeploys instantly).
                 else if drawdown <= -trail_lvl && held_long_enough
-                    && (pnl_pct < 0.0 || partial_taken) {
+                    && (pnl_pct < 0.0 || partial_taken || MAX_EXPOSURE_MODE) {
                     Some(format!("TRAIL_STOP({:.2}% from peak,pnl={:.2}%)", drawdown, pnl_pct))
                 }
                 // 6. FLAT EXIT — max-hold backstop (~1 trading week)
@@ -847,7 +847,9 @@ impl PaperTrader {
     }
 
     fn find_best_entry(&mut self) {
-        if self.daily_trades >= MAX_DAILY_TRADES { return; }
+        // Max-exposure mode ignores the daily trade cap so freed cash can be
+        // redeployed immediately and the book stays fully invested all day.
+        if !MAX_EXPOSURE_MODE && self.daily_trades >= MAX_DAILY_TRADES { return; }
         if self.positions.len() >= MAX_CONCURRENT_POSITIONS { return; }
         // Market-regime filter: don't open new longs when the broad market is
         // risk-off (QQQ below its 50-day average). This is the single most
@@ -871,9 +873,12 @@ impl PaperTrader {
         for (sym, data) in &self.market_data {
             if self.positions.contains_key(sym) { continue; }
 
-            // Cooldown check
-            if let Some(cd) = self.cooldowns.get(sym) {
-                if cd.elapsed().as_secs() < TRADE_COOLDOWN_SECS { continue; }
+            // Cooldown check — skipped in max-exposure mode so an exited slot
+            // refills instantly instead of sitting in cash for 3 hours.
+            if !MAX_EXPOSURE_MODE {
+                if let Some(cd) = self.cooldowns.get(sym) {
+                    if cd.elapsed().as_secs() < TRADE_COOLDOWN_SECS { continue; }
+                }
             }
 
             // ══ AGENT-BASED SCORING ══
@@ -1107,7 +1112,7 @@ impl PaperTrader {
 
         let open_slots = MAX_CONCURRENT_POSITIONS.saturating_sub(self.positions.len());
         for (best_sym, score, layer_report, bullish_count, prediction) in candidates.iter().take(open_slots) {
-            if self.daily_trades >= MAX_DAILY_TRADES { break; }
+            if !MAX_EXPOSURE_MODE && self.daily_trades >= MAX_DAILY_TRADES { break; }
             let price = self.market_data[best_sym].price;
             let bias = *self.kronos_daily_bias.get(best_sym.as_str()).unwrap_or(&0.0);
 
