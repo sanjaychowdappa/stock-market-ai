@@ -3,6 +3,7 @@ import CandlestickChart from './components/CandlestickChart';
 import LiveTicker from './components/LiveTicker';
 import LiveTrading from './components/LiveTrading';
 import MomentumPanel from './components/MomentumPanel';
+import AgenticPanel from './components/AgenticPanel';
 import ExperimentsPanel from './components/ExperimentsPanel';
 import './App.css';
 
@@ -40,6 +41,7 @@ function App() {
       <nav className="tabs">
         {[
           { id: 'momentum', label: 'Momentum Portfolio' },
+          { id: 'agentic', label: 'Agentic Module' },
           { id: 'experiments', label: 'Experiments (A/B)' },
           { id: 'live-trading', label: 'Signal Trader (legacy)' },
           { id: 'chart', label: 'Chart' },
@@ -57,6 +59,10 @@ function App() {
       <main className="main-content">
         {activeTab === 'momentum' && (
           <MomentumPanel />
+        )}
+
+        {activeTab === 'agentic' && (
+          <AgenticPanel />
         )}
 
         {activeTab === 'experiments' && (

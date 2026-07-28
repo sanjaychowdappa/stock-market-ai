@@ -96,6 +96,17 @@ pub async fn exp1(State(state): State<Arc<AppState>>) -> Json<serde_json::Value>
     Json(trader.exp1_json())
 }
 
+/// agentic_test supervisor status + findings.
+pub async fn agentic(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    Json(state.agentic.lock().to_json())
+}
+
+/// Force an immediate supervisory pass (otherwise runs every 15 min).
+pub async fn agentic_run(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    crate::services::agentic_test::run_cycle(&state, &state.agentic).await;
+    Json(state.agentic.lock().to_json())
+}
+
 /// Daily profit ledger + weekly aggregation for the fixed-capital day trader.
 pub async fn profit(State(_state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     use std::collections::BTreeMap;

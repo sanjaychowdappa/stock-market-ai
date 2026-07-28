@@ -29,6 +29,7 @@ pub struct AppState {
     pub daily_focus: SharedDailyFocus,
     pub sp500_scan: daily_stock_picker::SharedSp500Scan,
     pub momentum: crate::services::momentum_portfolio::SharedMomentum,
+    pub agentic: crate::services::agentic_test::SharedAgent,
     pub institutional: Arc<InstitutionalState>,
 }
 
@@ -43,6 +44,7 @@ impl AppState {
         let daily_focus = daily_stock_picker::create_shared();
         let sp500_scan = daily_stock_picker::create_scan_shared();
         let momentum = crate::services::momentum_portfolio::create_shared();
+        let agentic = crate::services::agentic_test::create_shared();
         let institutional = Arc::new(InstitutionalState {
             gex: DashMap::new(),
             volume_profiles: DashMap::new(),
@@ -57,8 +59,12 @@ impl AppState {
             daily_focus: daily_focus.clone(),
             sp500_scan: sp500_scan.clone(),
             momentum: momentum.clone(),
+            agentic: agentic.clone(),
             institutional: institutional.clone(),
         });
+
+        // ── Spawn agentic_test supervisor (operational autonomy) ──
+        crate::services::agentic_test::spawn(state.clone(), agentic.clone());
 
         // ── Spawn market-regime updater (day-trader risk-on/off filter) ──
         let regime = state.trader.lock().regime_handle();

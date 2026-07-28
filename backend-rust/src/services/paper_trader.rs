@@ -878,6 +878,21 @@ impl PaperTrader {
         self.market_risk_on.clone()
     }
 
+    /// (cash, invested) — used by the agentic_test supervisor.
+    pub fn portfolio_snapshot(&self) -> (f64, f64) {
+        (self.cash, self.positions.values().map(|p| p.market_value()).sum())
+    }
+
+    /// Current market-regime posture.
+    pub fn is_risk_on(&self) -> bool {
+        self.market_risk_on.load(Ordering::Relaxed)
+    }
+
+    /// Longest currently-open hold, in seconds (0 if flat).
+    pub fn longest_hold_seconds(&self) -> u64 {
+        self.positions.values().map(|p| p.hold_seconds).max().unwrap_or(0)
+    }
+
     /// A/B experiment summary: the real trader plus every shadow model,
     /// with value, trades, win rate, and realized P&L — for /api/experiments.
     pub fn experiments_json(&self) -> serde_json::Value {
