@@ -1,0 +1,46 @@
+{
+  "all_time": {
+    "avg_daily_net": "$2.1918",
+    "best_day": "2026-07-15 ($10.7009)",
+    "total_fees": "$19.2931",
+    "total_gross_pnl": "$107.1873",
+    "total_net_pnl": "$61.3703",
+    "total_tax": "$26.5240",
+    "trading_days": 28,
+    "worst_day": "2026-06-26 ($-4.9285)"
+  },
+  "comparison": {
+    "efficiency_change": "-0.5",
+    "improved": false,
+    "pnl_change": "-1.0304",
+    "verdict": "DEGRADED — auto-tune needed"
+  },
+  "fee_breakdown": {
+    "gross_to_net": "$11.7458 → $8.1230",
+    "pfof": "$0.1692",
+    "sec_fee": "$0.0353",
+    "spread": "$0.8461",
+    "taf_fee": "$0.0070",
+    "tax_24pct": "$2.5652",
+    "total_fees": "$1.0576"
+  },
+  "today": {
+    "avg_hold": "6669s",
+    "date": "2026-07-20",
+    "efficiency": "71.8",
+    "gross_pnl": "$11.7458",
+    "net_pnl": "$8.1230",
+    "portfolio_value": "$511.75",
+    "tax": "$2.5652",
+    "total_fees": "$1.0576",
+    "trades": 62,
+    "win_rate": "38.7%"
+  },
+  "yesterday": {
+    "date": "2026-07-17",
+    "efficiency": "72.3",
+    "net_pnl": "$9.1534",
+    "trades": 57,
+    "win_rate": "40.4%"
+  }
+}

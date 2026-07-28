@@ -1,0 +1,52 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-07-13
+  Generated:  2026-07-13T20:10:00.843820124+00:00
+  Uptime:     3h 58m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $500.00
+  Current Value:    $506.13
+  Cash:             $262.62
+  Positions Value:  $243.51
+  Total P&L:        +6.1256 (+1.23%)
+  Realized P&L:     $7.0162
+  Challenge:        $100 → $150 (6.1% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     43
+  Winning Trades:   15
+  Win Rate:         34.9%
+  Avg Hold Time:    0s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $203.13     bullish     0.125    —
+  AAPL     $317.44     bearish     -0.204   —
+  MSFT     $391.03     neutral     0.022    OPEN
+  GOOGL    $352.56     bearish     -0.142   OPEN
+  AMZN     $247.32     bearish     -0.135   OPEN
+
+─────────────── OPEN POSITIONS ───────────────
+
+  MSFT — 0.1947 shares @ $390.57 → $391.03  P&L: $0.0896 (0.12%)
+  AMZN — 0.3260 shares @ $247.88 → $247.32  P&L: $-0.1809 (-0.22%)
+  GOOGL — 0.2460 shares @ $355.81 → $352.56  P&L: $-0.7996 (-0.91%)
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  17:41:51  BUY    GOOGL    $355.81    $87.54   $0.0000    ENTRY(s=0.275,K+,2of7)
+  16:12:09  BUY    AMZN     $247.88    $80.81   $0.0000    ENTRY(s=0.300,K+,2of7)
+  16:11:51  BUY    MSFT     $390.57    $76.05   $0.0000    ENTRY(s=0.265,K+,3of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

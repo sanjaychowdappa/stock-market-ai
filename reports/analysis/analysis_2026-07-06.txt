@@ -1,0 +1,43 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-07-06 16:34   |   Report date: 2026-07-06   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-07-06) ===
+  Trades:       2   (W 0 / L 2)
+  Win rate:     0%
+  Gross P/L:    $-1.6716
+  Avg win:      $0    Avg loss: $-0.8358
+  Expectancy:   $-0.8358/trade gross  ->  ~$-0.9483/trade after est. fees
+  Per symbol:
+    AMZN    1 trades  W0   $-0.0182
+    MSFT    1 trades  W0   $-1.6534
+  Exit reasons:
+    TRAIL_STOP         2
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       10   (W 5 / L 5)
+  Win rate:     50%
+  Gross P/L:    $4.5493
+  Avg win:      $1.4316    Avg loss: $-0.5218
+  Expectancy:   $0.4549/trade gross  ->  ~$0.3424/trade after est. fees
+  Per symbol:
+    AAPL    2 trades  W2   $4.1564
+    GOOGL   2 trades  W1   $1.0998
+    NVDA    2 trades  W1   $0.2746
+    MSFT    2 trades  W1   $-0.4
+    AMZN    2 trades  W0   $-0.5816
+  Exit reasons:
+    TRAIL_STOP         6
+    TAKE_PROFIT        4
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $0.4549/trade  (10 trades)
+  trend_fullday            expectancy $0.2507/trade  (18 trades)
+  trend_30min              expectancy $0.4813/trade  (18 trades)
+  trend_off                expectancy $0.3685/trade  (19 trades)
+  random_baseline          expectancy $0.2241/trade  (19 trades)  <-- the bar to beat
+  always_in_max_exposure   expectancy $0.3193/trade  (9 trades)
+  VERDICT: real beats random by $0.2309/trade - signals show edge (need bigger sample to confirm)
+
+LIVE: backend not reachable (Docker stopped?) - analysis above is from logs.

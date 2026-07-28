@@ -1,0 +1,52 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-07-20
+  Generated:  2026-07-20T20:10:00.780349372+00:00
+  Uptime:     4h 55m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $500.00
+  Current Value:    $511.75
+  Cash:             $269.03
+  Positions Value:  $242.72
+  Total P&L:        +11.7458 (+2.35%)
+  Realized P&L:     $12.6934
+  Challenge:        $100 → $150 (11.8% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     62
+  Winning Trades:   24
+  Win Rate:         38.7%
+  Avg Hold Time:    6669s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $203.33     neutral     -0.014   —
+  AAPL     $326.65     bearish     -0.279   OPEN
+  MSFT     $402.15     neutral     -0.052   —
+  GOOGL    $352.04     bearish     -0.171   OPEN
+  AMZN     $249.97     neutral     0.037    —
+
+─────────────── OPEN POSITIONS ───────────────
+
+  GOOGL — 0.3415 shares @ $356.71 → $352.04  P&L: $-1.5967 (-1.31%)
+  AAPL — 0.3750 shares @ $324.92 → $326.65  P&L: $0.6487 (0.53%)
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  16:41:23  SELL   NVDA     $204.51    $121.03  $-0.8078   TRAIL_STOP(-0.97% from peak,pnl=-0.66%)
+  16:04:46  SELL   MSFT     $399.42    $26.17   $0.5149    TAKE_PROFIT(2.01%,tgt=2.00%)
+  15:15:00  BUY    GOOGL    $356.71    $121.83  $0.0000    ENTRY(s=0.024,K~,0of7)
+  15:14:53  BUY    AAPL     $324.92    $121.83  $0.0000    ENTRY(s=0.000,K~,0of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

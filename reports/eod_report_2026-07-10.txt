@@ -1,0 +1,54 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-07-10
+  Generated:  2026-07-10T20:10:00.709916876+00:00
+  Uptime:     6h 47m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $500.00
+  Current Value:    $507.02
+  Cash:             $507.02
+  Positions Value:  $-0.00
+  Total P&L:        +7.0165 (+1.40%)
+  Realized P&L:     $7.0162
+  Challenge:        $100 → $150 (7.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     40
+  Winning Trades:   15
+  Win Rate:         37.5%
+  Avg Hold Time:    14517s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $210.98     bearish     -0.271   —
+  AAPL     $315.32     bullish     0.351    —
+  MSFT     $385.09     neutral     -0.016   —
+  GOOGL    $357.23     bearish     -0.222   —
+  AMZN     $245.49     neutral     0.071    —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   MSFT     $385.14    $63.40   $0.0955    WEEKEND_FLAT(Fri 3:55pm)
+  19:55:00  SELL   AAPL     $316.14    $53.12   $0.3428    WEEKEND_FLAT(Fri 3:55pm)
+  19:55:00  SELL   NVDA     $210.25    $30.48   $0.5219    WEEKEND_FLAT(Fri 3:55pm)
+  17:41:54  SELL   NVDA     $210.79    $30.56   $0.6002    PARTIAL_PROFIT(+2.00%,half)
+  17:23:03  BUY    MSFT     $384.56    $63.31   $0.0000    ENTRY(s=0.240,K~,3of7)
+  14:48:10  SELL   GOOGL    $353.35    $93.19   $-1.0733   TRAIL_STOP(-1.52% from peak,pnl=-1.14%)
+  14:23:05  BUY    NVDA     $206.65    $59.92   $0.0000    ENTRY(s=0.228,K~,2of7)
+  14:02:48  SELL   MSFT     $384.00    $29.87   $0.2403    TRAIL_STOP(-1.52% from peak,pnl=0.81%)
+  14:00:39  SELL   AMZN     $245.58    $60.32   $1.0635    TRAIL_STOP(-1.50% from peak,pnl=1.79%)
+  13:40:01  SELL   AMZN     $249.22    $61.21   $1.9576    PARTIAL_PROFIT(+3.30%,half)
+  13:40:01  SELL   MSFT     $389.92    $30.33   $0.7008    PARTIAL_PROFIT(+2.37%,half)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

@@ -1,0 +1,179 @@
+{
+  "data_quality": {
+    "finetune_triggered": true,
+    "snapshots": 14320,
+    "tracker": {
+      "AAPL": {
+        "predictions": 14319,
+        "ticks": 14319,
+        "trades": 0
+      },
+      "AMZN": {
+        "predictions": 14272,
+        "ticks": 14272,
+        "trades": 1
+      },
+      "GOOGL": {
+        "predictions": 14314,
+        "ticks": 14314,
+        "trades": 1
+      },
+      "MSFT": {
+        "predictions": 14304,
+        "ticks": 14304,
+        "trades": 1
+      },
+      "NVDA": {
+        "predictions": 14315,
+        "ticks": 14315,
+        "trades": 0
+      }
+    }
+  },
+  "portfolio": {
+    "cash": 262.62,
+    "drawdown_pct": 0.0,
+    "initial_capital": 500.0,
+    "positions_value": 243.51,
+    "realized_pnl": 7.0162,
+    "target": {
+      "goal": "$500 → $600 challenge",
+      "progress_pct": 6.13,
+      "target_value": 600.0
+    },
+    "total_pnl": 6.1256,
+    "total_pnl_pct": 1.23,
+    "total_value": 506.13
+  },
+  "positions": [
+    {
+      "current_price": 391.03,
+      "entry_price": 390.57,
+      "hold_seconds": 14290,
+      "market_value": 76.14,
+      "shares": 0.194722,
+      "symbol": "MSFT",
+      "unrealized_pnl": 0.0896,
+      "unrealized_pnl_pct": 0.12
+    },
+    {
+      "current_price": 247.325,
+      "entry_price": 247.88,
+      "hold_seconds": 14271,
+      "market_value": 80.62,
+      "shares": 0.325987,
+      "symbol": "AMZN",
+      "unrealized_pnl": -0.1809,
+      "unrealized_pnl_pct": -0.22
+    },
+    {
+      "current_price": 352.56,
+      "entry_price": 355.81,
+      "hold_seconds": 8890,
+      "market_value": 86.74,
+      "shares": 0.246029,
+      "symbol": "GOOGL",
+      "unrealized_pnl": -0.7996,
+      "unrealized_pnl_pct": -0.91
+    }
+  ],
+  "recent_trades": [
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 355.81,
+      "reason": "ENTRY(s=0.275,K+,2of7)",
+      "shares": 0.24602896264093604,
+      "symbol": "GOOGL",
+      "time": "17:41:51",
+      "total": 87.54
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 247.88,
+      "reason": "ENTRY(s=0.300,K+,2of7)",
+      "shares": 0.32598738296671387,
+      "symbol": "AMZN",
+      "time": "16:12:09",
+      "total": 80.81
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 390.57,
+      "reason": "ENTRY(s=0.265,K+,3of7)",
+      "shares": 0.1947217475268611,
+      "symbol": "MSFT",
+      "time": "16:11:51",
+      "total": 76.05
+    }
+  ],
+  "report": {
+    "date": "2026-07-13",
+    "generated_at": "2026-07-13T20:10:00.843820124+00:00",
+    "market_session": {
+      "close": "16:00 ET",
+      "open": "09:30 ET",
+      "status": "closed"
+    },
+    "type": "end_of_day"
+  },
+  "symbols": [
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 203.13,
+      "position_pnl": 0.0,
+      "signal_strength": 0.12519396545500147,
+      "symbol": "NVDA"
+    },
+    {
+      "direction": "bearish",
+      "in_position": false,
+      "last_price": 317.44,
+      "position_pnl": 0.0,
+      "signal_strength": -0.2044284189689801,
+      "symbol": "AAPL"
+    },
+    {
+      "direction": "neutral",
+      "in_position": true,
+      "last_price": 391.03,
+      "position_pnl": 0.0896,
+      "signal_strength": 0.021885386169516397,
+      "symbol": "MSFT"
+    },
+    {
+      "direction": "bearish",
+      "in_position": true,
+      "last_price": 352.56,
+      "position_pnl": -0.7996,
+      "signal_strength": -0.1417556238046987,
+      "symbol": "GOOGL"
+    },
+    {
+      "direction": "bearish",
+      "in_position": true,
+      "last_price": 247.325,
+      "position_pnl": -0.1809,
+      "signal_strength": -0.1351462473538298,
+      "symbol": "AMZN"
+    }
+  ],
+  "trading_stats": {
+    "avg_hold_seconds": 0,
+    "open_positions": 3,
+    "total_trades": 43,
+    "uptime_seconds": 14329,
+    "win_rate": 34.88,
+    "winning_trades": 15
+  },
+  "value_history": [
+    500.0,
+    506.1255582668144
+  ]
+}

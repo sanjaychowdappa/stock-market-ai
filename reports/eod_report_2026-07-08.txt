@@ -1,0 +1,53 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-07-08
+  Generated:  2026-07-08T20:10:01.207854252+00:00
+  Uptime:     6h 18m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $500.00
+  Current Value:    $504.90
+  Cash:             $369.43
+  Positions Value:  $135.47
+  Total P&L:        +4.8985 (+0.98%)
+  Realized P&L:     $5.0425
+  Challenge:        $100 → $150 (4.9% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     34
+  Winning Trades:   10
+  Win Rate:         29.4%
+  Avg Hold Time:    21504s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $203.92     neutral     -0.052   —
+  AAPL     $313.33     bullish     0.365    OPEN
+  MSFT     $383.11     bullish     0.156    OPEN
+  GOOGL    $361.76     bearish     -0.391   —
+  AMZN     $243.67     bullish     0.133    —
+
+─────────────── OPEN POSITIONS ───────────────
+
+  MSFT — 0.2162 shares @ $383.18 → $383.11  P&L: $-0.0151 (-0.02%)
+  AAPL — 0.1680 shares @ $314.10 → $313.33  P&L: $-0.1294 (-0.25%)
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  18:38:32  BUY    AAPL     $314.10    $52.78   $0.0000    ENTRY(s=0.203,K-,2of7)
+  15:26:27  SELL   NVDA     $196.44    $63.25   $-0.0193   TRAIL_STOP(-1.50% from peak,pnl=-0.03%)
+  14:45:00  BUY    MSFT     $383.18    $82.84   $0.0000    ENTRY(s=0.388,K~,2of7)
+  13:53:02  SELL   AMZN     $243.00    $62.51   $-0.7897   TRAIL_STOP(-1.52% from peak,pnl=-1.25%)
+  13:51:55  SELL   AAPL     $309.29    $31.91   $0.2182    TRAIL_STOP(-1.72% from peak,pnl=0.69%)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

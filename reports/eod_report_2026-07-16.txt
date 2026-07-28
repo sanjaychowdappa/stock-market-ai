@@ -1,0 +1,52 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-07-16
+  Generated:  2026-07-16T20:10:01.024801454+00:00
+  Uptime:     2h 8m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $500.00
+  Current Value:    $513.67
+  Cash:             $448.32
+  Positions Value:  $65.35
+  Total P&L:        +13.6688 (+2.73%)
+  Realized P&L:     $12.5885
+  Challenge:        $100 → $150 (13.7% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     52
+  Winning Trades:   20
+  Win Rate:         38.5%
+  Avg Hold Time:    11854s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $207.18     bearish     -0.223   —
+  AAPL     $333.23     bearish     -0.158   OPEN
+  MSFT     $401.12     neutral     0.050    —
+  GOOGL    $354.31     neutral     0.027    —
+  AMZN     $250.03     bearish     -0.113   —
+
+─────────────── OPEN POSITIONS ───────────────
+
+  AAPL — 0.1961 shares @ $327.73 → $333.23  P&L: $1.0796 (1.68%)
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:46:05  SELL   MSFT     $399.79    $73.43   $-0.7265   TRAIL_STOP(-1.51% from peak,pnl=-0.98%)
+  19:06:27  SELL   AAPL     $334.29    $65.56   $1.2875    PARTIAL_PROFIT(+2.00%,half)
+  18:23:09  SELL   AMZN     $253.16    $86.84   $-0.5557   TRAIL_STOP(-1.54% from peak,pnl=-0.64%)
+  18:13:44  BUY    MSFT     $403.74    $74.16   $0.0000    ENTRY(s=0.273,K+,2of7)
+  18:07:31  SELL   GOOGL    $368.61    $95.57   $-0.9813   TRAIL_STOP(-1.51% from peak,pnl=-1.02%)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

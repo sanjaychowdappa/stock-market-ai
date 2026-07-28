@@ -1,0 +1,57 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-07-09
+  Generated:  2026-07-09T20:10:01.195546238+00:00
+  Uptime:     6h 49m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $500.00
+  Current Value:    $506.40
+  Cash:             $238.23
+  Positions Value:  $268.17
+  Total P&L:        +6.4026 (+1.28%)
+  Realized P&L:     $3.7778
+  Challenge:        $100 → $150 (6.4% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     38
+  Winning Trades:   10
+  Win Rate:         26.3%
+  Avg Hold Time:    6694s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $202.91     bullish     0.169    —
+  AAPL     $316.16     bullish     0.184    OPEN
+  MSFT     $384.24     bullish     0.282    OPEN
+  GOOGL    $358.88     bullish     0.408    OPEN
+  AMZN     $246.85     bullish     0.411    OPEN
+
+─────────────── OPEN POSITIONS ───────────────
+
+  MSFT — 0.1556 shares @ $380.91 → $384.24  P&L: $0.5180 (0.87%)
+  GOOGL — 0.2637 shares @ $357.42 → $358.88  P&L: $0.3850 (0.41%)
+  AMZN — 0.2456 shares @ $241.25 → $246.85  P&L: $1.3755 (2.32%)
+  AAPL — 0.1680 shares @ $314.10 → $316.16  P&L: $0.3461 (0.66%)
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:50:01  SELL   AMZN     $246.18    $60.47   $1.2109    PARTIAL_PROFIT(+2.04%,half)
+  18:06:04  BUY    MSFT     $380.91    $59.26   $0.0000    ENTRY(s=0.201,K~,3of7)
+  14:36:37  BUY    AMZN     $241.25    $118.51  $0.0000    ENTRY(s=0.451,K~,3of7)
+  14:21:43  SELL   NVDA     $199.11    $55.39   $-0.9569   TRAIL_STOP(-1.73% from peak,pnl=-1.70%)
+  14:00:53  BUY    GOOGL    $357.42    $94.26   $0.0000    ENTRY(s=0.388,K-,1of7)
+  13:51:43  BUY    NVDA     $202.55    $56.34   $0.0000    ENTRY(s=0.204,K~,2of7)
+  13:40:01  SELL   MSFT     $376.15    $81.32   $-1.5187   TRAIL_STOP(-2.18% from peak,pnl=-1.83%)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════
