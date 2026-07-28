@@ -205,8 +205,11 @@ fn spawn_orchestrator(state: Arc<AppState>) {
                         let mut ledger = crate::services::performance_ledger::PerformanceLedger::load().await;
                         let today_str = chrono::Local::now().format("%Y-%m-%d").to_string();
 
-                        // Extract stats from report
-                        let gross_pnl = report["portfolio"]["total_pnl"].as_f64().unwrap_or(0.0);
+                        // total_pnl is the RUNNING TOTAL since inception, not the
+                        // day's profit — record_day() converts it to this day's
+                        // increment. (Recording it directly was the bug that
+                        // inflated every "total profit" figure.)
+                        let cumulative_pnl = report["portfolio"]["total_pnl"].as_f64().unwrap_or(0.0);
                         let total_trades = report["trading_stats"]["total_trades"].as_u64().unwrap_or(0) as u32;
                         let winning_trades = report["trading_stats"]["winning_trades"].as_u64().unwrap_or(0) as u32;
                         let avg_hold = report["trading_stats"]["avg_hold_seconds"].as_u64().unwrap_or(0);
@@ -220,7 +223,7 @@ fn spawn_orchestrator(state: Arc<AppState>) {
                         let total_sell_value = (total_trades as f64 / 2.0) * avg_trade_value;
 
                         let day_record = ledger.record_day(
-                            &today_str, gross_pnl, total_trades, winning_trades,
+                            &today_str, cumulative_pnl, total_trades, winning_trades,
                             avg_hold, avg_pnl, total_shares, total_sell_value, portfolio_value,
                         );
 

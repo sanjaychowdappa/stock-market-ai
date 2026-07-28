@@ -42,7 +42,17 @@ impl Default for CostModel {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DayRecord {
     pub date: String,
+    /// THIS DAY's gross P&L increment (not the running total).
     pub gross_pnl: f64,
+    /// Running total since inception, kept so the next day can compute its
+    /// own increment correctly. (Before 2026-07-28 the `gross_pnl` field was
+    /// mistakenly storing this cumulative value — see `daily_reliable`.)
+    #[serde(default)]
+    pub cumulative_pnl: f64,
+    /// False for records written before the cumulative-vs-daily bug was fixed;
+    /// those rows' `gross_pnl`/`net_pnl` are cumulative and must NOT be summed.
+    #[serde(default)]
+    pub daily_reliable: bool,
     pub total_trades: u32,
     pub winning_trades: u32,
     pub win_rate: f64,
@@ -154,10 +164,13 @@ impl PerformanceLedger {
     }
 
     /// Calculate net profit from a day's trading data and record it.
+    /// `cumulative_pnl` is the running total since inception; this fn derives
+    /// THIS DAY's increment from it (the previous bug recorded the running
+    /// total as the daily figure, inflating every "total profit" report).
     pub fn record_day(
         &mut self,
         date: &str,
-        gross_pnl: f64,
+        cumulative_pnl: f64,
         total_trades: u32,
         winning_trades: u32,
         avg_hold_seconds: u64,
@@ -166,6 +179,11 @@ impl PerformanceLedger {
         total_sell_value: f64,
         portfolio_value: f64,
     ) -> DayRecord {
+        // THIS DAY's increment = running total minus the last recorded total.
+        // Falls back to the raw value on the very first record.
+        let prev_cumulative = self.days.last().map(|d| d.cumulative_pnl).unwrap_or(0.0);
+        let gross_pnl = cumulative_pnl - prev_cumulative;
+
         let cm = &self.cost_model;
 
         // Calculate costs
@@ -211,6 +229,8 @@ impl PerformanceLedger {
         let record = DayRecord {
             date: date.to_string(),
             gross_pnl,
+            cumulative_pnl,
+            daily_reliable: true,
             total_trades,
             winning_trades,
             win_rate,
@@ -309,23 +329,34 @@ impl PerformanceLedger {
             });
         }
 
-        // Running totals
-        let total_net: f64 = self.days.iter().map(|d| d.net_pnl).sum();
-        let total_gross: f64 = self.days.iter().map(|d| d.gross_pnl).sum();
-        let total_fees: f64 = self.days.iter().map(|d| d.total_fees).sum();
-        let total_tax: f64 = self.days.iter().map(|d| d.tax).sum();
-        let best_day = self.days.iter().max_by(|a, b| a.net_pnl.partial_cmp(&b.net_pnl).unwrap());
-        let worst_day = self.days.iter().min_by(|a, b| a.net_pnl.partial_cmp(&b.net_pnl).unwrap());
+        // Running totals — ONLY over rows whose daily figures are trustworthy.
+        // Pre-fix rows stored the cumulative total in `gross_pnl`, so summing
+        // them double-counts (that bug inflated "total profit" ~5x).
+        let good: Vec<&DayRecord> = self.days.iter().filter(|d| d.daily_reliable).collect();
+        let excluded = self.days.len() - good.len();
+        let total_net: f64 = good.iter().map(|d| d.net_pnl).sum();
+        let total_gross: f64 = good.iter().map(|d| d.gross_pnl).sum();
+        let total_fees: f64 = good.iter().map(|d| d.total_fees).sum();
+        let total_tax: f64 = good.iter().map(|d| d.tax).sum();
+        let best_day = good.iter().max_by(|a, b| a.net_pnl.partial_cmp(&b.net_pnl).unwrap());
+        let worst_day = good.iter().min_by(|a, b| a.net_pnl.partial_cmp(&b.net_pnl).unwrap());
+        // The most reliable single figure: the latest running total itself.
+        let latest_cumulative = self.days.last().map(|d| d.cumulative_pnl).unwrap_or(0.0);
 
         analysis["all_time"] = json!({
-            "trading_days": self.days.len(),
+            "trading_days_counted": good.len(),
+            "days_excluded_unreliable": excluded,
+            "note": if excluded > 0 {
+                format!("{} early rows excluded: they predate the cumulative-vs-daily fix and would double-count.", excluded)
+            } else { "all rows reliable".to_string() },
+            "latest_cumulative_pnl": format!("${:.4}", latest_cumulative),
             "total_gross_pnl": format!("${:.4}", total_gross),
             "total_fees": format!("${:.4}", total_fees),
             "total_tax": format!("${:.4}", total_tax),
             "total_net_pnl": format!("${:.4}", total_net),
             "best_day": best_day.map(|d| format!("{} (${:.4})", d.date, d.net_pnl)),
             "worst_day": worst_day.map(|d| format!("{} (${:.4})", d.date, d.net_pnl)),
-            "avg_daily_net": format!("${:.4}", if self.days.is_empty() { 0.0 } else { total_net / self.days.len() as f64 }),
+            "avg_daily_net": format!("${:.4}", if good.is_empty() { 0.0 } else { total_net / good.len() as f64 }),
         });
 
         analysis
