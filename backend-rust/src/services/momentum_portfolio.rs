@@ -267,12 +267,28 @@ pub async fn rebalance(mom: &SharedMomentum) {
     });
     let state_json = serde_json::to_string(&*m).ok();
     drop(m);
+    let log_date = today.clone();
     tokio::spawn(async move {
         use tokio::io::AsyncWriteExt;
-        if let Ok(mut f) = tokio::fs::OpenOptions::new().create(true).append(true).open(MOM_LOG).await {
-            let mut line = serde_json::to_string(&log_entry).unwrap_or_default();
-            line.push('\n');
-            let _ = f.write_all(line.as_bytes()).await;
+        // AUDIT FIX (2026-07-29): this runs 90s after EVERY restart, and the
+        // machine restarts several times a day — so the log accumulated
+        // duplicate rows for the same date (Jul 20 had 6), corrupting any
+        // history analysis. Rewrite the day's row instead of appending a new
+        // one, keeping exactly one authoritative entry per date.
+        let existing = tokio::fs::read_to_string(MOM_LOG).await.unwrap_or_default();
+        let mut kept: Vec<String> = existing.lines()
+            .filter(|l| {
+                serde_json::from_str::<Value>(l).ok()
+                    .and_then(|v| v["date"].as_str().map(|d| d != log_date))
+                    .unwrap_or(false)
+            })
+            .map(|s| s.to_string())
+            .collect();
+        kept.push(serde_json::to_string(&log_entry).unwrap_or_default());
+        let mut out = kept.join("\n");
+        out.push('\n');
+        if let Ok(mut f) = tokio::fs::File::create(MOM_LOG).await {
+            let _ = f.write_all(out.as_bytes()).await;
         }
         if let Some(sj) = state_json {
             let _ = tokio::fs::write(MOM_STATE_FILE, sj).await;

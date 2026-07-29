@@ -100,19 +100,13 @@ impl AppState {
             }
         });
 
-        // ── Spawn S&P 500 daily scanner (Phase 1) ──
-        let scan2 = sp500_scan.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_secs(45)).await;
-            daily_stock_picker::run_sp500_scan(&scan2).await;
-            // Re-scan once per day
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(86400));
-            interval.tick().await; // consume immediate first tick
-            loop {
-                interval.tick().await;
-                daily_stock_picker::run_sp500_scan(&scan2).await;
-            }
-        });
+        // ── S&P 500 scanner: AUTO-SCAN DISABLED (audit 2026-07-29) ──
+        // It cost ~100 daily-bar fetches + ~100 Kronos GPU inferences per day,
+        // but nothing consumed its output — "Phase 2" (wiring picks into live
+        // trading) was never built, so the result only sat on /api/scan.
+        // The scanner still works and can be triggered manually via that
+        // endpoint; it just no longer burns quota on a schedule for nobody.
+        let _ = &sp500_scan;
 
         // ── Spawn Kronos daily ranking ──
         let focus2 = daily_focus.clone();
@@ -186,19 +180,31 @@ impl AppState {
     }
 }
 
-/// Compute GEX, Volume Profile, and COT for all symbols.
+/// Compute Volume Profile (and optionally the retired GEX/COT signals).
+///
+/// AUDIT (2026-07-29): GEX and COT both carry 0.0 weight in the scoring model
+/// — they contribute nothing to any decision — yet this ran every 30 minutes,
+/// costing a COT fetch plus 5 daily-bar fetches each cycle. They are now gated
+/// off by DEAD_SIGNALS_ENABLED. Volume Profile (weight 0.52, the single most
+/// important signal) is unaffected and still refreshes on schedule.
+const DEAD_SIGNALS_ENABLED: bool = false;
+
 async fn compute_institutional_signals(inst: &InstitutionalState) {
-    tracing::info!("=== COMPUTING INSTITUTIONAL SIGNALS ===");
+    tracing::info!("=== COMPUTING INSTITUTIONAL SIGNALS (VP{}) ===",
+        if DEAD_SIGNALS_ENABLED { " + GEX/COT" } else { "; GEX/COT skipped — 0 weight" });
 
-    // 1. Fetch COT data (market-wide, not per-symbol)
-    let cot = institutional_signals::fetch_cot_data().await;
-    tracing::info!("  COT: commercial_net={:.0} signal={:.2} date={}",
-        cot.commercial_net, cot.signal, cot.report_date);
-    *inst.cot.lock() = cot;
+    // 1. COT — market-wide. Skipped: 0 weight in the model.
+    if DEAD_SIGNALS_ENABLED {
+        let cot = institutional_signals::fetch_cot_data().await;
+        tracing::info!("  COT: commercial_net={:.0} signal={:.2} date={}",
+            cot.commercial_net, cot.signal, cot.report_date);
+        *inst.cot.lock() = cot;
+    }
 
-    // 2. Per-symbol: GEX (uses DAILY bars) + Volume Profile (uses 1-min bars)
+    // 2. Per-symbol: GEX (skipped, 0 weight) + Volume Profile (needed).
     for &sym in TOP_SYMBOLS {
         // GEX needs daily bars for realized volatility (20+ trading days)
+        if DEAD_SIGNALS_ENABLED {
         match alpaca_stream::fetch_daily_bars(sym, 60).await {
             Ok(daily_bars) if daily_bars.len() >= 20 => {
                 let daily_prices: Vec<f64> = daily_bars.iter()
@@ -227,6 +233,7 @@ async fn compute_institutional_signals(inst: &InstitutionalState) {
                 tracing::warn!("  {}: Failed to fetch daily bars for GEX: {}", sym, e);
             }
         }
+        } // end DEAD_SIGNALS_ENABLED (GEX)
 
         // Volume Profile uses intraday 1-min bars (where volume actually traded today)
         match alpaca_stream::fetch_historical_bars(sym, 500).await {

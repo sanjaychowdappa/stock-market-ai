@@ -205,11 +205,20 @@ fn spawn_orchestrator(state: Arc<AppState>) {
                         let mut ledger = crate::services::performance_ledger::PerformanceLedger::load().await;
                         let today_str = chrono::Local::now().format("%Y-%m-%d").to_string();
 
-                        // total_pnl is the RUNNING TOTAL since inception, not the
-                        // day's profit — record_day() converts it to this day's
-                        // increment. (Recording it directly was the bug that
-                        // inflated every "total profit" figure.)
-                        let cumulative_pnl = report["portfolio"]["total_pnl"].as_f64().unwrap_or(0.0);
+                        // AUDIT FIX (2026-07-29): the 3:55pm daily skim flattens
+                        // and resets capital BEFORE this 4:05pm report runs, so
+                        // report.portfolio.total_pnl is always $0 — the ledger was
+                        // recording zero every day and was blind to performance.
+                        // daily_profit.jsonl (written by the skim) is the
+                        // authoritative record, so read the running total from it
+                        // and fall back to the report only if it is unavailable.
+                        let cumulative_pnl = tokio::fs::read_to_string("/app/reports/daily_profit.jsonl")
+                            .await.ok()
+                            .and_then(|c| c.lines().filter_map(|l|
+                                serde_json::from_str::<serde_json::Value>(l).ok())
+                                .last()
+                                .and_then(|v| v["cumulative_pnl"].as_f64()))
+                            .unwrap_or_else(|| report["portfolio"]["total_pnl"].as_f64().unwrap_or(0.0));
                         let total_trades = report["trading_stats"]["total_trades"].as_u64().unwrap_or(0) as u32;
                         let winning_trades = report["trading_stats"]["winning_trades"].as_u64().unwrap_or(0) as u32;
                         let avg_hold = report["trading_stats"]["avg_hold_seconds"].as_u64().unwrap_or(0);
