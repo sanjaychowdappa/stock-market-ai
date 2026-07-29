@@ -424,6 +424,53 @@ impl PaperTrader {
         }
     }
 
+    /// Persist state SYNCHRONOUSLY. Used at critical moments (the daily skim /
+    /// capital reset) where a fire-and-forget async write can be lost if the
+    /// process is killed immediately after — which is exactly how a completed
+    /// skim once failed to reach disk and let profit compound into the next day.
+    fn save_state_sync(&self) {
+        let shadows: Vec<PersistedShadow> = self.shadow_traders.iter().map(|s| PersistedShadow {
+            model_id: s.model_id.clone(),
+            cash: s.cash,
+            positions: s.positions.clone(),
+            realized_pnl: s.realized_pnl,
+            total_trades: s.total_trades,
+            winning_trades: s.winning_trades,
+            started_date: s.started_date.clone(),
+        }).collect();
+        let state = PersistedState {
+            cash: self.cash,
+            positions: self.positions.clone(),
+            realized_pnl: self.realized_pnl,
+            total_trades: self.total_trades,
+            winning_trades: self.winning_trades,
+            daily_trades: self.daily_trades,
+            last_trading_date: self.last_trading_date.clone(),
+            day_start_value: self.day_start_value,
+            circuit_breaker_tripped: self.circuit_breaker_tripped,
+            did_daily_skim: self.did_daily_skim,
+            shadows,
+            saved_at: Local::now().to_rfc3339(),
+        };
+        if let Ok(json_str) = serde_json::to_string(&state) {
+            let _ = std::fs::write(STATE_FILE, json_str);
+        }
+    }
+
+    /// Has the daily profit ledger already recorded this date?
+    /// Prevents double-banking when a skim's ledger write succeeded but its
+    /// state write was lost.
+    fn ledger_has_date(date: &str) -> bool {
+        std::fs::read_to_string("/app/reports/daily_profit.jsonl")
+            .map(|c| c.lines().any(|l| {
+                serde_json::from_str::<serde_json::Value>(l)
+                    .ok()
+                    .and_then(|v| v["date"].as_str().map(|d| d == date))
+                    .unwrap_or(false)
+            }))
+            .unwrap_or(false)
+    }
+
     /// Check if US stock market is open (9:30 AM – 4:00 PM ET, Mon–Fri).
     fn is_market_open() -> bool {
         let utc_now = chrono::Utc::now();
@@ -616,15 +663,58 @@ impl PaperTrader {
         // New trading day: reset circuit breaker, daily counters, and the skim flag
         let et_date = (utc_now - chrono::Duration::hours(offset_hours)).date_naive().to_string();
         if self.last_trading_date != et_date {
+            let prev_date = self.last_trading_date.clone();
             self.last_trading_date = et_date.clone();
-            self.day_start_value = self.total_value();
+
+            // ── ENFORCE THE FIXED-CAPITAL INVARIANT ──────────────────────
+            // Every day must begin with exactly INITIAL_CASH. The 3:55pm skim
+            // normally guarantees that, but it only fires if the machine is
+            // running then — and its state write can be lost on shutdown. When
+            // that happens, yesterday's positions and profit silently carry
+            // over and compound into today's position sizing, which this model
+            // explicitly must not do. So re-assert the invariant here.
+            let carried = self.total_value();
+            let drift = carried - INITIAL_CASH;
+            if !self.positions.is_empty() || drift.abs() > 0.01 {
+                let syms: Vec<String> = self.positions.keys().cloned().collect();
+                for s in &syms { self.sell(s, "CARRYOVER_FLATTEN(missed daily skim)"); }
+                let recovered = self.cash - INITIAL_CASH;
+
+                // Only bank if the missed day was never recorded — otherwise the
+                // ledger already has it and we'd double-count.
+                if !prev_date.is_empty() && !Self::ledger_has_date(&prev_date) && recovered.abs() > 0.01 {
+                    let cumulative = self.realized_pnl;
+                    info!("[CAPITAL_RECOVERY] {} skim was missed — banking ${:.2} late", prev_date, recovered);
+                    let ledger = json!({
+                        "date": prev_date, "day_pnl": (recovered * 100.0).round() / 100.0,
+                        "cumulative_pnl": (cumulative * 100.0).round() / 100.0,
+                        "capital": INITIAL_CASH, "recovered_late": true,
+                        "timestamp": Local::now().to_rfc3339(),
+                    });
+                    tokio::spawn(async move {
+                        let path = "/app/reports/daily_profit.jsonl";
+                        if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path).await {
+                            let mut line = serde_json::to_string(&ledger).unwrap_or_default();
+                            line.push('\n');
+                            let _ = f.write_all(line.as_bytes()).await;
+                        }
+                    });
+                } else if drift.abs() > 0.01 {
+                    info!("[CAPITAL_RESET] carried ${:.2} into {} (already banked) — correcting to ${:.0}",
+                        carried, et_date, INITIAL_CASH);
+                }
+                self.cash = INITIAL_CASH;
+            }
+
+            self.day_start_value = INITIAL_CASH;
             self.circuit_breaker_tripped = false;
             self.did_daily_skim = false;
             self.daily_trades = 0;
             for shadow in &mut self.shadow_traders { shadow.daily_trades = 0; }
             self.day_open_price.clear();
             self.first_hh_return.clear();
-            info!("[NEW_DAY] {} — day start value ${:.2}, circuit breaker reset", et_date, self.day_start_value);
+            info!("[NEW_DAY] {} — capital reset to ${:.2}, circuit breaker reset", et_date, self.day_start_value);
+            self.save_state_sync();
         }
 
         // Market intraday momentum capture (Gao et al. 2018): record the 9:30
@@ -694,7 +784,10 @@ impl PaperTrader {
             self.cash = INITIAL_CASH;
             self.did_daily_skim = true;
             self.day_start_value = INITIAL_CASH;
-            self.save_state();
+            // SYNCHRONOUS: an async write here can be lost if the process is
+            // killed right after the skim, which would let the reset vanish and
+            // yesterday's profit compound into tomorrow's capital.
+            self.save_state_sync();
             return;
         }
         // After the skim, do nothing else for the rest of the day.
