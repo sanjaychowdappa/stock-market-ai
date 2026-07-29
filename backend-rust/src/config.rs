@@ -24,6 +24,15 @@ pub const SHADOW_COST_PCT: f64 = 0.04;
 pub const EXP1_KILL_DAYS: i64 = 14;
 pub const EXP1_KILL_TRADES: u32 = 200;
 
+/// VERDICT DELIVERED 2026-07-29: exp1 FAILED its pre-committed criterion.
+/// At 325 closed trades (threshold was 200) its expectancy was -$0.256/trade
+/// (total -$83.18) versus the random baseline's +$0.65/trade — failing both
+/// required conditions (positive expectancy AND beating random).
+/// Per the rule agreed BEFORE any results were seen, exp1 is retired rather
+/// than retuned. It stops opening new positions; open ones exit normally and
+/// its history is preserved for the record.
+pub const EXP1_RETIRED: bool = true;
+
 /// No config/parameter changes before this date — clean-data window.
 pub const CONFIG_FREEZE_UNTIL: &str = "2026-07-28";
 

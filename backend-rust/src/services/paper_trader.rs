@@ -1099,7 +1099,12 @@ impl PaperTrader {
             "model_id": s.model_id,
             "version": MODEL_VERSION,
             "cost_model_pct_round_trip": SHADOW_COST_PCT,
-            "kill_criterion": format!("pre-committed: by day {} or trade {}, expectancy after costs must be > 0 and beat random ({}d elapsed, {} trades)", EXP1_KILL_DAYS, EXP1_KILL_TRADES, days, s.total_trades),
+            "retired": EXP1_RETIRED,
+            "kill_criterion": if EXP1_RETIRED {
+                format!("RETIRED 2026-07-29 — FAILED its pre-committed criterion at {} trades (threshold {}): expectancy was negative AND lost to the random baseline. Retired per the rule agreed in advance, not retuned.", s.total_trades, EXP1_KILL_TRADES)
+            } else {
+                format!("pre-committed: by day {} or trade {}, expectancy after costs must be > 0 and beat random ({}d elapsed, {} trades)", EXP1_KILL_DAYS, EXP1_KILL_TRADES, days, s.total_trades)
+            },
             "strategy": "Buys when the next-minute forecast predicts an up-move >0.08% (30s trend agreeing). Exits: +0.4% target / -0.4% stop / prediction flip / 5-min time box. Round-trip cost charged at exit.",
             "portfolio_value": ((s.cash + invested) * 100.0).round() / 100.0,
             "cash": (s.cash * 100.0).round() / 100.0,
@@ -1631,10 +1636,15 @@ impl PaperTrader {
             } else if shadow.is_always_in {
                 true
             } else if shadow.is_exp1 {
-                // exp1: enter only when the next-minute forecast predicts an
-                // up-move big enough to clear a typical spread (~0.08%), with
-                // the 30s trend agreeing.
-                pred_next_min > 0.08 && data.trend > 0.0
+                // exp1 RETIRED 2026-07-29 — failed its pre-committed criterion
+                // (325 trades, -$0.256/trade vs random +$0.65). No new entries;
+                // open positions still exit normally through the exit ladder.
+                if EXP1_RETIRED { false } else {
+                    // Original rule: enter when the next-minute forecast predicts
+                    // an up-move big enough to clear a typical spread (~0.08%),
+                    // with the 30s trend agreeing.
+                    pred_next_min > 0.08 && data.trend > 0.0
+                }
             } else {
                 weighted_score > MIN_BUY_SIGNAL && kronos_score >= -0.1 && trend_ok
             };
