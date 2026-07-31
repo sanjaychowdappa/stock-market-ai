@@ -457,6 +457,20 @@ impl PaperTrader {
         }
     }
 
+    /// Running total of BANKED day P&L from the ledger — the authoritative
+    /// "how much has this system actually made" figure. Deliberately NOT the
+    /// trader's lifetime realized_pnl, which counts every trade ever and does
+    /// not reconcile with the sum of banked days.
+    fn ledger_cumulative() -> f64 {
+        std::fs::read_to_string("/app/reports/daily_profit.jsonl")
+            .ok()
+            .and_then(|c| c.lines()
+                .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+                .last()
+                .and_then(|v| v["cumulative_pnl"].as_f64()))
+            .unwrap_or(0.0)
+    }
+
     /// Has the daily profit ledger already recorded this date?
     /// Prevents double-banking when a skim's ledger write succeeded but its
     /// state write was lost.
@@ -680,15 +694,30 @@ impl PaperTrader {
                 for s in &syms { self.sell(s, "CARRYOVER_FLATTEN(missed daily skim)"); }
                 let recovered = self.cash - INITIAL_CASH;
 
-                // Only bank if the missed day was never recorded — otherwise the
-                // ledger already has it and we'd double-count.
-                if !prev_date.is_empty() && !Self::ledger_has_date(&prev_date) && recovered.abs() > 0.01 {
-                    let cumulative = self.realized_pnl;
-                    info!("[CAPITAL_RECOVERY] {} skim was missed — banking ${:.2} late", prev_date, recovered);
+                // ALWAYS bank the recovered amount — it is real realized P&L.
+                // (An earlier version discarded it whenever the previous day was
+                // already in the ledger, silently deleting genuine profit: on
+                // 2026-07-31 that threw away $69.90.) The double-bank guard must
+                // prevent duplicate ENTRIES, never delete money.
+                if recovered.abs() > 0.01 {
+                    // Attribute to the missed day if it was never recorded;
+                    // otherwise book it against today as a carryover recovery so
+                    // it is never mistaken for today's own trading result.
+                    let missed_day = !prev_date.is_empty() && !Self::ledger_has_date(&prev_date);
+                    let entry_date = if missed_day { prev_date.clone() } else { et_date.clone() };
+                    let cumulative = Self::ledger_cumulative() + recovered;
+                    if missed_day {
+                        info!("[CAPITAL_RECOVERY] {} skim was missed — banking ${:.2} late", entry_date, recovered);
+                    } else {
+                        info!("[CARRYOVER_RECOVERY] realized ${:.2} from stale positions — banking to {} (multi-day gain, not today's trading)",
+                            recovered, entry_date);
+                    }
                     let ledger = json!({
-                        "date": prev_date, "day_pnl": (recovered * 100.0).round() / 100.0,
+                        "date": entry_date, "day_pnl": (recovered * 100.0).round() / 100.0,
                         "cumulative_pnl": (cumulative * 100.0).round() / 100.0,
-                        "capital": INITIAL_CASH, "recovered_late": true,
+                        "capital": INITIAL_CASH,
+                        "recovered_late": missed_day,
+                        "carryover_recovery": !missed_day,
                         "timestamp": Local::now().to_rfc3339(),
                     });
                     tokio::spawn(async move {
@@ -699,10 +728,9 @@ impl PaperTrader {
                             let _ = f.write_all(line.as_bytes()).await;
                         }
                     });
-                } else if drift.abs() > 0.01 {
-                    info!("[CAPITAL_RESET] carried ${:.2} into {} (already banked) — correcting to ${:.0}",
-                        carried, et_date, INITIAL_CASH);
                 }
+                info!("[CAPITAL_RESET] carried ${:.2} into {} — resetting to ${:.0}",
+                    carried, et_date, INITIAL_CASH);
                 self.cash = INITIAL_CASH;
             }
 
@@ -762,7 +790,11 @@ impl PaperTrader {
             }
             // The day's P&L = whatever the flat cash is above/below the budget.
             let day_pnl = self.cash - INITIAL_CASH;
-            let cumulative = self.realized_pnl; // all-time banked P&L
+            // True running total of BANKED days. Previously this stored
+            // self.realized_pnl (lifetime P&L of every trade), which does not
+            // reconcile with the sum of day_pnl — the ledger read $174.11 when
+            // the banked days summed to $128.60.
+            let cumulative = Self::ledger_cumulative() + day_pnl;
             info!("[DAILY_SKIM] {} — day P&L ${:.2} banked | cumulative ${:.2} | reset to ${:.0}",
                 et_date, day_pnl, cumulative, INITIAL_CASH);
             let ledger = json!({
