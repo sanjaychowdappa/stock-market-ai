@@ -1,0 +1,48 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-07-28
+  Generated:  2026-07-28T20:10:00.893931502+00:00
+  Uptime:     5h 6m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.0000 (0.00%)
+  Realized P&L:     $13.1450
+  Challenge:        $100 → $150 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     14
+  Winning Trades:   6
+  Win Rate:         42.9%
+  Avg Hold Time:    19013s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $196.17     bearish     -0.136   —
+  AAPL     $340.04     neutral     -0.008   —
+  MSFT     $393.44     bearish     -0.175   —
+  GOOGL    $333.78     bearish     -0.358   —
+  AMZN     $230.92     neutral     -0.025   —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   AAPL     $339.58    $602.41  $2.4126    EOD_DAILY_SKIM
+  19:55:00  SELL   MSFT     $392.67    $595.94  $-4.0598   EOD_DAILY_SKIM
+  19:55:00  SELL   AMZN     $230.71    $605.09  $5.0881    EOD_DAILY_SKIM
+  19:55:00  SELL   NVDA     $197.58    $605.21  $5.2073    EOD_DAILY_SKIM
+  19:55:00  SELL   GOOGL    $333.50    $611.13  $11.1323   EOD_DAILY_SKIM
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

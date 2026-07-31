@@ -1,0 +1,61 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-07-30
+  Generated:  2026-07-30T20:10:01.122082237+00:00
+  Uptime:     6h 47m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.0000 (0.00%)
+  Realized P&L:     $36.5428
+  Challenge:        $100 → $150 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     27
+  Winning Trades:   14
+  Win Rate:         51.9%
+  Avg Hold Time:    11259s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $195.29     bullish     0.344    —
+  AAPL     $334.14     bearish     -0.398   —
+  MSFT     $449.52     bullish     0.342    —
+  GOOGL    $333.62     bearish     -0.276   —
+  AMZN     $248.64     bullish     0.287    —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   AMZN     $237.36    $608.65  $8.6544    EOD_DAILY_SKIM
+  19:55:00  SELL   GOOGL    $333.88    $595.96  $-4.0429   EOD_DAILY_SKIM
+  19:55:00  SELL   AAPL     $332.96    $598.63  $-1.3664   EOD_DAILY_SKIM
+  19:55:00  SELL   NVDA     $194.99    $609.01  $9.0107    EOD_DAILY_SKIM
+  16:31:27  SELL   MSFT     $454.07    $607.97  $12.2646   TRAIL_STOP(-0.53% from peak,pnl=2.06%)
+  15:30:37  BUY    MSFT     $444.91    $595.70  $0.0000    ENTRY(s=0.069,K~,1of7)
+  15:30:37  SELL   MSFT     $444.91    $595.70  $0.1874    TRAIL_STOP(-0.58% from peak,pnl=0.03%)
+  15:00:38  BUY    MSFT     $444.77    $595.51  $0.0000    ENTRY(s=0.116,K+,1of7)
+  15:00:38  SELL   MSFT     $444.77    $595.51  $-6.0787   HARD_STOP(-1.01%,atr=0.30%)
+  14:53:28  BUY    MSFT     $449.31    $601.59  $0.0000    ENTRY(s=0.180,K-,1of7)
+  14:53:28  SELL   MSFT     $449.31    $601.59  $3.4946    TRAIL_STOP(-0.63% from peak,pnl=0.58%)
+  14:23:27  BUY    MSFT     $446.70    $598.10  $0.0000    ENTRY(s=0.180,K~,1of7)
+  14:23:27  SELL   MSFT     $446.70    $598.10  $-1.9013   TRAIL_STOP(-1.09% from peak,pnl=-0.32%)
+  13:53:29  BUY    MSFT     $448.12    $600.00  $0.0000    ENTRY(s=0.180,K~,1of7)
+  13:38:57  BUY    NVDA     $192.10    $600.00  $0.0000    ENTRY(s=0.048,K~,1of7)
+  13:30:03  BUY    GOOGL    $336.14    $600.00  $0.0000    ENTRY(s=0.000,K~,0of7)
+  13:30:01  BUY    AMZN     $233.99    $600.00  $0.0000    ENTRY(s=-0.048,K~,0of7)
+  13:30:01  BUY    AAPL     $333.72    $600.00  $0.0000    ENTRY(s=-0.024,K~,0of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

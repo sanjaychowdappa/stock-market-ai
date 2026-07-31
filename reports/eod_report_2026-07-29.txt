@@ -1,0 +1,50 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-07-29
+  Generated:  2026-07-29T20:10:01.222321624+00:00
+  Uptime:     3h 57m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.0000 (0.00%)
+  Realized P&L:     $16.3204
+  Challenge:        $100 → $150 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     18
+  Winning Trades:   9
+  Win Rate:         50.0%
+  Avg Hold Time:    21753s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $189.09     bearish     -0.346   —
+  AAPL     $338.01     bearish     -0.330   —
+  MSFT     $405.01     bullish     0.257    —
+  GOOGL    $335.70     neutral     0.046    —
+  AMZN     $226.81     bearish     -0.322   —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   MSFT     $391.76    $594.57  $-5.4333   EOD_DAILY_SKIM
+  19:55:00  SELL   AAPL     $339.27    $601.86  $1.8627    EOD_DAILY_SKIM
+  19:55:00  SELL   GOOGL    $336.44    $613.47  $6.3273    EOD_DAILY_SKIM
+  19:55:00  SELL   AMZN     $227.07    $605.18  $-2.8117   EOD_DAILY_SKIM
+  19:55:00  SELL   NVDA     $191.33    $607.87  $0.7307    EOD_DAILY_SKIM
+  19:43:31  BUY    AMZN     $228.13    $608.00  $0.0000    ENTRY(s=0.409,K-,3of7)
+  19:39:02  SELL   AMZN     $228.18    $608.00  $0.8527    TRAIL_STOP(-1.99% from peak,pnl=0.14%)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

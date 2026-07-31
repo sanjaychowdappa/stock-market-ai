@@ -1,0 +1,46 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-07-28 16:14   |   Report date: 2026-07-28   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-07-28) ===
+  Trades:       5   (W 4 / L 1)
+  Win rate:     80%
+  Gross P/L:    $19.7805
+  Avg win:      $5.9601    Avg loss: $-4.0598
+  Expectancy:   $3.9561/trade gross  ->  ~$3.8436/trade after est. fees
+  Per symbol:
+    GOOGL   1 trades  W1   $11.1323
+    NVDA    1 trades  W1   $5.2073
+    AMZN    1 trades  W1   $5.0881
+    AAPL    1 trades  W1   $2.4126
+    MSFT    1 trades  W0   $-4.0598
+  Exit reasons:
+    EOD_DAILY_SKIM     5
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       5   (W 4 / L 1)
+  Win rate:     80%
+  Gross P/L:    $19.7805
+  Avg win:      $5.9601    Avg loss: $-4.0598
+  Expectancy:   $3.9561/trade gross  ->  ~$3.8436/trade after est. fees
+  Per symbol:
+    GOOGL   1 trades  W1   $11.1323
+    NVDA    1 trades  W1   $5.2073
+    AMZN    1 trades  W1   $5.0881
+    AAPL    1 trades  W1   $2.4126
+    MSFT    1 trades  W0   $-4.0598
+  Exit reasons:
+    EOD_DAILY_SKIM     5
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $3.9561/trade  (5 trades)
+  always_in_max_exposure   expectancy $0.4644/trade  (20 trades)
+  exp1                     expectancy $-0.2286/trade  (138 trades)
+  trend_fullday            expectancy $-0.8065/trade  (6 trades)
+  trend_30min              expectancy $0.438/trade  (6 trades)
+  trend_off                expectancy $0.4366/trade  (6 trades)
+  random_baseline          expectancy $0.0331/trade  (12 trades)  <-- the bar to beat
+  VERDICT: real beats random by $3.923/trade - signals show edge (need bigger sample to confirm)
+
+LIVE: backend not reachable (Docker stopped?) - analysis above is from logs.

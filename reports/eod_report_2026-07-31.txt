@@ -1,0 +1,63 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-07-31
+  Generated:  2026-07-31T20:10:01.509317741+00:00
+  Uptime:     6h 54m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.0000 (0.00%)
+  Realized P&L:     $174.1053
+  Challenge:        $100 → $150 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     38
+  Winning Trades:   21
+  Win Rate:         55.3%
+  Avg Hold Time:    12300s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $199.82     bullish     0.277    —
+  AAPL     $309.36     bearish     -0.234   —
+  MSFT     $463.84     bullish     0.243    —
+  GOOGL    $356.06     bullish     0.114    —
+  AMZN     $271.52     neutral     -0.095   —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:01  SELL   AMZN     $271.95    $620.84  $20.8432   EOD_DAILY_SKIM
+  19:55:01  SELL   MSFT     $466.22    $614.54  $14.5390   EOD_DAILY_SKIM
+  19:55:01  SELL   NVDA     $201.40    $602.04  $4.5437    EOD_DAILY_SKIM
+  19:55:01  SELL   GOOGL    $356.68    $622.07  $24.5736   EOD_DAILY_SKIM
+  19:55:01  SELL   AAPL     $309.07    $612.79  $16.4564   EOD_DAILY_SKIM
+  16:28:01  BUY    AAPL     $300.77    $596.34  $0.0000    ENTRY(s=0.020,K~,0of7)
+  16:28:01  SELL   AAPL     $300.77    $596.34  $-0.7931   TRAIL_STOP(-0.51% from peak,pnl=-0.13%)
+  15:57:13  BUY    AAPL     $301.17    $597.13  $0.0000    ENTRY(s=0.038,K-,0of7)
+  15:57:13  SELL   AAPL     $301.17    $597.13  $-2.7559   TRAIL_STOP(-0.54% from peak,pnl=-0.46%)
+  15:27:13  BUY    AAPL     $302.56    $599.88  $0.0000    ENTRY(s=0.180,K-,1of7)
+  15:27:07  SELL   AAPL     $302.54    $599.88  $1.0608    TRAIL_STOP(-0.56% from peak,pnl=0.18%)
+  14:57:08  BUY    AAPL     $302.00    $598.82  $0.0000    ENTRY(s=0.016,K~,0of7)
+  14:57:08  SELL   AAPL     $302.00    $598.82  $-0.1785   TRAIL_STOP(-0.51% from peak,pnl=-0.03%)
+  14:15:06  BUY    AAPL     $302.09    $599.00  $0.0000    ENTRY(s=0.030,K~,0of7)
+  14:04:11  SELL   AAPL     $301.64    $599.00  $1.5092    TRAIL_STOP(-1.39% from peak,pnl=0.25%)
+  13:35:59  BUY    NVDA     $199.88    $597.49  $0.0000    ENTRY(s=-0.024,K~,0of7)
+  13:34:57  BUY    GOOGL    $342.59    $597.49  $0.0000    ENTRY(s=0.048,K~,1of7)
+  13:34:11  BUY    AAPL     $300.88    $597.49  $0.0000    ENTRY(s=0.000,K~,0of7)
+  13:34:11  SELL   AAPL     $300.88    $592.48  $-7.5222   HARD_STOP(-1.25%,atr=0.63%)
+  13:33:59  BUY    MSFT     $455.19    $600.00  $0.0000    ENTRY(s=-0.048,K~,0of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

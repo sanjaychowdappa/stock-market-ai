@@ -1,0 +1,322 @@
+{
+  "data_quality": {
+    "finetune_triggered": true,
+    "snapshots": 24420,
+    "tracker": {
+      "AAPL": {
+        "predictions": 24001,
+        "ticks": 24001,
+        "trades": 2
+      },
+      "AMZN": {
+        "predictions": 23999,
+        "ticks": 23999,
+        "trades": 2
+      },
+      "GOOGL": {
+        "predictions": 23996,
+        "ticks": 23996,
+        "trades": 2
+      },
+      "MSFT": {
+        "predictions": 24257,
+        "ticks": 24257,
+        "trades": 6
+      },
+      "NVDA": {
+        "predictions": 23470,
+        "ticks": 23470,
+        "trades": 2
+      }
+    }
+  },
+  "portfolio": {
+    "cash": 3000.0,
+    "drawdown_pct": 0.0,
+    "initial_capital": 3000.0,
+    "positions_value": -0.0,
+    "realized_pnl": 36.5428,
+    "target": {
+      "goal": "$500 → $600 challenge",
+      "progress_pct": 0.0,
+      "target_value": 3100.0
+    },
+    "total_pnl": 0.0,
+    "total_pnl_pct": 0.0,
+    "total_value": 3000.0
+  },
+  "positions": [],
+  "recent_trades": [
+    {
+      "action": "SELL",
+      "pnl": 8.6544,
+      "pnl_pct": 1.44,
+      "price": 237.36,
+      "reason": "EOD_DAILY_SKIM",
+      "shares": 2.564267,
+      "symbol": "AMZN",
+      "time": "19:55:00",
+      "total": 608.65
+    },
+    {
+      "action": "SELL",
+      "pnl": -4.0429,
+      "pnl_pct": -0.67,
+      "price": 333.88,
+      "reason": "EOD_DAILY_SKIM",
+      "shares": 1.784944,
+      "symbol": "GOOGL",
+      "time": "19:55:00",
+      "total": 595.96
+    },
+    {
+      "action": "SELL",
+      "pnl": -1.3664,
+      "pnl_pct": -0.23,
+      "price": 332.96,
+      "reason": "EOD_DAILY_SKIM",
+      "shares": 1.797914,
+      "symbol": "AAPL",
+      "time": "19:55:00",
+      "total": 598.63
+    },
+    {
+      "action": "SELL",
+      "pnl": 9.0107,
+      "pnl_pct": 1.5,
+      "price": 194.99,
+      "reason": "EOD_DAILY_SKIM",
+      "shares": 3.123292,
+      "symbol": "NVDA",
+      "time": "19:55:00",
+      "total": 609.01
+    },
+    {
+      "action": "SELL",
+      "pnl": 12.2646,
+      "pnl_pct": 2.06,
+      "price": 454.07,
+      "reason": "TRAIL_STOP(-0.53% from peak,pnl=2.06%)",
+      "shares": 1.338927,
+      "symbol": "MSFT",
+      "time": "16:31:27",
+      "total": 607.97
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 444.91,
+      "reason": "ENTRY(s=0.069,K~,1of7)",
+      "shares": 1.3389269999999998,
+      "symbol": "MSFT",
+      "time": "15:30:37",
+      "total": 595.7
+    },
+    {
+      "action": "SELL",
+      "pnl": 0.1874,
+      "pnl_pct": 0.03,
+      "price": 444.91,
+      "reason": "TRAIL_STOP(-0.58% from peak,pnl=0.03%)",
+      "shares": 1.338927,
+      "symbol": "MSFT",
+      "time": "15:30:37",
+      "total": 595.7
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 444.77,
+      "reason": "ENTRY(s=0.116,K+,1of7)",
+      "shares": 1.3389270000000002,
+      "symbol": "MSFT",
+      "time": "15:00:38",
+      "total": 595.51
+    },
+    {
+      "action": "SELL",
+      "pnl": -6.0787,
+      "pnl_pct": -1.01,
+      "price": 444.77,
+      "reason": "HARD_STOP(-1.01%,atr=0.30%)",
+      "shares": 1.338927,
+      "symbol": "MSFT",
+      "time": "15:00:38",
+      "total": 595.51
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 449.31,
+      "reason": "ENTRY(s=0.180,K-,1of7)",
+      "shares": 1.338927,
+      "symbol": "MSFT",
+      "time": "14:53:28",
+      "total": 601.59
+    },
+    {
+      "action": "SELL",
+      "pnl": 3.4946,
+      "pnl_pct": 0.58,
+      "price": 449.31,
+      "reason": "TRAIL_STOP(-0.63% from peak,pnl=0.58%)",
+      "shares": 1.338927,
+      "symbol": "MSFT",
+      "time": "14:53:28",
+      "total": 601.59
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 446.7,
+      "reason": "ENTRY(s=0.180,K~,1of7)",
+      "shares": 1.338927,
+      "symbol": "MSFT",
+      "time": "14:23:27",
+      "total": 598.1
+    },
+    {
+      "action": "SELL",
+      "pnl": -1.9013,
+      "pnl_pct": -0.32,
+      "price": 446.7,
+      "reason": "TRAIL_STOP(-1.09% from peak,pnl=-0.32%)",
+      "shares": 1.338927,
+      "symbol": "MSFT",
+      "time": "14:23:27",
+      "total": 598.1
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 448.12,
+      "reason": "ENTRY(s=0.180,K~,1of7)",
+      "shares": 1.3389270731054181,
+      "symbol": "MSFT",
+      "time": "13:53:29",
+      "total": 600.0
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 192.105,
+      "reason": "ENTRY(s=0.048,K~,1of7)",
+      "shares": 3.1232919497149996,
+      "symbol": "NVDA",
+      "time": "13:38:57",
+      "total": 600.0
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 336.145,
+      "reason": "ENTRY(s=0.000,K~,0of7)",
+      "shares": 1.7849439973820822,
+      "symbol": "GOOGL",
+      "time": "13:30:03",
+      "total": 600.0
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 233.985,
+      "reason": "ENTRY(s=-0.048,K~,0of7)",
+      "shares": 2.5642669401884737,
+      "symbol": "AMZN",
+      "time": "13:30:01",
+      "total": 600.0
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 333.72,
+      "reason": "ENTRY(s=-0.024,K~,0of7)",
+      "shares": 1.7979144192736425,
+      "symbol": "AAPL",
+      "time": "13:30:01",
+      "total": 600.0
+    }
+  ],
+  "report": {
+    "date": "2026-07-30",
+    "generated_at": "2026-07-30T20:10:01.122082237+00:00",
+    "market_session": {
+      "close": "16:00 ET",
+      "open": "09:30 ET",
+      "status": "closed"
+    },
+    "type": "end_of_day"
+  },
+  "symbols": [
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 195.29,
+      "position_pnl": 0.0,
+      "signal_strength": 0.3435034180042576,
+      "symbol": "NVDA"
+    },
+    {
+      "direction": "bearish",
+      "in_position": false,
+      "last_price": 334.14,
+      "position_pnl": 0.0,
+      "signal_strength": -0.3984825722677672,
+      "symbol": "AAPL"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 449.52,
+      "position_pnl": 0.0,
+      "signal_strength": 0.3420324254949367,
+      "symbol": "MSFT"
+    },
+    {
+      "direction": "bearish",
+      "in_position": false,
+      "last_price": 333.62,
+      "position_pnl": 0.0,
+      "signal_strength": -0.2759184359896317,
+      "symbol": "GOOGL"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 248.64,
+      "position_pnl": 0.0,
+      "signal_strength": 0.28700196017022517,
+      "symbol": "AMZN"
+    }
+  ],
+  "trading_stats": {
+    "avg_hold_seconds": 11259,
+    "open_positions": 0,
+    "total_trades": 27,
+    "uptime_seconds": 24429,
+    "win_rate": 51.85,
+    "winning_trades": 14
+  },
+  "value_history": [
+    3000.0,
+    2998.09872366,
+    3001.59332313,
+    2995.51459455,
+    2995.70204433,
+    3007.9666156499998,
+    3016.9773130699996,
+    3015.6108984299995,
+    3011.568000269999,
+    3020.222401394999,
+    3000.0
+  ]
+}
