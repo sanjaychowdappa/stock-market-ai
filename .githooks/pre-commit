@@ -43,9 +43,11 @@ for f in $staged; do
 
   echo "$patterns" | while IFS= read -r pat; do
     [ -z "$pat" ] && continue
-    if git show ":$f" 2>/dev/null | grep -Eq "$pat"; then
+    # NOTE: "-e --" is required. The PEM pattern begins with "-", which grep
+    # would otherwise parse as an option (silently disabling that check).
+    if git show ":$f" 2>/dev/null | grep -Eq -e "$pat"; then
       # Allow the explicit redaction marker and documented placeholders.
-      if git show ":$f" 2>/dev/null | grep -E "$pat" | grep -qv 'REDACTED\|<your\|example\|xxxx\|placeholder'; then
+      if git show ":$f" 2>/dev/null | grep -E -e "$pat" | grep -Eqv 'REDACTED|<your|example|xxxx|placeholder'; then
         say "BLOCKED: possible live credential in staged content: $f"
         say "         pattern: $pat"
         exit 1
