@@ -1,8 +1,29 @@
 node_modules/
 __pycache__/
 *.pyc
-.env
 .venv/
+
+# ── SECRETS — never commit ────────────────────────────────────
+# This repo is public. Anything matching these stays local.
+.env
+.env.*
+!.env.example
+*.env
+**/.env
+secrets.*
+credentials.*
+*.pem
+*.key
+*.p12
+*.pfx
+*_rsa
+*_rsa.pub
+.aws/
+.ssh/
+# Raw AI-session transcripts capture file CONTENTS (including .env reads),
+# so they must be redacted before committing. Only the vetted copy is allowed.
+*transcript*.jsonl
+!docs/session_transcript_redacted.jsonl
 build/
 dist/
 model_cache/

@@ -1,0 +1,64 @@
+#!/bin/sh
+# Pre-commit secret guard.
+#
+# This repository is PUBLIC and its AI-session transcripts capture file contents,
+# so credentials can reach a commit through paths that .gitignore does not cover.
+# This hook inspects the actual staged content and refuses the commit if it finds
+# a live secret.
+#
+# Install (once per clone):   git config core.hooksPath .githooks
+# Emergency bypass:           git commit --no-verify   (do not use casually)
+
+fail=0
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+say() { printf '%s\n' "$*" >&2; }
+
+# 1. Refuse obviously sensitive files outright.
+for f in $staged; do
+  case "$f" in
+    .env|.env.*|*/.env|*.pem|*.key|*.p12|*.pfx|*_rsa|secrets.*|credentials.*)
+      if [ "$f" != ".env.example" ]; then
+        say "BLOCKED: attempting to commit a secret-bearing file: $f"
+        fail=1
+      fi
+      ;;
+  esac
+done
+
+# 2. Inspect staged CONTENT for credential patterns.
+#    Matches assignments with a real-looking value; ignores placeholders.
+patterns='APCA_API_KEY_ID[[:space:]]*=[[:space:]]*[A-Za-z0-9_-]{12,}
+APCA_API_SECRET_KEY[[:space:]]*=[[:space:]]*[A-Za-z0-9_-]{12,}
+AWS_SECRET_ACCESS_KEY[[:space:]]*=[[:space:]]*[A-Za-z0-9/+=]{20,}
+-----BEGIN [A-Z ]*PRIVATE KEY-----
+sk-[A-Za-z0-9]{20,}
+ghp_[A-Za-z0-9]{20,}'
+
+for f in $staged; do
+  # Only scan files that still exist and are text.
+  [ -f "$f" ] || continue
+  case "$f" in *.png|*.jpg|*.jpeg|*.gif|*.pdf|*.zip|*.onnx) continue ;; esac
+
+  echo "$patterns" | while IFS= read -r pat; do
+    [ -z "$pat" ] && continue
+    if git show ":$f" 2>/dev/null | grep -Eq "$pat"; then
+      # Allow the explicit redaction marker and documented placeholders.
+      if git show ":$f" 2>/dev/null | grep -E "$pat" | grep -qv 'REDACTED\|<your\|example\|xxxx\|placeholder'; then
+        say "BLOCKED: possible live credential in staged content: $f"
+        say "         pattern: $pat"
+        exit 1
+      fi
+    fi
+  done || fail=1
+done
+
+if [ "$fail" -ne 0 ]; then
+  say ""
+  say "Commit rejected by the secret guard."
+  say "Remove the secret, or if this is a false positive: git commit --no-verify"
+  exit 1
+fi
+
+exit 0

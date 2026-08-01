@@ -30,12 +30,17 @@ git clone https://github.com/sanjaychowdappa/stock-market-ai.git
 cd stock-market-ai
 ```
 
-**Create `.env` in the project root** (NOT in git — you must recreate it):
+**Create `.env`** from the template (it is gitignored — you must recreate it):
 
+```bash
+cp .env.example .env          # then fill in your Alpaca PAPER keys
 ```
-APCA_API_KEY_ID=<your Alpaca key>
-APCA_API_SECRET_KEY=<your Alpaca secret>
-APCA_DATA_URL=https://data.alpaca.markets
+
+**Enable the secret guard** (once per clone — protects a public repo from
+credential leaks):
+
+```bash
+git config core.hooksPath .githooks
 ```
 
 Then:
@@ -110,7 +115,31 @@ a bad week — that is how you fit to noise.
 
 ---
 
-## 7. Known gotchas
+## 7. Secret hygiene (this repo is public)
+
+Audited 2026-07-31: **no credential has ever been committed** — `.env` is
+untracked, absent from all history, and its values appear in no commit.
+
+Three layers keep it that way:
+
+1. **`.gitignore`** blocks `.env`, `.env.*`, `*.pem`, `*.key`, `secrets.*`,
+   `credentials.*`, and raw `*transcript*.jsonl` (transcripts capture file
+   contents, including `.env` reads — the sneakiest leak path).
+2. **Pre-commit hook** (`.githooks/pre-commit`) inspects *staged content* and
+   refuses commits containing live-looking credentials — Alpaca, AWS, OpenAI,
+   GitHub tokens, private keys. Verified to block a real test secret.
+   Enable with `git config core.hooksPath .githooks`.
+3. **`.env.example`** documents required variables without any real values.
+
+**Rules:**
+- Use Alpaca **paper** keys only. This project trades on paper; live keys would
+  put real money behind a strategy with no demonstrated edge.
+- **Redact before committing any transcript.** `docs/session_transcript_redacted.jsonl`
+  had 20 credential occurrences stripped and was verified clean first.
+- If a key is ever exposed, **rotate it in the Alpaca dashboard immediately** —
+  scrubbing git history is unreliable once something is pushed.
+
+## 8. Known gotchas
 
 - **Docker dies when the machine sleeps/shuts down.** A Startup-folder shortcut
   auto-launches Docker Desktop on login; containers use `restart: unless-stopped`.
