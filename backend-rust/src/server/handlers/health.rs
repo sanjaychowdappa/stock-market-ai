@@ -115,6 +115,12 @@ pub async fn broker(State(_state): State<Arc<AppState>>) -> Json<serde_json::Val
     }))
 }
 
+/// Force an immediate reconcile so Alpaca matches the simulator's book.
+pub async fn broker_sync(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    let (qty, px) = { state.trader.lock().book_snapshot() };
+    Json(crate::services::alpaca_broker::reconcile(qty, px).await)
+}
+
 /// agentic_test supervisor status + findings.
 pub async fn agentic(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     Json(state.agentic.lock().to_json())

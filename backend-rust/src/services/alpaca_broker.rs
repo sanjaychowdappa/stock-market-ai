@@ -186,6 +186,88 @@ fn log_entry(v: Value) {
     });
 }
 
+/// Current Alpaca paper positions as symbol -> signed quantity.
+pub async fn positions() -> Option<std::collections::HashMap<String, f64>> {
+    let (key, secret, base) = creds()?;
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(format!("{}/v2/positions", base))
+        .header("APCA-API-KEY-ID", key)
+        .header("APCA-API-SECRET-KEY", secret)
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+        .ok()?;
+    let arr = resp.json::<Vec<Value>>().await.ok()?;
+    let mut map = std::collections::HashMap::new();
+    for p in arr {
+        if let (Some(sym), Some(q)) = (
+            p["symbol"].as_str(),
+            p["qty"].as_str().and_then(|s| s.parse::<f64>().ok()),
+        ) {
+            map.insert(sym.to_string(), q);
+        }
+    }
+    Some(map)
+}
+
+/// Force the Alpaca paper account to match the simulator's book exactly.
+///
+/// Drift is inevitable: the broker may be deployed mid-session, an order can be
+/// rejected for buying power, or the process can restart between a simulated
+/// fill and its mirror. Rather than let the two books diverge silently, this
+/// computes the difference per symbol and submits the orders that close it.
+///
+/// `sim` maps symbol -> quantity the simulator believes it holds.
+/// `prices` maps symbol -> current price, used to ignore economically trivial gaps.
+pub async fn reconcile(
+    sim: std::collections::HashMap<String, f64>,
+    prices: std::collections::HashMap<String, f64>,
+) -> Value {
+    let live = match positions().await {
+        Some(p) => p,
+        None => return json!({"error": "could not read Alpaca positions"}),
+    };
+
+    // Union of both books — a symbol held on only one side still needs fixing.
+    let mut symbols: Vec<String> = sim.keys().cloned().collect();
+    for s in live.keys() {
+        if !symbols.contains(s) {
+            symbols.push(s.clone());
+        }
+    }
+
+    let mut actions: Vec<Value> = Vec::new();
+    for sym in symbols {
+        let want = sim.get(&sym).copied().unwrap_or(0.0);
+        let have = live.get(&sym).copied().unwrap_or(0.0);
+        let delta = want - have;
+        let px = prices.get(&sym).copied().unwrap_or(0.0);
+
+        // Skip dust: sub-cent share counts, or gaps worth under $1.
+        if delta.abs() < 0.0001 || (px > 0.0 && (delta.abs() * px) < 1.0) {
+            continue;
+        }
+
+        let side = if delta > 0.0 { "buy" } else { "sell" };
+        info!("[RECONCILE] {} sim={:.4} alpaca={:.4} → {} {:.4}", sym, want, have, side, delta.abs());
+        actions.push(json!({
+            "symbol": sym, "sim_qty": want, "alpaca_qty": have,
+            "action": side, "qty": (delta.abs() * 10000.0).round() / 10000.0,
+        }));
+        shadow_order(sym.clone(), delta.abs(), side, px, "RECONCILE".to_string()).await;
+    }
+
+    if actions.is_empty() {
+        info!("[RECONCILE] books already match");
+    }
+    json!({
+        "checked": chrono::Local::now().to_rfc3339(),
+        "in_sync": actions.is_empty(),
+        "corrections": actions,
+    })
+}
+
 /// Summary of simulator-vs-reality for the API/dashboard.
 pub async fn fills_summary() -> Value {
     let content = tokio::fs::read_to_string(FILL_LOG).await.unwrap_or_default();

@@ -1003,6 +1003,14 @@ impl PaperTrader {
         self.market_risk_on.clone()
     }
 
+    /// The simulator's book as (symbol -> qty, symbol -> price), for mirroring
+    /// onto the Alpaca paper account.
+    pub fn book_snapshot(&self) -> (HashMap<String, f64>, HashMap<String, f64>) {
+        let qty = self.positions.iter().map(|(s, p)| (s.clone(), p.shares)).collect();
+        let px = self.market_data.iter().map(|(s, d)| (s.clone(), d.price)).collect();
+        (qty, px)
+    }
+
     /// (cash, invested) — used by the agentic_test supervisor.
     pub fn portfolio_snapshot(&self) -> (f64, f64) {
         (self.cash, self.positions.values().map(|p| p.market_value()).sum())

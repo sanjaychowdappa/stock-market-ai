@@ -66,6 +66,25 @@ impl AppState {
         // ── Spawn agentic_test supervisor (operational autonomy) ──
         crate::services::agentic_test::spawn(state.clone(), agentic.clone());
 
+        // ── Keep the Alpaca paper account mirroring the simulator ──
+        // Drift is inevitable (mid-session deploys, rejected orders, restarts),
+        // so reconcile shortly after boot and then every 5 minutes.
+        if crate::config::ALPACA_SHADOW_ORDERS {
+            let st = state.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(tokio::time::Duration::from_secs(75)).await;
+                loop {
+                    let (qty, px) = { st.trader.lock().book_snapshot() };
+                    if !qty.is_empty() || crate::services::alpaca_broker::positions()
+                        .await.map(|p| !p.is_empty()).unwrap_or(false)
+                    {
+                        let _ = crate::services::alpaca_broker::reconcile(qty, px).await;
+                    }
+                    tokio::time::sleep(tokio::time::Duration::from_secs(300)).await;
+                }
+            });
+        }
+
         // ── Spawn market-regime updater (day-trader risk-on/off filter) ──
         let regime = state.trader.lock().regime_handle();
         tokio::spawn(async move {
