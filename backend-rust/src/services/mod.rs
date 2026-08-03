@@ -17,3 +17,4 @@ pub mod kalman_filter;
 pub mod institutional_signals;
 pub mod momentum_portfolio;
 pub mod agentic_test;
+pub mod alpaca_broker;

@@ -1444,6 +1444,15 @@ impl PaperTrader {
                 pos.entry_prediction = Some(prediction.clone());
                 pos.entry_atr_pct = self.market_data[best_sym].atr_pct;
                 self.positions.insert(best_sym.clone(), pos);
+
+                // Mirror to the Alpaca paper account (observational only).
+                if ALPACA_SHADOW_ORDERS {
+                    let (s, q, p) = (best_sym.clone(), shares, price);
+                    tokio::spawn(async move {
+                        crate::services::alpaca_broker::shadow_order(
+                            s, q, "buy", p, "ENTRY".to_string()).await;
+                    });
+                }
                 self.cash -= shares * price;
 
                 let trade = Trade {
@@ -1939,6 +1948,14 @@ impl PaperTrader {
         if self.trades.len() >= 500 { self.trades.pop_front(); }
         self.trades.push_back(trade);
         self.cooldowns.insert(symbol.to_string(), Instant::now());
+
+        // Mirror the exit to the Alpaca paper account (observational only).
+        if ALPACA_SHADOW_ORDERS {
+            let (s, q, p, r) = (symbol.to_string(), pos.shares, pos.current_price, reason.to_string());
+            tokio::spawn(async move {
+                crate::services::alpaca_broker::shadow_order(s, q, "sell", p, r).await;
+            });
+        }
 
         // Persist immediately after a realized trade.
         self.save_state();

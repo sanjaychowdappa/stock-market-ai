@@ -33,6 +33,13 @@ pub const EXP1_KILL_TRADES: u32 = 200;
 /// its history is preserved for the record.
 pub const EXP1_RETIRED: bool = true;
 
+/// Mirror every simulated trade as a real order on the Alpaca PAPER account
+/// (fake money, real execution). Purely observational — the internal simulator
+/// stays the source of truth for P&L. This measures how optimistic the
+/// simulator's assumed fills are, which is the last unmeasured gap in the
+/// numbers. Disabled by a hard rail if the endpoint is not paper-api.
+pub const ALPACA_SHADOW_ORDERS: bool = true;
+
 /// No config/parameter changes before this date — clean-data window.
 pub const CONFIG_FREEZE_UNTIL: &str = "2026-07-28";
 

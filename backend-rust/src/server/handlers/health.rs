@@ -96,6 +96,25 @@ pub async fn exp1(State(state): State<Arc<AppState>>) -> Json<serde_json::Value>
     Json(trader.exp1_json())
 }
 
+/// Alpaca paper account snapshot + simulator-vs-reality fill comparison.
+pub async fn broker(State(_state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    let acct = crate::services::alpaca_broker::account().await;
+    let fills = crate::services::alpaca_broker::fills_summary().await;
+    Json(serde_json::json!({
+        "mode": "shadow — Alpaca PAPER account; internal simulator remains source of truth",
+        "connected": acct.is_some(),
+        "account": acct.map(|a| serde_json::json!({
+            "status": a["status"],
+            "cash": a["cash"],
+            "equity": a["equity"],
+            "buying_power": a["buying_power"],
+            "daytrade_count": a["daytrade_count"],
+            "pattern_day_trader": a["pattern_day_trader"],
+        })),
+        "fills": fills,
+    }))
+}
+
 /// agentic_test supervisor status + findings.
 pub async fn agentic(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     Json(state.agentic.lock().to_json())
