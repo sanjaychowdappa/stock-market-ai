@@ -304,6 +304,83 @@ pub async fn reconcile(
     })
 }
 
+/// REAL realized P&L, computed from actual Alpaca fills using FIFO matching.
+///
+/// This is the number that matters. The simulator's P&L is an estimate built on
+/// last-tick prices it never actually traded at; this is money that genuinely
+/// moved at prices a broker genuinely gave us — including slippage, and with
+/// rejected orders simply absent because they never happened.
+pub async fn real_pnl() -> Value {
+    let content = tokio::fs::read_to_string(FILL_LOG).await.unwrap_or_default();
+
+    // symbol -> FIFO queue of open lots (qty, price)
+    let mut lots: std::collections::HashMap<String, std::collections::VecDeque<(f64, f64)>> =
+        std::collections::HashMap::new();
+    let mut realized = 0.0;
+    let mut wins = 0u32;
+    let mut losses = 0u32;
+    let mut by_day: std::collections::BTreeMap<String, f64> = std::collections::BTreeMap::new();
+    let mut sim_realized = 0.0; // same trades priced the simulator's way
+    let mut round_trips = 0u32;
+
+    for line in content.lines() {
+        let v: Value = match serde_json::from_str(line) { Ok(v) => v, Err(_) => continue };
+        if v["outcome"].as_str() != Some("filled") { continue; }
+        let sym = v["symbol"].as_str().unwrap_or("").to_string();
+        let side = v["side"].as_str().unwrap_or("");
+        let px = v["actual_price"].as_f64().unwrap_or(0.0);
+        let sim_px = v["sim_price"].as_f64().unwrap_or(px);
+        let qty = v["qty_filled"].as_f64()
+            .or_else(|| v["qty_requested"].as_f64())
+            .unwrap_or(0.0);
+        let day = v["timestamp"].as_str().unwrap_or("").chars().take(10).collect::<String>();
+        if qty <= 0.0 || px <= 0.0 { continue; }
+
+        let q = lots.entry(sym.clone()).or_default();
+        if side == "buy" {
+            q.push_back((qty, px));
+            // Track the simulator's cost basis in parallel for comparison.
+            lots.entry(format!("{}__sim", sym)).or_default().push_back((qty, sim_px));
+        } else {
+            let mut remaining = qty;
+            let mut sim_rem = qty;
+            while remaining > 1e-9 {
+                let (lot_qty, lot_px) = match q.front_mut() { Some(l) => (l.0, l.1), None => break };
+                let used = remaining.min(lot_qty);
+                let pnl = (px - lot_px) * used;
+                realized += pnl;
+                if pnl >= 0.0 { wins += 1 } else { losses += 1 }
+                *by_day.entry(day.clone()).or_insert(0.0) += pnl;
+                round_trips += 1;
+                remaining -= used;
+                if used >= lot_qty - 1e-9 { q.pop_front(); } else { q.front_mut().unwrap().0 -= used; }
+            }
+            // Mirror the same matching against simulator prices.
+            let sq = lots.entry(format!("{}__sim", sym)).or_default();
+            while sim_rem > 1e-9 {
+                let (lot_qty, lot_px) = match sq.front_mut() { Some(l) => (l.0, l.1), None => break };
+                let used = sim_rem.min(lot_qty);
+                sim_realized += (sim_px - lot_px) * used;
+                sim_rem -= used;
+                if used >= lot_qty - 1e-9 { sq.pop_front(); } else { sq.front_mut().unwrap().0 -= used; }
+            }
+        }
+    }
+
+    let n = round_trips.max(1) as f64;
+    json!({
+        "headline": "REAL P&L from actual Alpaca fills — this is the number that counts",
+        "real_realized_pnl": (realized * 100.0).round() / 100.0,
+        "simulator_would_have_shown": (sim_realized * 100.0).round() / 100.0,
+        "execution_drag": ((sim_realized - realized) * 100.0).round() / 100.0,
+        "round_trips": round_trips,
+        "wins": wins, "losses": losses,
+        "win_rate_pct": if round_trips > 0 { (wins as f64 / n * 10000.0).round() / 100.0 } else { 0.0 },
+        "avg_per_round_trip": (realized / n * 100.0).round() / 100.0,
+        "by_day": by_day.iter().map(|(d, p)| json!({"date": d, "real_pnl": (p * 100.0).round() / 100.0})).collect::<Vec<_>>(),
+    })
+}
+
 /// Summary of simulator-vs-reality for the API/dashboard.
 pub async fn fills_summary() -> Value {
     let content = tokio::fs::read_to_string(FILL_LOG).await.unwrap_or_default();

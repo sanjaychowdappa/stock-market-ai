@@ -100,8 +100,10 @@ pub async fn exp1(State(state): State<Arc<AppState>>) -> Json<serde_json::Value>
 pub async fn broker(State(_state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     let acct = crate::services::alpaca_broker::account().await;
     let fills = crate::services::alpaca_broker::fills_summary().await;
+    let real = crate::services::alpaca_broker::real_pnl().await;
     Json(serde_json::json!({
-        "mode": "shadow — Alpaca PAPER account; internal simulator remains source of truth",
+        "mode": "Alpaca PAPER is the REAL scoreboard — real fills, real slippage, real rejections. The simulator is only the decision engine.",
+        "real_pnl": real,
         "connected": acct.is_some(),
         "account": acct.map(|a| serde_json::json!({
             "status": a["status"],
