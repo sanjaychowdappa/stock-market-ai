@@ -72,15 +72,19 @@ impl AppState {
         if crate::config::ALPACA_SHADOW_ORDERS {
             let st = state.clone();
             tokio::spawn(async move {
-                tokio::time::sleep(tokio::time::Duration::from_secs(75)).await;
+                // Short wait only for market data to populate prices — without
+                // them reconcile cannot size or value orders. Then check every
+                // 30s so any drift is corrected within one cycle instead of
+                // being allowed to compound.
+                tokio::time::sleep(tokio::time::Duration::from_secs(20)).await;
                 loop {
                     let (qty, px) = { st.trader.lock().book_snapshot() };
-                    if !qty.is_empty() || crate::services::alpaca_broker::positions()
-                        .await.map(|p| !p.is_empty()).unwrap_or(false)
-                    {
+                    let alpaca_has = crate::services::alpaca_broker::positions()
+                        .await.map(|p| !p.is_empty()).unwrap_or(false);
+                    if !qty.is_empty() || alpaca_has {
                         let _ = crate::services::alpaca_broker::reconcile(qty, px).await;
                     }
-                    tokio::time::sleep(tokio::time::Duration::from_secs(300)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
                 }
             });
         }

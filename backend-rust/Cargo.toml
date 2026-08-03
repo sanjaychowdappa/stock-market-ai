@@ -41,6 +41,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Concurrency
 dashmap = "6"
 parking_lot = "0.12"
+once_cell = "1"
 
 # Environment
 dotenvy = "0.15"

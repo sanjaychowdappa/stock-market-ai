@@ -18,6 +18,29 @@ use tracing::{info, warn};
 
 const FILL_LOG: &str = "/app/reports/broker_fills.jsonl";
 
+/// A real fill reported back so the simulator can adopt the ACTUAL execution
+/// price instead of its assumed last-tick price. Draining these keeps the two
+/// books identical rather than merely similar.
+#[derive(Debug, Clone)]
+pub struct FillCorrection {
+    pub symbol: String,
+    pub side: String,
+    pub actual_price: f64,
+    pub assumed_price: f64,
+    pub qty: f64,
+}
+
+/// Pending corrections, drained by the trader on its next tick. A queue (rather
+/// than a blocking call inside the trade path) keeps the 1 Hz trading loop from
+/// stalling on broker latency.
+pub static CORRECTIONS: once_cell::sync::Lazy<parking_lot::Mutex<Vec<FillCorrection>>> =
+    once_cell::sync::Lazy::new(|| parking_lot::Mutex::new(Vec::new()));
+
+pub fn drain_corrections() -> Vec<FillCorrection> {
+    let mut q = CORRECTIONS.lock();
+    std::mem::take(&mut *q)
+}
+
 fn creds() -> Option<(String, String, String)> {
     let key = env::var("APCA_API_KEY_ID").ok()?;
     let secret = env::var("APCA_API_SECRET_KEY").ok()?;
@@ -151,6 +174,19 @@ pub async fn shadow_order(symbol: String, qty: f64, side: &str, sim_price: f64, 
             let slip_pct = if sim_price > 0.0 { slip / sim_price * 100.0 } else { 0.0 };
             info!("[BROKER] {} {} filled @ ${:.4} vs sim ${:.4} — slippage ${:.4} ({:+.3}%)",
                 side, symbol, actual, sim_price, slip, slip_pct);
+
+            // Report the real price back so the simulator can adopt it. Skip
+            // reconciliation orders — those are corrections to a position the
+            // simulator already priced, not the simulator's own trade.
+            if reason != "RECONCILE" && sim_price > 0.0 {
+                CORRECTIONS.lock().push(FillCorrection {
+                    symbol: symbol.clone(),
+                    side: side.clone(),
+                    actual_price: actual,
+                    assumed_price: sim_price,
+                    qty: filled_qty.unwrap_or(qty),
+                });
+            }
             log_entry(json!({
                 "timestamp": chrono::Local::now().to_rfc3339(),
                 "symbol": symbol, "side": side,

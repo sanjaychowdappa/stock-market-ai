@@ -853,6 +853,33 @@ impl PaperTrader {
             self.last_veto_check = Instant::now();
         }
 
+        // ── Adopt REAL Alpaca fill prices ────────────────────────────
+        // The simulator books a trade at the last observed tick price, which is
+        // optimistic. When the mirrored order actually fills, restate the
+        // position (or the realized cash) at the true execution price so the two
+        // books hold identical cost bases and produce identical P&L, rather than
+        // merely similar numbers.
+        if ALPACA_SHADOW_ORDERS {
+            for c in crate::services::alpaca_broker::drain_corrections() {
+                let diff = c.actual_price - c.assumed_price;
+                if diff.abs() < 1e-9 { continue; }
+                if c.side == "buy" {
+                    if let Some(pos) = self.positions.get_mut(&c.symbol) {
+                        pos.entry_price = c.actual_price;
+                        // Paying more (or less) than assumed changes cash too.
+                        self.cash -= diff * c.qty;
+                    }
+                } else {
+                    // Sold: proceeds differ from what was credited at close.
+                    self.cash += diff * c.qty;
+                    self.realized_pnl += diff * c.qty;
+                }
+                info!("[FILL_SYNC] {} {} restated ${:.4} -> ${:.4} (cash adj ${:+.4})",
+                    c.side, c.symbol, c.assumed_price, c.actual_price,
+                    if c.side == "buy" { -diff * c.qty } else { diff * c.qty });
+            }
+        }
+
         // Run shadow traders on same market data with different weights
         self.tick_shadow_traders(symbol);
 
