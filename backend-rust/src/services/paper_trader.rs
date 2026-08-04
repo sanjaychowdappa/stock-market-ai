@@ -20,12 +20,18 @@ use std::time::Instant;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::broadcast;
-use tracing::info;
+use tracing::{error, info, warn};
 
 /// Where the trader persists its state so multi-day swing positions survive
 /// restarts (the machine is powered off overnight). Lives in the mounted
 /// reports/ volume so it persists on the host.
 const STATE_FILE: &str = "/app/reports/trader_state.json";
+
+/// Monotonic stamp for state snapshots. Every save claims the next value; an
+/// async save that finds a newer value pending declines to write. This stops a
+/// slow pre-skim write from landing after the skim's synchronous write and
+/// resurrecting already-banked cash.
+static SAVE_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct PersistedShadow {
@@ -418,7 +424,19 @@ impl PaperTrader {
             saved_at: Local::now().to_rfc3339(),
         };
         if let Ok(json_str) = serde_json::to_string(&state) {
+            // Stamp this snapshot and refuse to write it if a newer save has
+            // been issued in the meantime.
+            //
+            // Without this, an async save spawned just before the 3:55pm skim
+            // can land AFTER the skim's synchronous save and overwrite the
+            // clean post-skim state with pre-skim cash. On the next boot the
+            // trader then sees drift it already banked and re-banks it — the
+            // mechanism behind 08-03 and 08-04 each double-counting a day.
+            let seq = SAVE_SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
             tokio::spawn(async move {
+                if SAVE_SEQ.load(std::sync::atomic::Ordering::SeqCst) != seq {
+                    return; // superseded by a newer save — writing would regress state
+                }
                 let _ = tokio::fs::write(STATE_FILE, json_str).await;
             });
         }
@@ -453,7 +471,12 @@ impl PaperTrader {
             saved_at: Local::now().to_rfc3339(),
         };
         if let Ok(json_str) = serde_json::to_string(&state) {
-            let _ = std::fs::write(STATE_FILE, json_str);
+            // Claim the newest sequence number so any async save still in flight
+            // sees itself as superseded and declines to overwrite this write.
+            SAVE_SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            if let Err(e) = std::fs::write(STATE_FILE, json_str) {
+                error!("[STATE] synchronous save failed: {}", e);
+            }
         }
     }
 
@@ -462,13 +485,76 @@ impl PaperTrader {
     /// trader's lifetime realized_pnl, which counts every trade ever and does
     /// not reconcile with the sum of banked days.
     fn ledger_cumulative() -> f64 {
+        // SUM the banked days. This previously read the LAST row's stored
+        // `cumulative_pnl`, which is only correct if every row was appended in
+        // order by a single writer. Two writers (the NEW_DAY carryover recovery
+        // and the 3:55pm skim) append independently, and both writes used to be
+        // fire-and-forget, so "last row" could be stale or out of order — which
+        // is how $72.28 came to be banked twice. A sum cannot drift that way.
+        // Rows explicitly marked `reliable: false` are excluded. The rows written
+        // before 2026-08-04 double-counted the same dollars (see the quarantine
+        // note in the ledger itself) and cannot be reconstructed — guessing which
+        // of them were genuine would just be a different fabricated number. They
+        // stay in the file for audit; they do not count toward any total.
+        Self::ledger_rows().iter()
+            .filter(|v| v["reliable"].as_bool() != Some(false))
+            .filter_map(|v| v["day_pnl"].as_f64())
+            .sum::<f64>()
+    }
+
+    /// Every parsed row of the daily profit ledger, in file order.
+    fn ledger_rows() -> Vec<serde_json::Value> {
         std::fs::read_to_string("/app/reports/daily_profit.jsonl")
-            .ok()
-            .and_then(|c| c.lines()
+            .map(|c| c.lines()
                 .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
-                .last()
-                .and_then(|v| v["cumulative_pnl"].as_f64()))
-            .unwrap_or(0.0)
+                .collect())
+            .unwrap_or_default()
+    }
+
+    /// Append one banked-profit row, synchronously and at most once per
+    /// (date, kind).
+    ///
+    /// Both callers previously did their own `tokio::spawn` append with no
+    /// idempotency, so a single date could receive a carryover-recovery row in
+    /// the morning AND a skim row at 3:55pm — which is exactly the duplication
+    /// that made three dates in this ledger double-count. `kind` distinguishes
+    /// the two legitimate entry types so a genuine carryover and a genuine skim
+    /// on the same day still both record, but neither can ever record twice.
+    fn bank_day(date: &str, kind: &str, day_pnl: f64, extra: serde_json::Value) {
+        let already = Self::ledger_rows().iter().any(|v| {
+            v["date"].as_str() == Some(date) && v["kind"].as_str() == Some(kind)
+        });
+        if already {
+            warn!("[LEDGER] refusing duplicate {} row for {} — already banked", kind, date);
+            return;
+        }
+        let cumulative = Self::ledger_cumulative() + day_pnl;
+        let mut row = json!({
+            "date": date,
+            "kind": kind,
+            "day_pnl": (day_pnl * 100.0).round() / 100.0,
+            "cumulative_pnl": (cumulative * 100.0).round() / 100.0,
+            "capital": INITIAL_CASH,
+            "timestamp": Local::now().to_rfc3339(),
+        });
+        if let (Some(obj), Some(ex)) = (row.as_object_mut(), extra.as_object()) {
+            for (k, v) in ex { obj.insert(k.clone(), v.clone()); }
+        }
+        // SYNCHRONOUS: the old fire-and-forget spawn could land after the next
+        // ledger_cumulative() read, corrupting the running total.
+        let mut line = serde_json::to_string(&row).unwrap_or_default();
+        line.push('\n');
+        use std::io::Write;
+        match std::fs::OpenOptions::new().create(true).append(true)
+            .open("/app/reports/daily_profit.jsonl")
+        {
+            Ok(mut f) => {
+                if let Err(e) = f.write_all(line.as_bytes()) {
+                    error!("[LEDGER] write failed for {} {}: {}", date, kind, e);
+                }
+            }
+            Err(e) => error!("[LEDGER] open failed for {} {}: {}", date, kind, e),
+        }
     }
 
     /// Has the daily profit ledger already recorded this date?
@@ -694,40 +780,32 @@ impl PaperTrader {
                 for s in &syms { self.sell(s, "CARRYOVER_FLATTEN(missed daily skim)"); }
                 let recovered = self.cash - INITIAL_CASH;
 
-                // ALWAYS bank the recovered amount — it is real realized P&L.
-                // (An earlier version discarded it whenever the previous day was
-                // already in the ledger, silently deleting genuine profit: on
-                // 2026-07-31 that threw away $69.90.) The double-bank guard must
-                // prevent duplicate ENTRIES, never delete money.
+                // Bank the drift ONLY when the previous day was never banked.
+                //
+                // The previous version banked it unconditionally, "attributing to
+                // today" whenever the prior day was already in the ledger. That
+                // re-banked money the 3:55pm skim had already recorded — and the
+                // ledger proves it: 07-31 skim banked $72.28, then 08-03 banked
+                // $72.28 again as a carryover; 08-03 skim banked $37.14, then
+                // 08-04 banked $37.14 again. Three occurrences, same dollars twice.
+                //
+                // If the prior day already has a skim row, this drift is a
+                // state-restore artifact (a stale async save landing after the
+                // skim's synchronous one), not new profit. Reset capital and bank
+                // nothing. Only a genuinely unbanked prior day gets a late entry.
                 if recovered.abs() > 0.01 {
-                    // Attribute to the missed day if it was never recorded;
-                    // otherwise book it against today as a carryover recovery so
-                    // it is never mistaken for today's own trading result.
                     let missed_day = !prev_date.is_empty() && !Self::ledger_has_date(&prev_date);
-                    let entry_date = if missed_day { prev_date.clone() } else { et_date.clone() };
-                    let cumulative = Self::ledger_cumulative() + recovered;
                     if missed_day {
-                        info!("[CAPITAL_RECOVERY] {} skim was missed — banking ${:.2} late", entry_date, recovered);
+                        info!("[CAPITAL_RECOVERY] {} skim was missed — banking ${:.2} late", prev_date, recovered);
+                        Self::bank_day(&prev_date, "carryover", recovered, json!({
+                            "recovered_late": true,
+                            "note": "late banking for a day whose 3:55pm skim never ran",
+                        }));
                     } else {
-                        info!("[CARRYOVER_RECOVERY] realized ${:.2} from stale positions — banking to {} (multi-day gain, not today's trading)",
-                            recovered, entry_date);
+                        warn!("[CARRYOVER_IGNORED] ${:.2} drift into {} — {} is already banked, \
+                               so this is a state artifact, not new profit. Resetting without banking.",
+                            recovered, et_date, prev_date);
                     }
-                    let ledger = json!({
-                        "date": entry_date, "day_pnl": (recovered * 100.0).round() / 100.0,
-                        "cumulative_pnl": (cumulative * 100.0).round() / 100.0,
-                        "capital": INITIAL_CASH,
-                        "recovered_late": missed_day,
-                        "carryover_recovery": !missed_day,
-                        "timestamp": Local::now().to_rfc3339(),
-                    });
-                    tokio::spawn(async move {
-                        let path = "/app/reports/daily_profit.jsonl";
-                        if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path).await {
-                            let mut line = serde_json::to_string(&ledger).unwrap_or_default();
-                            line.push('\n');
-                            let _ = f.write_all(line.as_bytes()).await;
-                        }
-                    });
                 }
                 info!("[CAPITAL_RESET] carried ${:.2} into {} — resetting to ${:.0}",
                     carried, et_date, INITIAL_CASH);
@@ -794,24 +872,9 @@ impl PaperTrader {
             // self.realized_pnl (lifetime P&L of every trade), which does not
             // reconcile with the sum of day_pnl — the ledger read $174.11 when
             // the banked days summed to $128.60.
-            let cumulative = Self::ledger_cumulative() + day_pnl;
             info!("[DAILY_SKIM] {} — day P&L ${:.2} banked | cumulative ${:.2} | reset to ${:.0}",
-                et_date, day_pnl, cumulative, INITIAL_CASH);
-            let ledger = json!({
-                "date": et_date,
-                "day_pnl": (day_pnl * 100.0).round() / 100.0,
-                "cumulative_pnl": (cumulative * 100.0).round() / 100.0,
-                "capital": INITIAL_CASH,
-                "timestamp": Local::now().to_rfc3339(),
-            });
-            tokio::spawn(async move {
-                let path = "/app/reports/daily_profit.jsonl";
-                if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path).await {
-                    let mut line = serde_json::to_string(&ledger).unwrap_or_default();
-                    line.push('\n');
-                    let _ = f.write_all(line.as_bytes()).await;
-                }
-            });
+                et_date, day_pnl, Self::ledger_cumulative() + day_pnl, INITIAL_CASH);
+            Self::bank_day(&et_date, "skim", day_pnl, json!({}));
             // Reset working capital for tomorrow. Profit is "taken out".
             self.cash = INITIAL_CASH;
             self.did_daily_skim = true;

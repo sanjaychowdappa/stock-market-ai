@@ -1,0 +1,10 @@
+{"capital":3000.0,"cumulative_pnl":-6.64,"date":"2026-07-21","day_pnl":-6.64,"timestamp":"2026-07-21T19:55:01.191441777+00:00"}
+{"capital":3000.0,"cumulative_pnl":13.14,"date":"2026-07-28","day_pnl":19.78,"timestamp":"2026-07-28T19:55:00.882309377+00:00"}
+{"capital":3000.0,"cumulative_pnl":36.10,"date":"2026-07-29","day_pnl":22.96,"timestamp":"2026-07-29T19:55:00.756620251+00:00"}
+{"capital":3000.0,"cumulative_pnl":56.32,"date":"2026-07-30","day_pnl":20.22,"timestamp":"2026-07-30T19:55:00.311042273+00:00"}
+{"capital":3000.0,"cumulative_pnl":128.60,"date":"2026-07-31","day_pnl":72.28,"timestamp":"2026-07-31T19:55:01.995466769+00:00"}
+{"date":"2026-07-31","day_pnl":69.9,"cumulative_pnl":198.50,"capital":3000,"recovered_late":false,"carryover_recovery":true,"timestamp":"2026-07-31T19:11:21.8827021-04:00","note":"carryover gains discarded by pre-fix logic, recovered in audit"}
+{"capital":3000.0,"carryover_recovery":true,"cumulative_pnl":270.78,"date":"2026-08-03","day_pnl":72.28,"recovered_late":false,"timestamp":"2026-08-03T13:30:00.212441754+00:00"}
+{"capital":3000.0,"cumulative_pnl":307.92,"date":"2026-08-03","day_pnl":37.14,"timestamp":"2026-08-03T19:55:00.055503740+00:00"}
+{"capital":3000.0,"carryover_recovery":true,"cumulative_pnl":345.06,"date":"2026-08-04","day_pnl":37.14,"recovered_late":false,"timestamp":"2026-08-04T13:37:23.744357676+00:00"}
+{"capital":3000.0,"cumulative_pnl":374.5,"date":"2026-08-04","day_pnl":29.44,"timestamp":"2026-08-04T19:55:00.705975851+00:00"}

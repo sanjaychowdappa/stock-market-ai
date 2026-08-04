@@ -91,9 +91,13 @@ function AgenticPanel() {
               sub={today ? today.date : 'no completed round trips'} />
         <Stat label="Per round trip" value={money(rp.avg_per_round_trip ?? 0)}
               color={col(rp.avg_per_round_trip ?? 0)} sub="average, after real costs" />
-        <Stat label="exp1 realized" value={exp1 ? money(exp1.realized_pnl ?? 0) : '—'}
+        <Stat label={`exp1 realized${exp1?.retired ? ' (RETIRED)' : ''}`}
+              value={exp1 ? money(exp1.realized_pnl ?? 0) : '—'}
               color={exp1 ? col(exp1.realized_pnl ?? 0) : '#94a3b8'}
-              sub={exp1 ? `${exp1.total_trades} trades · ${(exp1.win_rate_pct ?? 0).toFixed(0)}% win` : ''} />
+              sub={exp1
+                ? `${exp1.total_trades} trades · ${(exp1.win_rate_pct ?? 0).toFixed(0)}% win${
+                    exp1.retired ? ' · stopped, not running' : ''}`
+                : ''} />
       </div>
 
       {days.length > 0 && (

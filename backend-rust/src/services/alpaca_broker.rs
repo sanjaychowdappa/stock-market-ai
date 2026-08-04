@@ -190,6 +190,7 @@ pub async fn shadow_order(symbol: String, qty: f64, side: &str, sim_price: f64, 
     let mut filled_price: Option<f64> = None;
     let mut filled_qty: Option<f64> = None;
     let mut final_status = String::from("pending");
+    let mut settled = false;
     for _ in 0..20 {
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         let got = client
@@ -202,16 +203,34 @@ pub async fn shadow_order(symbol: String, qty: f64, side: &str, sim_price: f64, 
         if let Ok(r) = got {
             if let Ok(v) = r.json::<Value>().await {
                 final_status = v["status"].as_str().unwrap_or("unknown").to_string();
+
+                // Keep the most recent price/qty seen, but do NOT stop here.
+                // Alpaca populates filled_avg_price and filled_qty while an
+                // order is still `partially_filled`. The previous version broke
+                // on the first sight of a price, so a fractional order caught
+                // mid-execution recorded its PARTIAL quantity as final — which
+                // is why 2.825-share requests logged as "filled 1.000". Those
+                // quantities feed the FIFO real-P&L match, so the error
+                // propagated straight into the headline number.
                 if let Some(p) = v["filled_avg_price"].as_str().and_then(|s| s.parse::<f64>().ok()) {
                     filled_price = Some(p);
                     filled_qty = v["filled_qty"].as_str().and_then(|s| s.parse::<f64>().ok());
-                    break;
                 }
-                if final_status == "canceled" || final_status == "rejected" || final_status == "expired" {
+
+                // Only a terminal status settles the order.
+                if matches!(final_status.as_str(),
+                    "filled" | "canceled" | "rejected" | "expired" | "done_for_day")
+                {
+                    settled = true;
                     break;
                 }
             }
         }
+    }
+    if !settled && filled_price.is_some() {
+        warn!("[BROKER] {} {} still '{}' after 10s — recording partial qty {:?}; \
+               final fill may differ",
+            side, symbol, final_status, filled_qty);
     }
 
     match filled_price {
@@ -384,6 +403,11 @@ pub async fn real_pnl() -> Value {
     let mut by_day: std::collections::BTreeMap<String, f64> = std::collections::BTreeMap::new();
     let mut sim_realized = 0.0; // same trades priced the simulator's way
     let mut round_trips = 0u32;
+    // Data-quality counters — silently dropping these is how a wrong number
+    // looks like a right one.
+    let mut unmatched_sells = 0u32;
+    let mut unmatched_qty = 0.0;
+    let mut partial_qty_rows = 0u32;
 
     for line in content.lines() {
         let v: Value = match serde_json::from_str(line) { Ok(v) => v, Err(_) => continue };
@@ -397,6 +421,13 @@ pub async fn real_pnl() -> Value {
             .unwrap_or(0.0);
         let day = v["timestamp"].as_str().unwrap_or("").chars().take(10).collect::<String>();
         if qty <= 0.0 || px <= 0.0 { continue; }
+        // Rows where the recorded fill is materially smaller than the request
+        // are suspect: before 2026-08-04 the poll loop broke on the first sight
+        // of filled_avg_price, so a partially_filled snapshot could be stored as
+        // the final quantity.
+        if let Some(req) = v["qty_requested"].as_f64() {
+            if req - qty > 0.01 { partial_qty_rows += 1; }
+        }
 
         let q = lots.entry(sym.clone()).or_default();
         if side == "buy" {
@@ -406,16 +437,33 @@ pub async fn real_pnl() -> Value {
         } else {
             let mut remaining = qty;
             let mut sim_rem = qty;
+            // Accumulate the whole sell, then classify it ONCE. This counter
+            // used to increment per matched lot, so a single sell that consumed
+            // three buy lots reported three round trips and three win/loss
+            // events — inflating the trade count and making the win rate a
+            // per-lot statistic wearing a per-trade label.
+            let mut trip_pnl = 0.0;
+            let mut matched = false;
             while remaining > 1e-9 {
                 let (lot_qty, lot_px) = match q.front_mut() { Some(l) => (l.0, l.1), None => break };
                 let used = remaining.min(lot_qty);
-                let pnl = (px - lot_px) * used;
-                realized += pnl;
-                if pnl >= 0.0 { wins += 1 } else { losses += 1 }
-                *by_day.entry(day.clone()).or_insert(0.0) += pnl;
-                round_trips += 1;
+                trip_pnl += (px - lot_px) * used;
+                matched = true;
                 remaining -= used;
                 if used >= lot_qty - 1e-9 { q.pop_front(); } else { q.front_mut().unwrap().0 -= used; }
+            }
+            if matched {
+                realized += trip_pnl;
+                if trip_pnl >= 0.0 { wins += 1 } else { losses += 1 }
+                *by_day.entry(day.clone()).or_insert(0.0) += trip_pnl;
+                round_trips += 1;
+            }
+            // A sell with no matching buy lot means the buy side was never
+            // recorded (rejected, or its quantity was understated). The old code
+            // just `break`s and drops it, so the P&L quietly omits real exposure.
+            if remaining > 1e-9 {
+                unmatched_sells += 1;
+                unmatched_qty += remaining;
             }
             // Mirror the same matching against simulator prices.
             let sq = lots.entry(format!("{}__sim", sym)).or_default();
@@ -440,6 +488,20 @@ pub async fn real_pnl() -> Value {
         "win_rate_pct": if round_trips > 0 { (wins as f64 / n * 10000.0).round() / 100.0 } else { 0.0 },
         "avg_per_round_trip": (realized / n * 100.0).round() / 100.0,
         "by_day": by_day.iter().map(|(d, p)| json!({"date": d, "real_pnl": (p * 100.0).round() / 100.0})).collect::<Vec<_>>(),
+        "data_quality": {
+            "unmatched_sells": unmatched_sells,
+            "unmatched_qty": (unmatched_qty * 10000.0).round() / 10000.0,
+            "partial_qty_rows": partial_qty_rows,
+            "note": if partial_qty_rows > 0 || unmatched_sells > 0 {
+                "Some fills were recorded before the partial-fill parse fix (2026-08-04): \
+                 the poll loop stored a partially_filled snapshot as the final quantity, so \
+                 those quantities understate the real position and this P&L is approximate \
+                 for the affected days. Fills recorded from 2026-08-05 onward wait for a \
+                 terminal order status."
+            } else {
+                "All fills settled on a terminal order status; quantities are final."
+            },
+        },
     })
 }
 

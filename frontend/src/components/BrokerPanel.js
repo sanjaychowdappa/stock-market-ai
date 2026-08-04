@@ -52,13 +52,7 @@ function BrokerPanel() {
   const trips = r.round_trips || 0;
 
   const recent = f.recent || [];
-  // Alpaca fills whole shares on some fractional requests. When that happens
-  // the Alpaca position is smaller than the simulator's — the two books stop
-  // being comparable, so it needs to be visible rather than buried.
-  const partials = recent.filter(
-    (o) => o.outcome === 'filled' && o.qty_requested && o.qty_filled &&
-           Math.abs(o.qty_filled - o.qty_requested) > 0.01
-  );
+  const dq = r.data_quality || {};
 
   return (
     <div style={S.wrap}>
@@ -122,16 +116,20 @@ function BrokerPanel() {
         </div>
       </div>
 
-      {partials.length > 0 && (
+      {(dq.partial_qty_rows > 0 || dq.unmatched_sells > 0) && (
         <div style={S.warnBox}>
-          <div style={S.warnTitle}>POSITION-SIZE DIVERGENCE</div>
+          <div style={S.warnTitle}>HISTORICAL FILL QUANTITIES ARE APPROXIMATE</div>
           <div style={S.warnBody}>
-            {partials.length} of the last {recent.length} orders filled a different
-            quantity than requested (e.g.{' '}
-            <b>{partials[0].symbol} wanted {Number(partials[0].qty_requested).toFixed(3)},
-            got {Number(partials[0].qty_filled).toFixed(3)}</b>). Alpaca fills whole
-            shares where the simulator assumes fractional, so the two books hold
-            different sizes and their P&amp;L is not directly comparable.
+            <b>{dq.partial_qty_rows} fill(s)</b> were recorded before the partial-fill
+            parse fix: the order poller stopped at the first price it saw, which Alpaca
+            also reports while an order is still <i>partially filled</i>, so a
+            mid-execution snapshot was stored as the final quantity.
+            {dq.unmatched_sells > 0 && (
+              <> It also left <b>{dq.unmatched_sells} sell(s)</b> ({Number(dq.unmatched_qty).toFixed(3)} sh)
+              without a matching buy lot.</>
+            )}{' '}
+            The P&amp;L above is therefore <b>approximate for those days</b>. Fills
+            recorded from 2026-08-05 onward wait for a terminal order status and are exact.
           </div>
         </div>
       )}

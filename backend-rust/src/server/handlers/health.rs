@@ -141,11 +141,19 @@ pub async fn profit(State(_state): State<Arc<AppState>>) -> Json<serde_json::Val
     let mut days: Vec<serde_json::Value> = Vec::new();
     let mut weekly: BTreeMap<String, (f64, u32)> = BTreeMap::new();
     let mut total = 0.0;
+    let mut quarantined = 0u32;
+    let mut quarantined_sum = 0.0;
     for line in content.lines() {
         if line.trim().is_empty() { continue; }
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
             let date = v["date"].as_str().unwrap_or("").to_string();
             let pnl = v["day_pnl"].as_f64().unwrap_or(0.0);
+            // Quarantined rows are kept for audit but excluded from every total.
+            if v["reliable"].as_bool() == Some(false) {
+                quarantined += 1;
+                quarantined_sum += pnl;
+                continue;
+            }
             total += pnl;
             // ISO-ish week key: year + week number via naive date
             if let Ok(d) = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d") {
@@ -171,18 +179,24 @@ pub async fn profit(State(_state): State<Arc<AppState>>) -> Json<serde_json::Val
         .count();
 
     Json(serde_json::json!({
-        "UNRELIABLE": true,
-        "warning": "DO NOT REPORT THESE NUMBERS. This simulator ledger has been wrong \
-                    three separate ways (cumulative-as-daily, mark-to-market inflation, \
-                    duplicate rows) and on days a real broker could check it, it booked \
-                    profits on days that actually lost money. Use /api/broker instead — \
-                    Alpaca fills are the only scoreboard.",
+        "is_scoreboard": false,
+        "warning": "Simulator ledger — NOT a record of money made. It models no spread, \
+                    no slippage and no rejections, and on days a real broker could check \
+                    it, it reported gains on days that actually lost money. Real results \
+                    come from /api/broker (Alpaca fills) and nowhere else.",
+        "quarantined_rows": quarantined,
+        "quarantined_sum_excluded": (quarantined_sum*100.0).round()/100.0,
+        "quarantine_note": "Rows written before 2026-08-04 double-counted the same dollars: \
+                            each morning's carryover re-banked the previous day's skim \
+                            (07-31 $72.28 -> 08-03 $72.28; 08-03 $37.14 -> 08-04 $37.14). \
+                            The true split cannot be reconstructed, so rather than guess a \
+                            corrected figure they are excluded from every total.",
         "duplicate_date_rows": dupes,
         "model": "fixed-capital day trader: $3000/day, profit banked daily, reset each day",
         "capital_per_day": crate::config::INITIAL_CASH,
-        "days_recorded": days.len(),
-        "total_banked_profit_UNRELIABLE": (total*100.0).round()/100.0,
-        "weekly_profit_UNRELIABLE": weeks,
+        "trustworthy_days_recorded": days.len(),
+        "trustworthy_banked_profit": (total*100.0).round()/100.0,
+        "weekly_profit": weeks,
         "recent_days": recent,
     }))
 }

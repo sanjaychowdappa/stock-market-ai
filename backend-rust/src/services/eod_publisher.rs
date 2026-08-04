@@ -125,14 +125,21 @@ pub fn generate_text_summary(report: &serde_json::Value) -> String {
     s.push_str(&format!("  Generated:  {}\n", generated));
     s.push_str(&format!("  Uptime:     {}h {}m\n\n", uptime_h, uptime_m));
 
-    s.push_str("─────────────── PORTFOLIO ───────────────\n\n");
+    s.push_str("─────────────── PORTFOLIO (SIMULATOR) ───────────────\n\n");
+    s.push_str("  These are simulator figures: no spread, no slippage, no rejections.\n");
+    s.push_str("  They are NOT a record of money made. Real results: GET /api/broker.\n\n");
     s.push_str(&format!("  Initial Capital:  ${:.2}\n", INITIAL_CASH));
     s.push_str(&format!("  Current Value:    ${:.2}\n", total_value));
     s.push_str(&format!("  Cash:             ${:.2}\n", cash));
     s.push_str(&format!("  Positions Value:  ${:.2}\n", positions_val));
-    s.push_str(&format!("  Total P&L:        {}{:.4} ({}{:.2}%)\n", pnl_emoji, total_pnl, pnl_emoji, total_pnl_pct));
-    s.push_str(&format!("  Realized P&L:     ${:.4}\n", realized));
-    s.push_str(&format!("  Challenge:        $100 → $150 ({:.1}% complete)\n\n", progress));
+    // Two decimals, not four — the inputs are not precise to a hundredth of a
+    // cent and printing them that way implies a precision that does not exist.
+    s.push_str(&format!("  Total P&L:        {}{:.2} ({}{:.2}%)\n", pnl_emoji, total_pnl, pnl_emoji, total_pnl_pct));
+    s.push_str(&format!("  Realized P&L:     ${:.2}\n", realized));
+    // Was hardcoded "$100 → $150" long after capital became $3000 — a caption
+    // describing an account that no longer existed.
+    s.push_str(&format!("  Target:           ${:.0} → ${:.0} ({:.1}% complete)\n\n",
+        INITIAL_CASH, INITIAL_CASH * 1.5, progress));
 
     s.push_str("─────────────── TRADING STATS ───────────────\n\n");
     s.push_str(&format!("  Total Trades:     {}\n", total_trades));

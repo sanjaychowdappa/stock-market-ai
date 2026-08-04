@@ -212,12 +212,15 @@ fn spawn_orchestrator(state: Arc<AppState>) {
                         // daily_profit.jsonl (written by the skim) is the
                         // authoritative record, so read the running total from it
                         // and fall back to the report only if it is unavailable.
+                        // SUM the banked days rather than trusting the last row's
+                        // stored cumulative. Two writers append to this ledger, so
+                        // "last row" could be stale or out of order.
                         let cumulative_pnl = tokio::fs::read_to_string("/app/reports/daily_profit.jsonl")
                             .await.ok()
-                            .and_then(|c| c.lines().filter_map(|l|
+                            .map(|c| c.lines().filter_map(|l|
                                 serde_json::from_str::<serde_json::Value>(l).ok())
-                                .last()
-                                .and_then(|v| v["cumulative_pnl"].as_f64()))
+                                .filter_map(|v| v["day_pnl"].as_f64())
+                                .sum::<f64>())
                             .unwrap_or_else(|| report["portfolio"]["total_pnl"].as_f64().unwrap_or(0.0));
                         let total_trades = report["trading_stats"]["total_trades"].as_u64().unwrap_or(0) as u32;
                         let winning_trades = report["trading_stats"]["winning_trades"].as_u64().unwrap_or(0) as u32;
@@ -225,24 +228,23 @@ fn spawn_orchestrator(state: Arc<AppState>) {
                         let avg_pnl = report["trading_stats"]["avg_pnl_per_trade"].as_f64().unwrap_or(0.0);
                         let portfolio_value = report["portfolio"]["total_value"].as_f64().unwrap_or(100.0);
 
-                        // Estimate total shares traded & sell value from trade count
-                        let avg_trade_value = portfolio_value * 0.8; // ~80% position size
-                        let avg_price = 300.0; // rough avg across our symbols
-                        let total_shares = (total_trades as f64) * (avg_trade_value / avg_price);
-                        let total_sell_value = (total_trades as f64 / 2.0) * avg_trade_value;
-
+                        // Share count and sell value used to be INVENTED here:
+                        //     let avg_trade_value = portfolio_value * 0.8;
+                        //     let avg_price = 300.0;
+                        // Those two guesses fed the spread/SEC/TAF/PFOF model, which
+                        // then printed a "NET P&L" and an efficiency score to four
+                        // decimal places — fabricated precision built on a made-up
+                        // $300 average price. Passing zero disables the modeled-cost
+                        // path instead of dressing up guesses as measurements. Real
+                        // execution cost is measured from actual fills at /api/broker.
                         let day_record = ledger.record_day(
                             &today_str, cumulative_pnl, total_trades, winning_trades,
-                            avg_hold, avg_pnl, total_shares, total_sell_value, portfolio_value,
+                            avg_hold, avg_pnl, 0.0, 0.0, portfolio_value,
                         );
 
-                        info!("  Gross P&L: ${:.4}", day_record.gross_pnl);
-                        info!("  Total Fees: ${:.4} (spread=${:.4} + SEC=${:.4} + TAF=${:.4} + PFOF=${:.4})",
-                            day_record.total_fees, day_record.spread_cost,
-                            day_record.sec_fee, day_record.taf_fee, day_record.pfof_cost);
-                        info!("  Tax (24%): ${:.4}", day_record.tax);
-                        info!("  >>> NET P&L: ${:.4} <<<", day_record.net_pnl);
-                        info!("  Efficiency Score: {:.1}/100", day_record.efficiency_score);
+                        info!("  Gross P&L (simulator, uncosted): ${:.2}", day_record.gross_pnl);
+                        info!("  NOTE: fee/tax/efficiency modeling disabled — its share-count inputs");
+                        info!("        were fabricated. Real costs: GET /api/broker (Alpaca fills).");
 
                         // Day comparison
                         let comparison = ledger.compare_days();
