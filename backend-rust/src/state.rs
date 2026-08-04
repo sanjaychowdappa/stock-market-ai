@@ -84,7 +84,7 @@ impl AppState {
                     if !qty.is_empty() || alpaca_has {
                         let _ = crate::services::alpaca_broker::reconcile(qty, px).await;
                     }
-                    tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_secs(120)).await;
                 }
             });
         }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import SimBanner from './SimBanner';
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000/api';
 
 const fmtHold = (s) => {
   if (s == null) return '';
@@ -150,6 +151,8 @@ function ExperimentsPanel() {
 
   return (
     <div style={S.wrap}>
+      <SimBanner what="These experiment P&Ls"
+                 note="Use them to rank models against each other, not to measure profit." />
       <div style={S.title}>A/B Experiments{data.version ? <span style={S.ver}> {data.version}</span> : null}</div>
       <div style={S.sub}>
         All models run in parallel on the same live prices (paper only).

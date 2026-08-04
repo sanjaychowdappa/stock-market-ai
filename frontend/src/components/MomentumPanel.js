@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import SimBanner from './SimBanner';
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000/api';
 
 // Low-touch monthly ETF momentum rotation — the primary strategy.
 function MomentumPanel() {
@@ -33,6 +34,8 @@ function MomentumPanel() {
 
   return (
     <div style={S.wrap}>
+      <SimBanner what="These returns"
+                 note="This strategy is not routed to Alpaca at all." />
       <div style={S.headerRow}>
         <div>
           <div style={S.title}>Momentum Portfolio</div>

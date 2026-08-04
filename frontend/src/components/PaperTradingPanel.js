@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:8000';
+const WS_URL = process.env.REACT_APP_WS_URL || 'ws://127.0.0.1:8000';
 
 /* ─── Sparkline ──────────────────────────────────────────────── */
 function Sparkline({ values, width = 160, height = 32, color = '#3b82f6' }) {

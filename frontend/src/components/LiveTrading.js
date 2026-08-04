@@ -2,9 +2,10 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createChart } from 'lightweight-charts';
 import axios from 'axios';
 import PaperTradingPanel from './PaperTradingPanel';
+import SimBanner from './SimBanner';
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
-const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:8000';
+const API = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000/api';
+const WS_URL = process.env.REACT_APP_WS_URL || 'ws://127.0.0.1:8000';
 
 /** Deduplicate + sort array by time (numeric) */
 function dedupNum(arr) {
@@ -388,6 +389,9 @@ function LiveTrading({ symbol }) {
           </span>
         </div>
       </div>
+
+      <SimBanner what="The paper-trading P&L below"
+                 note="This panel's job is showing what the signals decided, not what they earned." />
 
       {/* Pattern signal bar */}
       <PatternSignalBar pattern={predData?.pattern} atr={predData?.atr} kronosAge={predData?.kronos_age_seconds} />

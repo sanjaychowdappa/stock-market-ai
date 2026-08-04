@@ -1,0 +1,63 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-08-04
+  Generated:  2026-08-04T20:10:00.557459257+00:00
+  Uptime:     6h 32m
+
+─────────────── PORTFOLIO ───────────────
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.0000 (0.00%)
+  Realized P&L:     $240.6651
+  Challenge:        $100 → $150 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     60
+  Winning Trades:   33
+  Win Rate:         55.0%
+  Avg Hold Time:    8535s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  NVDA     $211.28     bearish     -0.210   —
+  AAPL     $309.41     bullish     0.230    —
+  MSFT     $492.74     bullish     0.233    —
+  GOOGL    $377.18     bullish     0.230    —
+  AMZN     $277.65     bullish     0.388    —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   AAPL     $308.99    $612.32  $12.2269   EOD_DAILY_SKIM
+  19:55:00  SELL   GOOGL    $378.48    $611.90  $11.6811   EOD_DAILY_SKIM
+  19:54:59  SELL   MSFT     $492.84    $605.32  $5.3305    TRAIL_STOP(-1.30% from peak,pnl=0.89%)
+  19:54:52  SELL   NVDA     $211.99    $598.92  $6.1873    TRAIL_STOP(-0.50% from peak,pnl=1.04%)
+  19:54:38  SELL   AMZN     $277.28    $600.99  $0.6936    TRAIL_STOP(-0.52% from peak,pnl=0.12%)
+  19:00:05  BUY    AMZN     $276.95    $600.28  $0.0000    ENTRY(s=0.048,K~,1of7)
+  19:00:05  SELL   AMZN     $276.95    $600.28  $-1.7990   TRAIL_STOP(-0.50% from peak,pnl=-0.30%)
+  18:04:27  BUY    AMZN     $277.78    $602.07  $0.0000    ENTRY(s=0.216,K~,2of7)
+  18:04:27  SELL   AMZN     $277.78    $602.09  $1.4414    TRAIL_STOP(-0.52% from peak,pnl=0.24%)
+  15:44:47  BUY    AMZN     $277.12    $600.65  $0.0000    ENTRY(s=0.029,K~,1of7)
+  15:44:47  SELL   AMZN     $277.12    $600.66  $-0.9646   TRAIL_STOP(-0.50% from peak,pnl=-0.16%)
+  15:00:53  BUY    NVDA     $209.79    $592.71  $0.0000    ENTRY(s=0.029,K~,0of7)
+  15:00:45  SELL   NVDA     $209.75    $592.91  $-0.0565   TRAIL_STOP(-0.60% from peak,pnl=-0.01%)
+  14:58:55  BUY    AMZN     $277.56    $601.62  $0.0000    ENTRY(s=0.021,K~,1of7)
+  14:58:55  SELL   AMZN     $277.56    $601.57  $-1.6689   TRAIL_STOP(-0.56% from peak,pnl=-0.28%)
+  14:30:45  BUY    NVDA     $209.77    $592.96  $0.0000    ENTRY(s=0.484,K+,2of7)
+  14:30:45  SELL   NVDA     $209.77    $592.99  $-0.0283   TRAIL_STOP(-0.50% from peak,pnl=-0.00%)
+  14:28:55  BUY    AMZN     $278.30    $603.18  $0.0000    ENTRY(s=-0.037,K~,0of7)
+  14:28:55  SELL   AMZN     $278.30    $603.28  $2.6446    TRAIL_STOP(-0.97% from peak,pnl=0.44%)
+  13:56:17  BUY    NVDA     $209.75    $592.92  $0.0000    ENTRY(s=-0.048,K~,0of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

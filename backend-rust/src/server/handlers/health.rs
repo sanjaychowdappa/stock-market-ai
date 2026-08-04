@@ -162,12 +162,27 @@ pub async fn profit(State(_state): State<Arc<AppState>>) -> Json<serde_json::Val
         "week": k, "profit": (p*100.0).round()/100.0, "days": n,
     })).collect();
     let recent: Vec<&serde_json::Value> = days.iter().rev().take(15).collect();
+
+    // Duplicate dates in the ledger mean `total` double-counts. Surface the
+    // count so no consumer can mistake this for a clean figure.
+    let mut seen = std::collections::HashSet::new();
+    let dupes = days.iter()
+        .filter(|d| !seen.insert(d["date"].as_str().unwrap_or("").to_string()))
+        .count();
+
     Json(serde_json::json!({
+        "UNRELIABLE": true,
+        "warning": "DO NOT REPORT THESE NUMBERS. This simulator ledger has been wrong \
+                    three separate ways (cumulative-as-daily, mark-to-market inflation, \
+                    duplicate rows) and on days a real broker could check it, it booked \
+                    profits on days that actually lost money. Use /api/broker instead — \
+                    Alpaca fills are the only scoreboard.",
+        "duplicate_date_rows": dupes,
         "model": "fixed-capital day trader: $3000/day, profit banked daily, reset each day",
         "capital_per_day": crate::config::INITIAL_CASH,
         "days_recorded": days.len(),
-        "total_banked_profit": (total*100.0).round()/100.0,
-        "weekly_profit": weeks,
+        "total_banked_profit_UNRELIABLE": (total*100.0).round()/100.0,
+        "weekly_profit_UNRELIABLE": weeks,
         "recent_days": recent,
     }))
 }

@@ -5,12 +5,15 @@ import LiveTrading from './components/LiveTrading';
 import MomentumPanel from './components/MomentumPanel';
 import AgenticPanel from './components/AgenticPanel';
 import ExperimentsPanel from './components/ExperimentsPanel';
+import BrokerPanel from './components/BrokerPanel';
 import './App.css';
 
 function App() {
   const [symbol, setSymbol] = useState('NVDA');
   const [inputSymbol, setInputSymbol] = useState('NVDA');
-  const [activeTab, setActiveTab] = useState('momentum');
+  // Real broker P&L is the landing tab: the first number seen should be the
+  // one that survives contact with a real exchange, not a simulator's estimate.
+  const [activeTab, setActiveTab] = useState('broker');
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -40,10 +43,11 @@ function App() {
 
       <nav className="tabs">
         {[
+          { id: 'broker', label: 'Real P&L (Alpaca)' },
           { id: 'momentum', label: 'Momentum Portfolio' },
           { id: 'agentic', label: 'Agentic Module' },
           { id: 'experiments', label: 'Experiments (A/B)' },
-          { id: 'live-trading', label: 'Signal Trader (legacy)' },
+          { id: 'live-trading', label: 'Signal Trader (decisions only)' },
           { id: 'chart', label: 'Chart' },
         ].map((tab) => (
           <button
@@ -57,6 +61,10 @@ function App() {
       </nav>
 
       <main className="main-content">
+        {activeTab === 'broker' && (
+          <BrokerPanel />
+        )}
+
         {activeTab === 'momentum' && (
           <MomentumPanel />
         )}

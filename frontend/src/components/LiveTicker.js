@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 
-const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:8000';
+const WS_URL = process.env.REACT_APP_WS_URL || 'ws://127.0.0.1:8000';
 
 function LiveTicker({ symbol }) {
   const [data, setData] = useState(null);

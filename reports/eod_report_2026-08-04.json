@@ -1,0 +1,348 @@
+{
+  "data_quality": {
+    "finetune_triggered": true,
+    "snapshots": 23558,
+    "tracker": {
+      "AAPL": {
+        "predictions": 23559,
+        "ticks": 23559,
+        "trades": 2
+      },
+      "AMZN": {
+        "predictions": 22982,
+        "ticks": 22982,
+        "trades": 7
+      },
+      "GOOGL": {
+        "predictions": 22983,
+        "ticks": 22983,
+        "trades": 2
+      },
+      "MSFT": {
+        "predictions": 22984,
+        "ticks": 22984,
+        "trades": 2
+      },
+      "NVDA": {
+        "predictions": 22988,
+        "ticks": 22988,
+        "trades": 6
+      }
+    }
+  },
+  "portfolio": {
+    "cash": 3000.0,
+    "drawdown_pct": 0.0,
+    "initial_capital": 3000.0,
+    "positions_value": -0.0,
+    "realized_pnl": 240.6651,
+    "target": {
+      "goal": "$500 → $600 challenge",
+      "progress_pct": 0.0,
+      "target_value": 3100.0
+    },
+    "total_pnl": 0.0,
+    "total_pnl_pct": 0.0,
+    "total_value": 3000.0
+  },
+  "positions": [],
+  "recent_trades": [
+    {
+      "action": "SELL",
+      "pnl": 12.2269,
+      "pnl_pct": 2.04,
+      "price": 308.99,
+      "reason": "EOD_DAILY_SKIM",
+      "shares": 1.98167,
+      "symbol": "AAPL",
+      "time": "19:55:00",
+      "total": 612.32
+    },
+    {
+      "action": "SELL",
+      "pnl": 11.6811,
+      "pnl_pct": 1.95,
+      "price": 378.475,
+      "reason": "EOD_DAILY_SKIM",
+      "shares": 1.616755,
+      "symbol": "GOOGL",
+      "time": "19:55:00",
+      "total": 611.9
+    },
+    {
+      "action": "SELL",
+      "pnl": 5.3305,
+      "pnl_pct": 0.89,
+      "price": 492.84,
+      "reason": "TRAIL_STOP(-1.30% from peak,pnl=0.89%)",
+      "shares": 1.228229,
+      "symbol": "MSFT",
+      "time": "19:54:59",
+      "total": 605.32
+    },
+    {
+      "action": "SELL",
+      "pnl": 6.1873,
+      "pnl_pct": 1.04,
+      "price": 211.99,
+      "reason": "TRAIL_STOP(-0.50% from peak,pnl=1.04%)",
+      "shares": 2.825238,
+      "symbol": "NVDA",
+      "time": "19:54:52",
+      "total": 598.92
+    },
+    {
+      "action": "SELL",
+      "pnl": 0.6936,
+      "pnl_pct": 0.12,
+      "price": 277.28,
+      "reason": "TRAIL_STOP(-0.52% from peak,pnl=0.12%)",
+      "shares": 2.167452,
+      "symbol": "AMZN",
+      "time": "19:54:38",
+      "total": 600.99
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 276.95,
+      "reason": "ENTRY(s=0.048,K~,1of7)",
+      "shares": 2.167452,
+      "symbol": "AMZN",
+      "time": "19:00:05",
+      "total": 600.28
+    },
+    {
+      "action": "SELL",
+      "pnl": -1.799,
+      "pnl_pct": -0.3,
+      "price": 276.95,
+      "reason": "TRAIL_STOP(-0.50% from peak,pnl=-0.30%)",
+      "shares": 2.167452,
+      "symbol": "AMZN",
+      "time": "19:00:05",
+      "total": 600.28
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 277.78,
+      "reason": "ENTRY(s=0.216,K~,2of7)",
+      "shares": 2.1674520004319966,
+      "symbol": "AMZN",
+      "time": "18:04:27",
+      "total": 602.07
+    },
+    {
+      "action": "SELL",
+      "pnl": 1.4414,
+      "pnl_pct": 0.24,
+      "price": 277.78,
+      "reason": "TRAIL_STOP(-0.52% from peak,pnl=0.24%)",
+      "shares": 2.167506,
+      "symbol": "AMZN",
+      "time": "18:04:27",
+      "total": 602.09
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 277.115,
+      "reason": "ENTRY(s=0.029,K~,1of7)",
+      "shares": 2.167505913898562,
+      "symbol": "AMZN",
+      "time": "15:44:47",
+      "total": 600.65
+    },
+    {
+      "action": "SELL",
+      "pnl": -0.9646,
+      "pnl_pct": -0.16,
+      "price": 277.115,
+      "reason": "TRAIL_STOP(-0.50% from peak,pnl=-0.16%)",
+      "shares": 2.167542,
+      "symbol": "AMZN",
+      "time": "15:44:47",
+      "total": 600.66
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 209.79,
+      "reason": "ENTRY(s=0.029,K~,0of7)",
+      "shares": 2.8252377754827207,
+      "symbol": "NVDA",
+      "time": "15:00:53",
+      "total": 592.71
+    },
+    {
+      "action": "SELL",
+      "pnl": -0.0565,
+      "pnl_pct": -0.01,
+      "price": 209.75,
+      "reason": "TRAIL_STOP(-0.60% from peak,pnl=-0.01%)",
+      "shares": 2.82673,
+      "symbol": "NVDA",
+      "time": "15:00:45",
+      "total": 592.91
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 277.56,
+      "reason": "ENTRY(s=0.021,K~,1of7)",
+      "shares": 2.1675421412307245,
+      "symbol": "AMZN",
+      "time": "14:58:55",
+      "total": 601.62
+    },
+    {
+      "action": "SELL",
+      "pnl": -1.6689,
+      "pnl_pct": -0.28,
+      "price": 277.56,
+      "reason": "TRAIL_STOP(-0.56% from peak,pnl=-0.28%)",
+      "shares": 2.167362,
+      "symbol": "AMZN",
+      "time": "14:58:55",
+      "total": 601.57
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 209.77,
+      "reason": "ENTRY(s=0.484,K+,2of7)",
+      "shares": 2.8267299862230066,
+      "symbol": "NVDA",
+      "time": "14:30:45",
+      "total": 592.96
+    },
+    {
+      "action": "SELL",
+      "pnl": -0.0283,
+      "pnl_pct": -0.0,
+      "price": 209.77,
+      "reason": "TRAIL_STOP(-0.50% from peak,pnl=-0.00%)",
+      "shares": 2.826873,
+      "symbol": "NVDA",
+      "time": "14:30:45",
+      "total": 592.99
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 278.3,
+      "reason": "ENTRY(s=-0.037,K~,0of7)",
+      "shares": 2.1673624823751347,
+      "symbol": "AMZN",
+      "time": "14:28:55",
+      "total": 603.18
+    },
+    {
+      "action": "SELL",
+      "pnl": 2.6446,
+      "pnl_pct": 0.44,
+      "price": 278.3,
+      "reason": "TRAIL_STOP(-0.97% from peak,pnl=0.44%)",
+      "shares": 2.167718,
+      "symbol": "AMZN",
+      "time": "14:28:55",
+      "total": 603.28
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 209.745,
+      "reason": "ENTRY(s=-0.048,K~,0of7)",
+      "shares": 2.8268730580705146,
+      "symbol": "NVDA",
+      "time": "13:56:17",
+      "total": 592.92
+    }
+  ],
+  "report": {
+    "date": "2026-08-04",
+    "generated_at": "2026-08-04T20:10:00.557459257+00:00",
+    "market_session": {
+      "close": "16:00 ET",
+      "open": "09:30 ET",
+      "status": "closed"
+    },
+    "type": "end_of_day"
+  },
+  "symbols": [
+    {
+      "direction": "bearish",
+      "in_position": false,
+      "last_price": 211.28,
+      "position_pnl": 0.0,
+      "signal_strength": -0.21027723638063903,
+      "symbol": "NVDA"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 309.41,
+      "position_pnl": 0.0,
+      "signal_strength": 0.22989844445051755,
+      "symbol": "AAPL"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 492.74,
+      "position_pnl": 0.0,
+      "signal_strength": 0.23342173257374568,
+      "symbol": "MSFT"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 377.18,
+      "position_pnl": 0.0,
+      "signal_strength": 0.22965252125204053,
+      "symbol": "GOOGL"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 277.65,
+      "position_pnl": 0.0,
+      "signal_strength": 0.3882147313318852,
+      "symbol": "AMZN"
+    }
+  ],
+  "trading_stats": {
+    "avg_hold_seconds": 8535,
+    "open_positions": 0,
+    "total_trades": 60,
+    "uptime_seconds": 23567,
+    "win_rate": 55.0,
+    "winning_trades": 33
+  },
+  "value_history": [
+    3000.0,
+    2993.899011825,
+    2996.543627785,
+    2996.515359055,
+    2994.8464903149998,
+    2994.789955715,
+    2993.8253995249997,
+    2995.2667910149994,
+    2993.4678058549994,
+    2994.1613904949995,
+    3000.3486617149993,
+    3005.679175574999,
+    3017.360230449999,
+    3029.5871343499994,
+    3000.0
+  ]
+}

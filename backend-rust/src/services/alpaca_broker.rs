@@ -41,6 +41,43 @@ pub fn drain_corrections() -> Vec<FillCorrection> {
     std::mem::take(&mut *q)
 }
 
+/// Symbols with an order currently in flight.
+///
+/// The strategy can exit and re-enter the same name within a second, which the
+/// simulator allows but a real broker does not: Alpaca rejects the second order
+/// with "potential wash trade detected — opposite side market/stop order
+/// exists". Serialising orders per symbol removes that entire class of
+/// rejection (7 of 33 orders on 2026-08-04).
+static IN_FLIGHT: once_cell::sync::Lazy<parking_lot::Mutex<std::collections::HashSet<String>>> =
+    once_cell::sync::Lazy::new(|| parking_lot::Mutex::new(std::collections::HashSet::new()));
+
+/// True while a reconcile cycle is running. A cycle can take minutes (each
+/// symbol waits for its claim, then polls for a fill), so without this guard a
+/// 30s timer stacks overlapping cycles that each grab the trader lock —
+/// starving tokio's workers until the HTTP server stops responding entirely.
+static RECONCILING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Wait until this symbol has no order in flight, then claim it.
+/// Returns false if the wait timed out (caller should skip the order).
+async fn claim_symbol(symbol: &str) -> bool {
+    for _ in 0..24 {
+        {
+            let mut f = IN_FLIGHT.lock();
+            if !f.contains(symbol) {
+                f.insert(symbol.to_string());
+                return true;
+            }
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    }
+    warn!("[BROKER] {} still busy after 10s — skipping order", symbol);
+    false
+}
+
+fn release_symbol(symbol: &str) {
+    IN_FLIGHT.lock().remove(symbol);
+}
+
 fn creds() -> Option<(String, String, String)> {
     let key = env::var("APCA_API_KEY_ID").ok()?;
     let secret = env::var("APCA_API_SECRET_KEY").ok()?;
@@ -84,6 +121,11 @@ pub async fn shadow_order(symbol: String, qty: f64, side: &str, sim_price: f64, 
         return;
     }
     let side = side.to_lowercase();
+    // Serialise per symbol so an exit and its immediate re-entry cannot be in
+    // flight together — that collision is what Alpaca rejects as a wash trade.
+    if !claim_symbol(&symbol).await {
+        return;
+    }
     let client = reqwest::Client::new();
 
     // Alpaca accepts fractional qty for market/day orders on liquid names.
@@ -109,6 +151,7 @@ pub async fn shadow_order(symbol: String, qty: f64, side: &str, sim_price: f64, 
             Ok(v) => v,
             Err(e) => {
                 warn!("[BROKER] {} {} — bad response: {}", side, symbol, e);
+                release_symbol(&symbol);
                 return;
             }
         },
@@ -125,25 +168,30 @@ pub async fn shadow_order(symbol: String, qty: f64, side: &str, sim_price: f64, 
                 "outcome": "rejected", "http_status": status.as_u16(),
                 "detail": msg.trim(),
             }));
+            release_symbol(&symbol);
             return;
         }
         Err(e) => {
             warn!("[BROKER] {} {} — submit failed: {}", side, symbol, e);
+            release_symbol(&symbol);
             return;
         }
     };
 
     let order_id = order["id"].as_str().unwrap_or("").to_string();
     if order_id.is_empty() {
+        release_symbol(&symbol);
         return;
     }
 
-    // Poll briefly for the fill (market orders usually fill in well under a second).
+    // Poll for the fill. Market orders usually fill in well under a second, but
+    // the closing rush is slower — a 4s window mislabelled three genuinely
+    // filled 15:55 sells as "unfilled" on 2026-08-04. 20s is comfortably clear.
     let mut filled_price: Option<f64> = None;
     let mut filled_qty: Option<f64> = None;
     let mut final_status = String::from("pending");
-    for _ in 0..10 {
-        tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    for _ in 0..20 {
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         let got = client
             .get(format!("{}/v2/orders/{}", base, order_id))
             .header("APCA-API-KEY-ID", &key)
@@ -207,6 +255,7 @@ pub async fn shadow_order(symbol: String, qty: f64, side: &str, sim_price: f64, 
             }));
         }
     }
+    release_symbol(&symbol);
 }
 
 fn log_entry(v: Value) {
@@ -257,6 +306,19 @@ pub async fn positions() -> Option<std::collections::HashMap<String, f64>> {
 /// `sim` maps symbol -> quantity the simulator believes it holds.
 /// `prices` maps symbol -> current price, used to ignore economically trivial gaps.
 pub async fn reconcile(
+    sim: std::collections::HashMap<String, f64>,
+    prices: std::collections::HashMap<String, f64>,
+) -> Value {
+    use std::sync::atomic::Ordering as AOrd;
+    if RECONCILING.swap(true, AOrd::SeqCst) {
+        return json!({"skipped": "a reconcile cycle is already running"});
+    }
+    let out = reconcile_inner(sim, prices).await;
+    RECONCILING.store(false, AOrd::SeqCst);
+    out
+}
+
+async fn reconcile_inner(
     sim: std::collections::HashMap<String, f64>,
     prices: std::collections::HashMap<String, f64>,
 ) -> Value {

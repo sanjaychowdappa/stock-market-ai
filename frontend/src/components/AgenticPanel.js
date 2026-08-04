@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000/api';
 
 const SEV = {
   critical: { bg: 'rgba(220,38,38,0.12)', bd: '#dc2626', fg: '#f87171', icon: '!' },
@@ -16,19 +16,21 @@ const HEALTH = {
 
 function AgenticPanel() {
   const [agent, setAgent] = useState(null);
-  const [profit, setProfit] = useState(null);
+  const [broker, setBroker] = useState(null);
   const [exp1, setExp1] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
   const load = async () => {
     try {
-      const [a, p, e] = await Promise.all([
+      // P&L comes from the broker, never from /api/profit. That ledger has
+      // duplicated dates and books gains on days that really lost money.
+      const [a, b, e] = await Promise.all([
         fetch(`${API}/agentic`).then(r => r.json()),
-        fetch(`${API}/profit`).then(r => r.json()).catch(() => null),
+        fetch(`${API}/broker`).then(r => r.json()).catch(() => null),
         fetch(`${API}/exp1`).then(r => r.json()).catch(() => null),
       ]);
-      setAgent(a); setProfit(p); setExp1(e); setError(null);
+      setAgent(a); setBroker(b); setExp1(e); setError(null);
     } catch (err) { setError('Backend not reachable'); }
   };
 
@@ -55,9 +57,10 @@ function AgenticPanel() {
   const money = (v) => `${v >= 0 ? '+' : '-'}$${Math.abs(v).toFixed(2)}`;
   const col = (v) => (v >= 0 ? '#22c55e' : '#ef4444');
 
-  const banked = profit?.total_banked_profit ?? 0;
-  const weeks = profit?.weekly_profit || [];
-  const thisWeek = weeks.length ? weeks[weeks.length - 1] : null;
+  const rp = broker?.real_pnl || {};
+  const realized = Number(rp.real_realized_pnl) || 0;
+  const days = rp.by_day || [];
+  const today = days.length ? days[days.length - 1] : null;
 
   return (
     <div style={S.wrap}>
@@ -78,31 +81,30 @@ function AgenticPanel() {
 
       <div style={S.summary}>{agent.summary}</div>
 
-      {/* ── P&L it oversees ────────────────────────────────── */}
-      <div style={S.sectionLabel}>PROFITS &amp; GAINS UNDER SUPERVISION</div>
+      {/* ── P&L it oversees — real broker fills only ───────── */}
+      <div style={S.sectionLabel}>PROFITS &amp; GAINS UNDER SUPERVISION — ALPACA REAL FILLS</div>
       <div style={S.statRow}>
-        <Stat label="Banked profit (all time)" value={money(banked)} color={col(banked)}
-              sub={`${profit?.days_recorded ?? 0} day(s) recorded`} />
-        <Stat label="This week" value={thisWeek ? money(thisWeek.profit) : '—'}
-              color={thisWeek ? col(thisWeek.profit) : '#94a3b8'}
-              sub={thisWeek ? `${thisWeek.week} · ${thisWeek.days} day(s)` : 'no data yet'} />
-        <Stat label="Day-trader capital" value={`$${(profit?.capital_per_day ?? 0).toFixed(0)}`}
-              color="#93c5fd" sub="reset daily, profit skimmed" />
+        <Stat label="Realized P&L (real)" value={money(realized)} color={col(realized)}
+              sub={`${rp.round_trips ?? 0} round trip(s) · ${(rp.win_rate_pct ?? 0).toFixed(0)}% win`} />
+        <Stat label="Latest session" value={today ? money(today.real_pnl) : '—'}
+              color={today ? col(today.real_pnl) : '#94a3b8'}
+              sub={today ? today.date : 'no completed round trips'} />
+        <Stat label="Per round trip" value={money(rp.avg_per_round_trip ?? 0)}
+              color={col(rp.avg_per_round_trip ?? 0)} sub="average, after real costs" />
         <Stat label="exp1 realized" value={exp1 ? money(exp1.realized_pnl ?? 0) : '—'}
               color={exp1 ? col(exp1.realized_pnl ?? 0) : '#94a3b8'}
               sub={exp1 ? `${exp1.total_trades} trades · ${(exp1.win_rate_pct ?? 0).toFixed(0)}% win` : ''} />
       </div>
 
-      {weeks.length > 0 && (
+      {days.length > 0 && (
         <div style={S.weekBox}>
-          <div style={S.tinyLabel}>WEEKLY PROFIT HISTORY</div>
+          <div style={S.tinyLabel}>REAL P&amp;L BY DAY (ALPACA)</div>
           <table style={S.table}>
             <tbody>
-              {weeks.slice().reverse().map((w) => (
-                <tr key={w.week}>
-                  <td style={S.td}>{w.week}</td>
-                  <td style={{ ...S.td, color: col(w.profit), fontWeight: 700 }}>{money(w.profit)}</td>
-                  <td style={{ ...S.td, color: '#64748b' }}>{w.days} day(s)</td>
+              {days.slice().reverse().map((d) => (
+                <tr key={d.date}>
+                  <td style={S.td}>{d.date}</td>
+                  <td style={{ ...S.td, color: col(d.real_pnl), fontWeight: 700 }}>{money(d.real_pnl)}</td>
                 </tr>
               ))}
             </tbody>
