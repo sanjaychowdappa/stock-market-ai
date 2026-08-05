@@ -132,6 +132,35 @@ pub const MAX_DAILY_TRADES: u32 = 5;
 /// the same symbol) rather than a tuned parameter.
 pub const MAX_DAILY_ENTRIES: u32 = 12;
 
+// ── DAMAGE CONTROL ───────────────────────────────────────────────────────
+//
+// A hard floor on the day, plus a ratchet so a winning day cannot become a
+// losing one. This CANNOT guarantee a non-negative day: a stop fills below the
+// price that triggered it, and every exit pays a round trip. It bounds the loss;
+// it does not eliminate it.
+//
+// The floor is deliberately not 0%. A fully invested book is below its starting
+// capital the moment it buys — by the spread alone — so a 0% floor would halt
+// before any position had a chance to work.
+pub const DAMAGE_CONTROL_ENABLED: bool = true;
+
+/// Day P&L (% of the day's starting capital) at which everything is flattened
+/// and new entries stop. -1.0% of $3000 = -$30, i.e. a floor at $2970.
+pub const CAPITAL_FLOOR_PCT: f64 = -1.0;
+
+/// Once the day's peak P&L reaches this, the floor starts ratcheting upward.
+pub const PROFIT_LOCK_TRIGGER_PCT: f64 = 1.0;
+
+/// Most of the peak that may be given back once the lock is armed. With a 1.0%
+/// trigger and 0.5% giveback, a day that reaches +1.2% cannot close below +0.7%.
+pub const PROFIT_LOCK_GIVEBACK_PCT: f64 = 0.5;
+
+/// How long a halt lasts before the market may be re-entered.
+pub const HALT_RESUME_SECS: u64 = 3600;
+
+/// Resumptions allowed per day. More than one lets a bad session repeat itself.
+pub const MAX_RESUMES_PER_DAY: u32 = 1;
+
 /// How long a symbol is ineligible for re-entry after a strategy exit.
 ///
 /// On 2026-08-05 each stop-out was followed by an immediate re-buy of the same

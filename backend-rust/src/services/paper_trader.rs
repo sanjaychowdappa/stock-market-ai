@@ -27,11 +27,8 @@ use tracing::{error, info, warn};
 /// reports/ volume so it persists on the host.
 const STATE_FILE: &str = "/app/reports/trader_state.json";
 
-/// Monotonic stamp for state snapshots. Every save claims the next value; an
-/// async save that finds a newer value pending declines to write. This stops a
-/// slow pre-skim write from landing after the skim's synchronous write and
-/// resurrecting already-banked cash.
-static SAVE_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+// SAVE_SEQ removed: state saves are now synchronous, so there is no window in
+// which an older snapshot can finish writing after a newer one.
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct PersistedShadow {
@@ -58,6 +55,15 @@ struct PersistedState {
     circuit_breaker_tripped: bool,
     #[serde(default)]
     did_daily_skim: bool,
+    /// Highest day P&L (%) reached today — drives the profit-lock ratchet.
+    #[serde(default)]
+    day_peak_pnl_pct: f64,
+    /// True once the floor has been breached and the book flattened.
+    #[serde(default)]
+    damage_halted: bool,
+    /// Resumptions used today. Persisted so a restart cannot hand out more.
+    #[serde(default)]
+    resumes_today: u32,
     shadows: Vec<PersistedShadow>,
     saved_at: String,
 }
@@ -101,6 +107,17 @@ pub struct PaperTrader {
     /// True once today's 3:55pm profit-skim + reset has run, so it happens
     /// exactly once per day and no further trading occurs afterwards.
     did_daily_skim: bool,
+    // ── Damage control ──────────────────────────────────────────────
+    /// Highest day P&L (%) seen today; drives the profit-lock ratchet.
+    day_peak_pnl_pct: f64,
+    /// Set when the floor is breached and the book flattened.
+    damage_halted: bool,
+    /// Resumptions used today (persisted, so a restart grants no extras).
+    resumes_today: u32,
+    /// When the current halt started. NOT persisted — after a restart the
+    /// elapsed clock is meaningless, and `damage_halted` keeps the book shut
+    /// until a fresh timestamp is set, so a restart can never shorten a halt.
+    halted_at: Option<Instant>,
     /// Market intraday momentum (Gao, Han, Li & Zhou 2018): each symbol's
     /// 9:30 open price and its first-half-hour (9:30–10:00 ET) return %.
     /// The first-half-hour return predicts the last-half-hour return, so we
@@ -334,6 +351,10 @@ impl PaperTrader {
             last_trading_date: String::new(),
             circuit_breaker_tripped: false,
             did_daily_skim: false,
+            day_peak_pnl_pct: 0.0,
+            damage_halted: false,
+            resumes_today: 0,
+            halted_at: None,
             day_open_price: HashMap::new(),
             first_hh_return: HashMap::new(),
             shadow_traders: {
@@ -372,6 +393,9 @@ impl PaperTrader {
             trader.day_start_value = ps.day_start_value;
             trader.circuit_breaker_tripped = ps.circuit_breaker_tripped;
             trader.did_daily_skim = ps.did_daily_skim;
+            trader.day_peak_pnl_pct = ps.day_peak_pnl_pct;
+            trader.damage_halted = ps.damage_halted;
+            trader.resumes_today = ps.resumes_today;
             for psh in ps.shadows {
                 if let Some(sh) = trader.shadow_traders.iter_mut().find(|s| s.model_id == psh.model_id) {
                     sh.cash = psh.cash;
@@ -420,25 +444,30 @@ impl PaperTrader {
             day_start_value: self.day_start_value,
             circuit_breaker_tripped: self.circuit_breaker_tripped,
             did_daily_skim: self.did_daily_skim,
+            day_peak_pnl_pct: self.day_peak_pnl_pct,
+            damage_halted: self.damage_halted,
+            resumes_today: self.resumes_today,
             shadows,
             saved_at: Local::now().to_rfc3339(),
         };
+        // Write synchronously. This was a fire-and-forget tokio::spawn, which
+        // produced two distinct corruptions:
+        //
+        //   - a pre-skim snapshot landing after the skim's own save, so the next
+        //     boot saw drift it had already banked and banked it again (08-03
+        //     and 08-04 each double-counted a day)
+        //   - a save fired from sell() mid-flatten landing after the damage
+        //     control save, leaving 3 phantom positions on disk that Alpaca did
+        //     not hold (08-05 17:01:37)
+        //
+        // A sequence guard was tried and is not sufficient: it can stop a stale
+        // write from STARTING, but not from FINISHING last, because the write
+        // itself is awaited after the check. The file is ~7KB, so a blocking
+        // write costs microseconds — far less than the cost of another race.
         if let Ok(json_str) = serde_json::to_string(&state) {
-            // Stamp this snapshot and refuse to write it if a newer save has
-            // been issued in the meantime.
-            //
-            // Without this, an async save spawned just before the 3:55pm skim
-            // can land AFTER the skim's synchronous save and overwrite the
-            // clean post-skim state with pre-skim cash. On the next boot the
-            // trader then sees drift it already banked and re-banks it — the
-            // mechanism behind 08-03 and 08-04 each double-counting a day.
-            let seq = SAVE_SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-            tokio::spawn(async move {
-                if SAVE_SEQ.load(std::sync::atomic::Ordering::SeqCst) != seq {
-                    return; // superseded by a newer save — writing would regress state
-                }
-                let _ = tokio::fs::write(STATE_FILE, json_str).await;
-            });
+            if let Err(e) = std::fs::write(STATE_FILE, json_str) {
+                error!("[STATE] save failed: {}", e);
+            }
         }
     }
 
@@ -467,13 +496,13 @@ impl PaperTrader {
             day_start_value: self.day_start_value,
             circuit_breaker_tripped: self.circuit_breaker_tripped,
             did_daily_skim: self.did_daily_skim,
+            day_peak_pnl_pct: self.day_peak_pnl_pct,
+            damage_halted: self.damage_halted,
+            resumes_today: self.resumes_today,
             shadows,
             saved_at: Local::now().to_rfc3339(),
         };
         if let Ok(json_str) = serde_json::to_string(&state) {
-            // Claim the newest sequence number so any async save still in flight
-            // sees itself as superseded and declines to overwrite this write.
-            SAVE_SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             if let Err(e) = std::fs::write(STATE_FILE, json_str) {
                 error!("[STATE] synchronous save failed: {}", e);
             }
@@ -815,6 +844,12 @@ impl PaperTrader {
             self.day_start_value = INITIAL_CASH;
             self.circuit_breaker_tripped = false;
             self.did_daily_skim = false;
+            // Damage control is a per-day construct — a halt must not carry into
+            // tomorrow, and the peak must restart from flat.
+            self.day_peak_pnl_pct = 0.0;
+            self.damage_halted = false;
+            self.halted_at = None;
+            self.resumes_today = 0;
             self.daily_trades = 0;
             for shadow in &mut self.shadow_traders { shadow.daily_trades = 0; }
             self.day_open_price.clear();
@@ -900,6 +935,63 @@ impl PaperTrader {
             self.circuit_breaker_tripped = true;
             info!("[CIRCUIT_BREAKER] Day P&L {:.2}% hit the {:.1}% limit — no new entries until tomorrow",
                 day_pnl_pct, DAILY_LOSS_LIMIT_PCT);
+        }
+
+        // ── DAMAGE CONTROL ──────────────────────────────────────────
+        // A hard floor plus a ratchet that lifts it once the day is up, so a
+        // winning day cannot round-trip into a losing one. This bounds the loss;
+        // it cannot eliminate it — a stop fills below its trigger and every exit
+        // pays a round trip.
+        if DAMAGE_CONTROL_ENABLED {
+            if day_pnl_pct > self.day_peak_pnl_pct {
+                self.day_peak_pnl_pct = day_pnl_pct;
+            }
+
+            // Effective floor: the hard floor, raised once the peak clears the
+            // profit-lock trigger. max() means the floor only ever ratchets up.
+            let locked = self.day_peak_pnl_pct >= PROFIT_LOCK_TRIGGER_PCT;
+            let floor = if locked {
+                CAPITAL_FLOOR_PCT.max(self.day_peak_pnl_pct - PROFIT_LOCK_GIVEBACK_PCT)
+            } else {
+                CAPITAL_FLOOR_PCT
+            };
+
+            if !self.damage_halted && day_pnl_pct <= floor {
+                self.damage_halted = true;
+                self.halted_at = Some(Instant::now());
+                let syms: Vec<String> = self.positions.keys().cloned().collect();
+                for s in &syms { self.sell(s, "DAMAGE_CONTROL_FLATTEN"); }
+                warn!("[DAMAGE_CONTROL] Day P&L {:.2}% breached the {:.2}% floor{} — \
+                       flattened {} position(s), entries halted. Capital ${:.2}.",
+                    day_pnl_pct, floor,
+                    if locked { format!(" (profit-locked from peak {:.2}%)", self.day_peak_pnl_pct) }
+                    else { String::new() },
+                    syms.len(), self.total_value());
+                self.save_state_sync();
+                return;
+            }
+
+            // Resume: only after the full wait, only while the broad market is
+            // risk-on, and only MAX_RESUMES_PER_DAY times. `halted_at` is None
+            // after a restart, which keeps the book shut rather than reopening
+            // it early — a restart must never shorten a halt.
+            if self.damage_halted {
+                let waited = self.halted_at
+                    .map(|t| t.elapsed().as_secs() >= HALT_RESUME_SECS)
+                    .unwrap_or(false);
+                let risk_on = self.market_risk_on.load(Ordering::Relaxed);
+                if waited && risk_on && self.resumes_today < MAX_RESUMES_PER_DAY {
+                    self.damage_halted = false;
+                    self.halted_at = None;
+                    self.resumes_today += 1;
+                    info!("[DAMAGE_CONTROL] Resuming ({}/{}) — {}min elapsed, market risk-on, \
+                           day P&L {:.2}%",
+                        self.resumes_today, MAX_RESUMES_PER_DAY, HALT_RESUME_SECS / 60, day_pnl_pct);
+                    self.save_state_sync();
+                } else {
+                    return; // still halted: no entries, no exits to manage (book is flat)
+                }
+            }
         }
 
         // Don't open new positions in last 10 minutes
@@ -2225,8 +2317,32 @@ impl PaperTrader {
             total_blocked as f64 / total_evaluated as f64 * 100.0
         } else { 0.0 };
 
+        let day_pnl_pct_now = if self.day_start_value > 0.0 {
+            (total - self.day_start_value) / self.day_start_value * 100.0
+        } else { 0.0 };
+        let lock_armed = self.day_peak_pnl_pct >= PROFIT_LOCK_TRIGGER_PCT;
+        let effective_floor = if lock_armed {
+            CAPITAL_FLOOR_PCT.max(self.day_peak_pnl_pct - PROFIT_LOCK_GIVEBACK_PCT)
+        } else { CAPITAL_FLOOR_PCT };
+
         json!({
             "market_open": self.market_open,
+            "damage_control": {
+                "enabled": DAMAGE_CONTROL_ENABLED,
+                "halted": self.damage_halted,
+                "day_pnl_pct": (day_pnl_pct_now * 100.0).round() / 100.0,
+                "day_peak_pnl_pct": (self.day_peak_pnl_pct * 100.0).round() / 100.0,
+                "floor_pct": (effective_floor * 100.0).round() / 100.0,
+                "floor_value": ((self.day_start_value * (1.0 + effective_floor / 100.0)) * 100.0).round() / 100.0,
+                "headroom_pct": ((day_pnl_pct_now - effective_floor) * 100.0).round() / 100.0,
+                "profit_lock_armed": lock_armed,
+                "profit_lock_trigger_pct": PROFIT_LOCK_TRIGGER_PCT,
+                "resumes_used": self.resumes_today,
+                "resumes_allowed": MAX_RESUMES_PER_DAY,
+                "resume_after_mins": HALT_RESUME_SECS / 60,
+                "entries_today": self.daily_trades,
+                "entry_cap": if MAX_EXPOSURE_MODE { MAX_DAILY_ENTRIES } else { MAX_DAILY_TRADES },
+            },
             "portfolio": {
                 "cash": (self.cash * 100.0).round() / 100.0,
                 "positions_value": (self.invested_value() * 100.0).round() / 100.0,

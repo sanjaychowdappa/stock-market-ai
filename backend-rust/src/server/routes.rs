@@ -20,6 +20,7 @@ pub fn build(state: Arc<AppState>) -> Router {
         .route("/api/exp1", get(handlers::health::exp1))
         .route("/api/broker", get(handlers::health::broker))
         .route("/api/broker/sync", get(handlers::health::broker_sync))
+        .route("/api/damage-control", get(handlers::health::damage_control))
         .route("/api/agentic", get(handlers::health::agentic))
         .route("/api/agentic/run", get(handlers::health::agentic_run))
         .route("/api/layer-monitor", get(handlers::health::layer_monitor))

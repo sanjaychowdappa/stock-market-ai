@@ -17,12 +17,17 @@ const API = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000/api';
  */
 function BrokerPanel() {
   const [data, setData] = useState(null);
+  const [dmg, setDmg] = useState(null);
   const [error, setError] = useState(null);
 
   const load = async () => {
     try {
-      const d = await fetch(`${API}/broker`).then((r) => r.json());
+      const [d, dc] = await Promise.all([
+        fetch(`${API}/broker`).then((r) => r.json()),
+        fetch(`${API}/damage-control`).then((r) => r.json()).catch(() => null),
+      ]);
       setData(d);
+      setDmg(dc);
       setError(null);
     } catch (e) {
       setError('Backend not reachable');
@@ -97,6 +102,48 @@ function BrokerPanel() {
           <div style={S.heroLabel}>NET P&amp;L — ALPACA'S OWN BOOKS</div>
           <div style={{ ...S.heroValue, color: '#f59e0b' }}>unavailable</div>
           <div style={S.heroSub}>{eq.reason || 'could not reach the broker'}</div>
+        </div>
+      )}
+
+      {/* ── Damage control ─────────────────────────────────── */}
+      {dmg && dmg.enabled && (
+        <div style={{
+          ...S.dcBox,
+          borderColor: dmg.halted ? '#ef4444' : dmg.headroom_pct < 0.3 ? '#f59e0b' : '#1e293b',
+        }}>
+          <div style={S.dcHead}>
+            <span style={S.dcTitle}>DAMAGE CONTROL</span>
+            <span style={{
+              ...S.dcBadge,
+              background: dmg.halted ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.12)',
+              color: dmg.halted ? '#ef4444' : '#22c55e',
+            }}>
+              {dmg.halted
+                ? `HALTED · resume after ${dmg.resume_after_mins}min if risk-on (${dmg.resumes_used}/${dmg.resumes_allowed} used)`
+                : 'ACTIVE · trading'}
+            </span>
+          </div>
+          <div style={S.dcGrid}>
+            <Mini label="Day P&L" value={`${dmg.day_pnl_pct >= 0 ? '+' : ''}${dmg.day_pnl_pct.toFixed(2)}%`}
+                  color={col(dmg.day_pnl_pct)} />
+            <Mini label="Floor" value={`${dmg.floor_pct.toFixed(2)}%`} color="#f87171"
+                  sub={`$${Number(dmg.floor_value).toFixed(0)}`} />
+            <Mini label="Headroom" value={`${dmg.headroom_pct.toFixed(2)}%`}
+                  color={dmg.headroom_pct < 0.3 ? '#f59e0b' : '#93c5fd'}
+                  sub="before halt" />
+            <Mini label="Day peak" value={`${dmg.day_peak_pnl_pct >= 0 ? '+' : ''}${dmg.day_peak_pnl_pct.toFixed(2)}%`}
+                  color={col(dmg.day_peak_pnl_pct)}
+                  sub={dmg.profit_lock_armed ? 'lock ARMED' : `lock at +${dmg.profit_lock_trigger_pct}%`} />
+            <Mini label="Entries" value={`${dmg.entries_today} / ${dmg.entry_cap}`}
+                  color={dmg.entries_today >= dmg.entry_cap ? '#f59e0b' : '#93c5fd'}
+                  sub={dmg.entries_today >= dmg.entry_cap ? 'cap reached' : 'today'} />
+          </div>
+          <div style={S.dcNote}>
+            Below the floor the book is flattened and entries stop. Once the day peaks
+            above +{dmg.profit_lock_trigger_pct}%, the floor ratchets up behind it so a
+            winning day cannot become a losing one. This <b>bounds</b> a loss — it cannot
+            eliminate one: a stop fills below its trigger and every exit pays a round trip.
+          </div>
         </div>
       )}
 
@@ -235,6 +282,16 @@ function BrokerPanel() {
   );
 }
 
+function Mini({ label, value, color, sub }) {
+  return (
+    <div>
+      <div style={S.miniLabel}>{label}</div>
+      <div style={{ ...S.miniValue, color: color || '#e5e7eb' }}>{value}</div>
+      {sub && <div style={S.miniSub}>{sub}</div>}
+    </div>
+  );
+}
+
 function Stat({ label, value, color, sub }) {
   return (
     <div style={S.stat}>
@@ -271,6 +328,15 @@ const S = {
   warnTitle: { fontSize: 10.5, fontWeight: 800, color: '#fbbf24', letterSpacing: 0.5 },
   warnBody: { fontSize: 12.5, color: '#cbd5e1', marginTop: 5, lineHeight: 1.55 },
   boundary: { fontSize: 11.5, color: '#6b7280', background: '#111827', border: '1px solid #1f2937', borderRadius: 8, padding: 12, marginTop: 16, lineHeight: 1.55 },
+  dcBox: { background: '#0d1320', border: '1px solid', borderRadius: 10, padding: '12px 14px', marginTop: 14 },
+  dcHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 },
+  dcTitle: { fontSize: 11, fontWeight: 800, color: '#94a3b8', letterSpacing: 0.6 },
+  dcBadge: { fontSize: 10.5, fontWeight: 800, padding: '3px 10px', borderRadius: 6 },
+  dcGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10 },
+  miniLabel: { fontSize: 9.5, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4 },
+  miniValue: { fontSize: 16, fontWeight: 800, marginTop: 3 },
+  miniSub: { fontSize: 10, color: '#64748b', marginTop: 2 },
+  dcNote: { fontSize: 11.5, color: '#94a3b8', marginTop: 10, lineHeight: 1.55, borderTop: '1px solid #16202f', paddingTop: 9 },
   muted: { color: '#9ca3af', padding: 40, textAlign: 'center' },
   err: { color: '#dc2626', padding: 40, textAlign: 'center' },
 };

@@ -129,6 +129,12 @@ pub async fn broker_sync(State(state): State<Arc<AppState>>) -> Json<serde_json:
     Json(crate::services::alpaca_broker::reconcile(qty, px).await)
 }
 
+/// Damage-control state: the floor, current headroom, and halt status.
+pub async fn damage_control(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    let trader = state.trader.lock();
+    Json(trader.build_payload()["damage_control"].clone())
+}
+
 /// agentic_test supervisor status + findings.
 pub async fn agentic(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     Json(state.agentic.lock().to_json())
