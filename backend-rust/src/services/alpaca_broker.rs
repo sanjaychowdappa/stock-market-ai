@@ -107,6 +107,69 @@ pub async fn account() -> Option<Value> {
     resp.json::<Value>().await.ok()
 }
 
+/// P&L straight from Alpaca's own books.
+///
+/// THIS is the authoritative result. The FIFO reconstruction in `real_pnl()`
+/// re-derives P&L by matching our own fill log, and that log is only as good as
+/// our parsing of it — when the order poller was storing partially-filled
+/// snapshots as final quantities, the reconstruction reported -$12.29 for an
+/// account Alpaca showed as +$22.52. A number rebuilt from our own records can
+/// inherit our own bugs; the broker's equity curve cannot.
+pub async fn equity_pnl() -> Value {
+    let (key, secret, base) = match creds() {
+        Some(c) => c,
+        None => return json!({"available": false, "reason": "no paper credentials"}),
+    };
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(format!("{}/v2/account/portfolio/history?period=1M&timeframe=1D", base))
+        .header("APCA-API-KEY-ID", key)
+        .header("APCA-API-SECRET-KEY", secret)
+        .timeout(std::time::Duration::from_secs(15))
+        .send()
+        .await;
+    let v: Value = match resp {
+        Ok(r) => match r.json().await { Ok(v) => v, Err(e) => {
+            return json!({"available": false, "reason": format!("parse: {}", e)}) } },
+        Err(e) => return json!({"available": false, "reason": format!("request: {}", e)}),
+    };
+
+    let equity: Vec<f64> = v["equity"].as_array().map(|a|
+        a.iter().filter_map(|x| x.as_f64()).filter(|x| *x > 0.0).collect()
+    ).unwrap_or_default();
+    if equity.len() < 2 {
+        return json!({"available": false, "reason": "not enough history points"});
+    }
+    let base_eq = equity[0];
+    let latest = *equity.last().unwrap();
+    let net = latest - base_eq;
+
+    // Per-day P&L as Alpaca reports it, paired with its own timestamps.
+    let ts: Vec<i64> = v["timestamp"].as_array().map(|a|
+        a.iter().filter_map(|x| x.as_i64()).collect()).unwrap_or_default();
+    let pls: Vec<f64> = v["profit_loss"].as_array().map(|a|
+        a.iter().filter_map(|x| x.as_f64()).collect()).unwrap_or_default();
+    let by_day: Vec<Value> = ts.iter().zip(pls.iter())
+        .filter(|(_, p)| p.abs() > 0.005)
+        .filter_map(|(t, p)| {
+            chrono::DateTime::from_timestamp(*t, 0).map(|d| json!({
+                "date": d.format("%Y-%m-%d").to_string(),
+                "pnl": (p * 100.0).round() / 100.0,
+            }))
+        })
+        .collect();
+
+    json!({
+        "available": true,
+        "headline": "Net P&L from Alpaca's own equity curve — the authoritative result",
+        "starting_equity": (base_eq * 100.0).round() / 100.0,
+        "current_equity": (latest * 100.0).round() / 100.0,
+        "net_pnl": (net * 100.0).round() / 100.0,
+        "net_pnl_pct": if base_eq > 0.0 { (net / base_eq * 1000000.0).round() / 10000.0 } else { 0.0 },
+        "by_day": by_day,
+    })
+}
+
 /// Submit a market order to the paper account, wait briefly for the fill, and
 /// record the simulated price alongside the real one.
 ///

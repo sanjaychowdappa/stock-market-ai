@@ -46,6 +46,8 @@ function BrokerPanel() {
   const money = (v) => `${v >= 0 ? '+' : '-'}$${Math.abs(Number(v) || 0).toFixed(2)}`;
   const col = (v) => (v >= 0 ? '#22c55e' : '#ef4444');
 
+  const eq = data.equity_pnl || {};
+  const net = Number(eq.net_pnl) || 0;
   const real = Number(r.real_realized_pnl) || 0;
   const sim = Number(r.simulator_would_have_shown) || 0;
   const drag = Number(r.execution_drag) || 0;
@@ -79,40 +81,55 @@ function BrokerPanel() {
         </div>
       </div>
 
-      {/* ── The headline ────────────────────────────────────── */}
-      <div style={{ ...S.hero, borderColor: `${col(real)}44` }}>
-        <div style={S.heroLabel}>REALIZED P&amp;L — ACTUAL FILLS</div>
-        <div style={{ ...S.heroValue, color: col(real) }}>{money(real)}</div>
-        <div style={S.heroSub}>
-          {trips} completed round trip{trips === 1 ? '' : 's'} ·{' '}
-          {r.wins || 0}W / {r.losses || 0}L · {(r.win_rate_pct || 0).toFixed(1)}% win rate
+      {/* ── The headline: Alpaca's own equity curve ─────────── */}
+      {eq.available ? (
+        <div style={{ ...S.hero, borderColor: `${col(net)}44` }}>
+          <div style={S.heroLabel}>NET P&amp;L — ALPACA'S OWN BOOKS</div>
+          <div style={{ ...S.heroValue, color: col(net) }}>{money(net)}</div>
+          <div style={S.heroSub}>
+            ${Number(eq.starting_equity).toLocaleString()} → $
+            {Number(eq.current_equity).toLocaleString()} ({net >= 0 ? '+' : ''}
+            {Number(eq.net_pnl_pct).toFixed(4)}%)
+          </div>
         </div>
-      </div>
+      ) : (
+        <div style={{ ...S.hero, borderColor: '#f59e0b44' }}>
+          <div style={S.heroLabel}>NET P&amp;L — ALPACA'S OWN BOOKS</div>
+          <div style={{ ...S.heroValue, color: '#f59e0b' }}>unavailable</div>
+          <div style={S.heroSub}>{eq.reason || 'could not reach the broker'}</div>
+        </div>
+      )}
 
+      <div style={S.sectionLabel}>COST ATTRIBUTION — DIAGNOSTIC, NOT THE RESULT</div>
       <div style={S.statRow}>
         <Stat label="Per round trip" value={money(r.avg_per_round_trip || 0)}
               color={col(r.avg_per_round_trip || 0)}
-              sub="average, realized" />
+              sub={`${trips} trips · ${(r.win_rate_pct || 0).toFixed(0)}% win · reconstructed`} />
         <Stat label="Execution drag" value={money(-Math.abs(drag))} color="#ef4444"
               sub="cost the simulator never charged" />
         <Stat label="Slippage paid" value={money(-Math.abs(f.total_slippage_cost || 0))}
               color="#ef4444"
               sub={`avg ${(f.avg_slippage_pct || 0).toFixed(3)}% per fill`} />
-        <Stat label="Order quality" value={`${f.filled || 0} filled`} color="#93c5fd"
-              sub={`${f.rejected || 0} rejected · ${f.unfilled || 0} unfilled`} />
+        {/* "unfilled" is OUR label, not Alpaca's. Every order the broker
+            accepted has filled; the three we marked unfilled on 08-04 had all
+            completed at their full requested size by the time we gave up
+            polling. Rejections are real — they never became orders. */}
+        <Stat label="Order quality (our log)" value={`${f.filled || 0} filled`} color="#93c5fd"
+              sub={`${f.rejected || 0} rejected · ${f.unfilled || 0} logged unfilled (broker shows 0)`} />
       </div>
 
       {/* ── Simulator contrast — explicitly NOT the score ───── */}
       <div style={S.warnBox}>
         <div style={S.warnTitle}>SIMULATOR CLAIMED — NOT THE SCOREBOARD</div>
         <div style={S.warnBody}>
-          On these same trades the internal simulator reported{' '}
-          <b style={{ color: col(sim) }}>{money(sim)}</b>, against a real result of{' '}
-          <b style={{ color: col(real) }}>{money(real)}</b>. The{' '}
-          <b>{money(-Math.abs(drag))}</b> gap is execution cost the simulator does not model.
-          Its daily ledger is separately unreliable — duplicated dates, and profits
-          booked on days that really lost money — so it is not reported anywhere on
-          this dashboard.
+          Priced the simulator's way, these trades come to{' '}
+          <b style={{ color: col(sim) }}>{money(sim)}</b>; priced at the fills we recorded,{' '}
+          <b style={{ color: col(real) }}>{money(real)}</b>. The <b>{money(-Math.abs(drag))}</b>{' '}
+          gap is execution cost the simulator does not model — that comparison is still
+          useful. Neither figure is the result: the account is{' '}
+          <b style={{ color: col(net) }}>{money(net)}</b> per Alpaca. The simulator's daily
+          ledger is separately unreliable — it re-banked the same dollars three times — so
+          it is not reported anywhere on this dashboard.
         </div>
       </div>
 
@@ -134,25 +151,41 @@ function BrokerPanel() {
         </div>
       )}
 
-      {/* ── Daily breakdown ────────────────────────────────── */}
-      <div style={S.sectionLabel}>REAL P&amp;L BY DAY</div>
+      {/* ── Daily breakdown, from Alpaca's own books ───────── */}
+      <div style={S.sectionLabel}>NET P&amp;L BY DAY — ALPACA</div>
       <div style={S.box}>
         <table style={S.table}>
           <tbody>
-            {(r.by_day || []).slice().reverse().map((d) => (
+            {(eq.by_day || []).slice().reverse().map((d) => (
               <tr key={d.date}>
                 <td style={S.td}>{d.date}</td>
-                <td style={{ ...S.td, color: col(d.real_pnl), fontWeight: 700, textAlign: 'right' }}>
-                  {money(d.real_pnl)}
+                <td style={{ ...S.td, color: col(d.pnl), fontWeight: 700, textAlign: 'right' }}>
+                  {money(d.pnl)}
                 </td>
               </tr>
             ))}
-            {(!r.by_day || r.by_day.length === 0) && (
-              <tr><td style={{ ...S.td, color: '#64748b' }}>No completed round trips yet.</td></tr>
+            {(!eq.by_day || eq.by_day.length === 0) && (
+              <tr><td style={{ ...S.td, color: '#64748b' }}>No days with P&amp;L yet.</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {/* ── Reconstruction disagreement ────────────────────── */}
+      {eq.available && Math.abs(net - real) > 0.01 && (
+        <div style={S.warnBox}>
+          <div style={S.warnTitle}>RECONSTRUCTION DISAGREES WITH THE BROKER</div>
+          <div style={S.warnBody}>
+            FIFO-matching our own fill log gives <b style={{ color: col(real) }}>{money(real)}</b>,
+            but Alpaca's equity curve says <b style={{ color: col(net) }}>{money(net)}</b> — a
+            gap of <b>{money(net - real)}</b>
+            {net >= 0 && real < 0 ? ', including a disagreement about the sign' : ''}. The
+            broker is right. Our reconstruction is only as good as the quantities we recorded,
+            and {dq.partial_qty_rows || 0} of those were captured mid-fill. Treat everything
+            below as cost attribution, not as a result.
+          </div>
+        </div>
+      )}
 
       {/* ── Recent orders ──────────────────────────────────── */}
       <div style={S.sectionLabel}>RECENT BROKER ORDERS</div>
