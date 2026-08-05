@@ -68,6 +68,10 @@ struct PersistedState {
     recovery_trades: u32,
     /// Cost-adjusted simulated P&L accumulated since the halt.
     #[serde(default)]
+    halt_baseline_value: f64,
+    #[serde(default)]
+    floor_baseline: f64,
+    #[serde(default)]
     recovery_pnl: f64,
     shadows: Vec<PersistedShadow>,
     saved_at: String,
@@ -123,6 +127,16 @@ pub struct PaperTrader {
     /// since the halt. Alpaca re-engages only once these clear the thresholds.
     recovery_trades: u32,
     recovery_pnl: f64,
+    /// Book value at the moment of the halt. Recovery is judged against this,
+    /// not against closed trades — a held book still expresses whether the
+    /// model's decisions are working, and requiring closures deadlocked the
+    /// gate when the simulator bought its slots and held them all session.
+    halt_baseline_value: f64,
+    /// Value the floor is measured against. Normally the day's starting
+    /// capital; re-based to the current book on each resume. Without this a
+    /// resume lands with day P&L still under the floor and re-halts on the very
+    /// next tick, consuming the day's only allowance for nothing.
+    floor_baseline: f64,
     /// When the current halt started. NOT persisted — after a restart the
     /// elapsed clock is meaningless, and `damage_halted` keeps the book shut
     /// until a fresh timestamp is set, so a restart can never shorten a halt.
@@ -363,6 +377,8 @@ impl PaperTrader {
             damage_halted: false,
             resumes_today: 0,
             recovery_trades: 0,
+            halt_baseline_value: 0.0,
+            floor_baseline: INITIAL_CASH,
             recovery_pnl: 0.0,
             halted_at: None,
             day_open_price: HashMap::new(),
@@ -406,6 +422,8 @@ impl PaperTrader {
             trader.damage_halted = ps.damage_halted;
             trader.resumes_today = ps.resumes_today;
             trader.recovery_trades = ps.recovery_trades;
+            trader.halt_baseline_value = ps.halt_baseline_value;
+            if ps.floor_baseline > 0.0 { trader.floor_baseline = ps.floor_baseline; }
             trader.recovery_pnl = ps.recovery_pnl;
             for psh in ps.shadows {
                 if let Some(sh) = trader.shadow_traders.iter_mut().find(|s| s.model_id == psh.model_id) {
@@ -458,6 +476,8 @@ impl PaperTrader {
             damage_halted: self.damage_halted,
             resumes_today: self.resumes_today,
             recovery_trades: self.recovery_trades,
+            halt_baseline_value: self.halt_baseline_value,
+            floor_baseline: self.floor_baseline,
             recovery_pnl: self.recovery_pnl,
             shadows,
             saved_at: Local::now().to_rfc3339(),
@@ -511,6 +531,8 @@ impl PaperTrader {
             damage_halted: self.damage_halted,
             resumes_today: self.resumes_today,
             recovery_trades: self.recovery_trades,
+            halt_baseline_value: self.halt_baseline_value,
+            floor_baseline: self.floor_baseline,
             recovery_pnl: self.recovery_pnl,
             shadows,
             saved_at: Local::now().to_rfc3339(),
@@ -870,6 +892,10 @@ impl PaperTrader {
             self.resumes_today = 0;
             self.recovery_trades = 0;
             self.recovery_pnl = 0.0;
+            self.halt_baseline_value = 0.0;
+            // A resume re-bases the floor; that re-basing must not survive the
+            // night or tomorrow would measure its floor against yesterday's book.
+            self.floor_baseline = INITIAL_CASH;
             self.daily_trades = 0;
             for shadow in &mut self.shadow_traders { shadow.daily_trades = 0; }
             self.day_open_price.clear();
@@ -975,11 +1001,20 @@ impl PaperTrader {
                 CAPITAL_FLOOR_PCT
             };
 
-            if !self.damage_halted && day_pnl_pct <= floor {
+            // Measure the floor against its own baseline, not the day's start.
+            // After a resume the baseline is the book at that moment, so a
+            // recovering session is not instantly re-halted by a loss it has
+            // already stopped taking.
+            if self.floor_baseline <= 0.0 { self.floor_baseline = self.day_start_value; }
+            let floor_pnl_pct =
+                (self.total_value() - self.floor_baseline) / self.floor_baseline * 100.0;
+
+            if !self.damage_halted && floor_pnl_pct <= floor {
                 self.damage_halted = true;
                 self.halted_at = Some(Instant::now());
                 self.recovery_trades = 0;
                 self.recovery_pnl = 0.0;
+                self.halt_baseline_value = self.total_value();
                 let syms: Vec<String> = self.positions.keys().cloned().collect();
                 for s in &syms { self.sell(s, "DAMAGE_CONTROL_FLATTEN"); }
                 warn!("[DAMAGE_CONTROL] Day P&L {:.2}% breached the {:.2}% floor{} — \
@@ -995,25 +1030,58 @@ impl PaperTrader {
                 // evidence on which to decide whether to re-engage.
             }
 
-            // Recovery gate. Alpaca re-engages when the simulator has actually
-            // demonstrated it is working again — several closed trades with a
-            // positive cost-adjusted total — rather than when a timer expires or
-            // the balance happens to touch some level. Requiring a balance
-            // recovery would keep real money sidelined through exactly the
-            // stretch that earned it back.
+            // Recovery gate. Alpaca re-engages when the simulator has shown it
+            // is working again, judged on the BOOK's change since the halt.
+            //
+            // This previously required N closed round trips, which deadlocked:
+            // under MAX_EXPOSURE_MODE the simulator fills its five slots and
+            // holds them to the 3:55pm skim, so nothing closes and the counter
+            // never moved. On 2026-08-05 it sat at 0/3 from 13:01 onward and
+            // real money was sidelined for the entire session with no path back
+            // in — the day was spent regardless of what the market did. A held
+            // book still expresses whether the decisions are working, so equity
+            // change is the honest measure and cannot stall.
             if self.damage_halted && RECOVERY_GATE_ENABLED {
-                if self.recovery_trades >= RECOVERY_MIN_TRADES
-                    && self.recovery_pnl > RECOVERY_MIN_PNL
+                let waited = self.halted_at
+                    .map(|t| t.elapsed().as_secs() >= RECOVERY_MIN_SECS)
+                    .unwrap_or(false);
+                // A halt carried over from before this field existed loads the
+                // baseline as 0.0, which would make `evidence` the entire book
+                // value (~$2958) rather than the change since the halt — the
+                // gate would read as wildly passed. Adopt the current book as
+                // the baseline so the measurement starts from zero.
+                if self.halt_baseline_value <= 0.0 {
+                    self.halt_baseline_value = self.total_value();
+                    warn!("[DAMAGE_CONTROL] halt baseline was unset (halt predates the field) — \
+                           adopting current book ${:.2}; recovery measured from here",
+                        self.halt_baseline_value);
+                }
+                // Charge a round trip on everything opened since the halt, so
+                // the gate reads the model rather than the simulator's
+                // costless optimism.
+                let exposure: f64 = self.positions.values().map(|p| p.market_value()).sum();
+                let cost = exposure * SHADOW_COST_PCT / 100.0;
+                let evidence = (self.total_value() - self.halt_baseline_value) - cost;
+                self.recovery_pnl = (evidence * 100.0).round() / 100.0;
+
+                if waited
+                    && self.recovery_trades >= RECOVERY_MIN_TRADES
+                    && evidence > RECOVERY_MIN_PNL
                     && self.resumes_today < MAX_RESUMES_PER_DAY
                 {
                     self.damage_halted = false;
                     self.halted_at = None;
                     self.resumes_today += 1;
-                    info!("[DAMAGE_CONTROL] RECOVERY GATE PASSED — simulator closed {} trade(s) \
-                           for ${:.2} net of modeled costs. Alpaca re-engaging ({}/{}). \
-                           Day P&L {:.2}%.",
-                        self.recovery_trades, self.recovery_pnl,
-                        self.resumes_today, MAX_RESUMES_PER_DAY, day_pnl_pct);
+                    // Re-base the floor on the book we are actually resuming
+                    // with. Without this the next tick sees the day still under
+                    // the floor and re-halts immediately, spending the day's
+                    // only allowance on nothing.
+                    self.floor_baseline = self.total_value();
+                    info!("[DAMAGE_CONTROL] RECOVERY GATE PASSED — book up ${:.2} since the halt, \
+                           net of ${:.2} modeled cost. Alpaca re-engaging ({}/{}); floor re-based \
+                           to ${:.2}. Day P&L {:.2}%.",
+                        evidence, cost, self.resumes_today, MAX_RESUMES_PER_DAY,
+                        self.floor_baseline, day_pnl_pct);
                     self.save_state_sync();
                 }
             }
@@ -2393,6 +2461,10 @@ impl PaperTrader {
                 "recovery_trades_needed": RECOVERY_MIN_TRADES,
                 "recovery_pnl": (self.recovery_pnl * 100.0).round() / 100.0,
                 "recovery_pnl_needed": RECOVERY_MIN_PNL,
+                "recovery_basis": "book value change since the halt, net of modeled round-trip cost",
+                "recovery_wait_mins": RECOVERY_MIN_SECS / 60,
+                "halt_baseline_value": (self.halt_baseline_value * 100.0).round() / 100.0,
+                "floor_baseline": (self.floor_baseline * 100.0).round() / 100.0,
                 "entries_today": self.daily_trades,
                 "entry_cap": if MAX_EXPOSURE_MODE { MAX_DAILY_ENTRIES } else { MAX_DAILY_TRADES },
             },

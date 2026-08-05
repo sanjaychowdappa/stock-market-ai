@@ -174,8 +174,19 @@ pub const MAX_RESUMES_PER_DAY: u32 = 1;
 // cost-adjusted total makes a lucky tick insufficient.
 pub const RECOVERY_GATE_ENABLED: bool = true;
 
+/// Minimum observation window after a halt before re-engagement is considered.
+/// Long enough that a single favourable tick cannot open the gate.
+pub const RECOVERY_MIN_SECS: u64 = 900;
+
 /// Closed round trips required after a halt before Alpaca may re-engage.
-pub const RECOVERY_MIN_TRADES: u32 = 3;
+///
+/// Kept at 0 deliberately. Requiring closed trades DEADLOCKED the gate: under
+/// MAX_EXPOSURE_MODE the simulator buys its five slots and holds them to the
+/// 3:55pm skim, so on 2026-08-05 it sat at 0/3 for the rest of the session and
+/// real money was sidelined for the whole day with no way back in. Recovery is
+/// now judged on the simulator's equity change since the halt, which a held
+/// book still expresses. Raise this only if entries are also expected to close.
+pub const RECOVERY_MIN_TRADES: u32 = 0;
 
 /// Cost-adjusted simulated P&L required over those trades. The simulator books
 /// no spread and no slippage, so each recovery trade is charged
