@@ -1251,9 +1251,21 @@ impl PaperTrader {
     }
 
     fn find_best_entry(&mut self) {
-        // Max-exposure mode ignores the daily trade cap so freed cash can be
-        // redeployed immediately and the book stays fully invested all day.
-        if !MAX_EXPOSURE_MODE && self.daily_trades >= MAX_DAILY_TRADES { return; }
+        // The cap now applies in max-exposure mode too. It was written as
+        // `!MAX_EXPOSURE_MODE && ...`, and MAX_EXPOSURE_MODE is true, so the
+        // condition was always false and the cap never once applied. That is how
+        // 2026-08-05 ran 25 orders — 11 of them GOOGL — against a stated limit of
+        // 5. Max exposure needs enough headroom to fill every slot and re-enter
+        // legitimately, so the limit lives in MAX_DAILY_ENTRIES rather than
+        // disabling the check.
+        let cap = if MAX_EXPOSURE_MODE { MAX_DAILY_ENTRIES } else { MAX_DAILY_TRADES };
+        if self.daily_trades >= cap {
+            if self.daily_trades == cap {
+                info!("[TRADE_CAP] {} entries today — no further entries (cap {})",
+                    self.daily_trades, cap);
+            }
+            return;
+        }
         if self.positions.len() >= MAX_CONCURRENT_POSITIONS { return; }
         // Market-regime filter: don't open new longs when the broad market is
         // risk-off (QQQ below its 50-day average). This is the single most
@@ -1277,12 +1289,22 @@ impl PaperTrader {
         for (sym, data) in &self.market_data {
             if self.positions.contains_key(sym) { continue; }
 
-            // Cooldown check — skipped in max-exposure mode so an exited slot
-            // refills instantly instead of sitting in cash for 3 hours.
-            if !MAX_EXPOSURE_MODE {
-                if let Some(cd) = self.cooldowns.get(sym) {
-                    if cd.elapsed().as_secs() < TRADE_COOLDOWN_SECS { continue; }
-                }
+            // Re-entry cooldown. This used to be skipped entirely under
+            // MAX_EXPOSURE_MODE so a freed slot could refill instantly — but
+            // "instantly" meant the same tick, at the same price, in the symbol
+            // that had just stopped out. On 2026-08-05 GOOGL was re-bought after
+            // every stop while it fell 6.1%, losing $35.20 over four round
+            // trips; the stop realized each loss and immediately rebuilt the
+            // position. The original 3h cooldown was too blunt for a fully
+            // invested book (it would park cash for half the session), so max
+            // exposure now uses a short cooldown instead of none.
+            let cooldown_secs = if MAX_EXPOSURE_MODE {
+                ENTRY_COOLDOWN_SECS
+            } else {
+                TRADE_COOLDOWN_SECS
+            };
+            if let Some(cd) = self.cooldowns.get(sym) {
+                if cd.elapsed().as_secs() < cooldown_secs { continue; }
             }
 
             // ══ AGENT-BASED SCORING ══

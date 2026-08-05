@@ -123,6 +123,24 @@ pub const FLAT_EXIT_SECS: u64 = 117000;
 /// Few trades per day — swing is about quality, not frequency.
 pub const MAX_DAILY_TRADES: u32 = 5;
 
+/// Entry cap while MAX_EXPOSURE_MODE is on.
+///
+/// Max exposure fills every slot at the open, so a cap of 5 would forbid any
+/// re-entry for the rest of the session. This allows the initial deployment
+/// (one per slot) plus limited redeployment after exits, then stops — a hard
+/// backstop against the runaway churn seen on 2026-08-05 (25 orders, 11 of them
+/// the same symbol) rather than a tuned parameter.
+pub const MAX_DAILY_ENTRIES: u32 = 12;
+
+/// How long a symbol is ineligible for re-entry after a strategy exit.
+///
+/// On 2026-08-05 each stop-out was followed by an immediate re-buy of the same
+/// symbol at the same price on the same tick, so the stop realized a loss and
+/// then rebuilt the identical position. GOOGL stopped out at 12:00, 12:02,
+/// 12:03 and 12:09 while falling 6.1%, for -$35.20. Twenty minutes blocks that
+/// cascade while still allowing a genuine later re-entry.
+pub const ENTRY_COOLDOWN_SECS: u64 = 1200;
+
 pub const MIN_PREDICTED_MOVE_PCT: f64 = 0.012;
 
 /// Hold at least ~30 min of market time before any non-stop exit, so
