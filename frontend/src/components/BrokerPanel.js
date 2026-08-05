@@ -134,9 +134,14 @@ function BrokerPanel() {
             <Mini label="Day peak" value={`${dmg.day_peak_pnl_pct >= 0 ? '+' : ''}${dmg.day_peak_pnl_pct.toFixed(2)}%`}
                   color={col(dmg.day_peak_pnl_pct)}
                   sub={dmg.profit_lock_armed ? 'lock ARMED' : `lock at +${dmg.profit_lock_trigger_pct}%`} />
+            {/* The cap governs REAL orders. While halted none are placed, so it
+                is suspended — saying "cap reached" there would misdescribe why
+                the simulator is still opening positions. */}
             <Mini label="Entries" value={`${dmg.entries_today} / ${dmg.entry_cap}`}
-                  color={dmg.entries_today >= dmg.entry_cap ? '#f59e0b' : '#93c5fd'}
-                  sub={dmg.entries_today >= dmg.entry_cap ? 'cap reached' : 'today'} />
+                  color={dmg.halted ? '#64748b' : dmg.entries_today >= dmg.entry_cap ? '#f59e0b' : '#93c5fd'}
+                  sub={dmg.halted
+                    ? 'cap suspended (sim only)'
+                    : dmg.entries_today >= dmg.entry_cap ? 'cap reached' : 'today'} />
           </div>
           {dmg.halted && (
             <div style={S.recBox}>

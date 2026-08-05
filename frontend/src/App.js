@@ -6,6 +6,7 @@ import MomentumPanel from './components/MomentumPanel';
 import AgenticPanel from './components/AgenticPanel';
 import ExperimentsPanel from './components/ExperimentsPanel';
 import BrokerPanel from './components/BrokerPanel';
+import HaltBanner from './components/HaltBanner';
 import './App.css';
 
 function App() {
@@ -40,6 +41,11 @@ function App() {
         </form>
         <LiveTicker symbol={symbol} />
       </header>
+
+      {/* Above the tabs on purpose: during a halt every position panel fills
+          with simulator holdings while the broker is flat, and that must not
+          require opening a tab to understand. */}
+      <HaltBanner />
 
       <nav className="tabs">
         {[
