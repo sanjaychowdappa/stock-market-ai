@@ -9,7 +9,7 @@ use serde_json::json;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::broadcast;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 pub struct RealtimeEngine {
     pub symbol: String,
@@ -182,7 +182,7 @@ impl RealtimeEngine {
     }
 
     /// Feed a 1-minute bar from Alpaca stream.
-    pub fn feed_bar(&self, open: f64, high: f64, low: f64, close: f64, volume: f64, _ts: f64) {
+    pub fn feed_bar(&self, _open: f64, high: f64, low: f64, close: f64, volume: f64, _ts: f64) {
         let mut inner = self.inner.lock();
         // Update ATR from bar range
         let bar_range = high - low;

@@ -9,8 +9,7 @@
 //! giving an edge over pure price-based pattern detection.
 
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use tracing::{info, warn};
 
 // ══════════════════════════════════════════════════════════════

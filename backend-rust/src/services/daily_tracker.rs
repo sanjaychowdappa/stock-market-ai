@@ -5,8 +5,8 @@
 //! Python fine-tune sidecar if the day was profitable.
 
 use crate::config::*;
-use chrono::{Datelike, Local, Timelike, Utc};
-use serde::{Deserialize, Serialize};
+use chrono::{Datelike, Local, Timelike};
+use serde::Serialize;
 use serde_json::json;
 use std::collections::HashMap;
 use std::path::PathBuf;

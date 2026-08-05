@@ -12,7 +12,6 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{error, info, warn};
 
 const ALPACA_STREAM_URL: &str = "wss://stream.data.alpaca.markets/v2/iex";
-const ALPACA_BARS_URL: &str = "https://data.alpaca.markets/v2/stocks/bars";
 const ALPACA_SNAPSHOT_URL: &str = "https://data.alpaca.markets/v2/stocks";
 
 /// Real-time tick from Alpaca.

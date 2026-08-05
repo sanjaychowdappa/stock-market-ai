@@ -2,7 +2,6 @@
 
 use crate::models::Candle;
 use serde_json::Value;
-use tracing::warn;
 
 /// Fetch historical candles from Yahoo Finance v8 API.
 pub async fn fetch_candles(symbol: &str, interval: &str, range: &str) -> Result<Vec<Candle>, String> {
@@ -56,19 +55,3 @@ pub async fn fetch_candles(symbol: &str, interval: &str, range: &str) -> Result<
     Ok(candles)
 }
 
-/// Fetch current quote summary.
-pub async fn fetch_quote(symbol: &str) -> Result<Value, String> {
-    let url = format!(
-        "https://query1.finance.yahoo.com/v8/finance/chart/{}?interval=1m&range=1d",
-        symbol
-    );
-
-    let resp = reqwest::Client::new()
-        .get(&url)
-        .header("User-Agent", "Mozilla/5.0")
-        .send()
-        .await
-        .map_err(|e| format!("HTTP: {e}"))?;
-
-    resp.json().await.map_err(|e| format!("JSON: {e}"))
-}

@@ -13,7 +13,6 @@ pub fn build(state: Arc<AppState>) -> Router {
         .route("/api/eod/report", get(handlers::health::eod_report))
         .route("/api/performance", get(handlers::health::performance))
         .route("/api/institutional", get(handlers::health::institutional))
-        .route("/api/scan", get(handlers::health::sp500_scan))
         .route("/api/momentum", get(handlers::health::momentum))
         .route("/api/profit", get(handlers::health::profit))
         .route("/api/experiments", get(handlers::health::experiments))

@@ -105,16 +105,15 @@ pub const ATR_PCT_FLOOR: f64 = 0.3;         // treat ATR as >= 0.3% of price
 // Cooldown is wall-clock: ~3h before re-entering the same symbol.
 pub const TRADE_COOLDOWN_SECS: u64 = 10800;
 
-/// Daily circuit breaker — widened for swing: overnight gaps can move a
-/// held book >2% legitimately. Stops new entries once the day is down 4%.
-pub const DAILY_LOSS_LIMIT_PCT: f64 = -4.0;
+// DAILY_LOSS_LIMIT_PCT (-4%) removed. Damage control stops real orders at
+// -1%, which is strictly tighter, so the breaker could never fire first on
+// real money — but it could fire on the simulator, which keeps trading below
+// the floor to earn its way back, and would then block the very entries the
+// recovery gate needs to observe.
 
-/// Partial profit booking: sell half at +2% on a swing, let the rest run.
-pub const PARTIAL_PROFIT_PCT: f64 = 2.0;
 
 pub const MAX_CONCURRENT_POSITIONS: usize = 5;
 
-pub const MOMENTUM_WINDOW: usize = 5;
 
 /// Max hold backstop ≈ 5 trading days of market-hour ticks (~1 week).
 /// If no price-based exit fires within a week, flatten the position.
@@ -155,8 +154,9 @@ pub const PROFIT_LOCK_TRIGGER_PCT: f64 = 1.0;
 /// trigger and 0.5% giveback, a day that reaches +1.2% cannot close below +0.7%.
 pub const PROFIT_LOCK_GIVEBACK_PCT: f64 = 0.5;
 
-/// How long a halt lasts before the market may be re-entered.
-pub const HALT_RESUME_SECS: u64 = 3600;
+// HALT_RESUME_SECS removed: it belonged to the timed-resume design that the
+// recovery gate replaced. Re-engagement is now decided by closed trades and
+// cost-adjusted P&L, not by a clock.
 
 /// Resumptions allowed per day. More than one lets a bad session repeat itself.
 pub const MAX_RESUMES_PER_DAY: u32 = 1;
@@ -198,9 +198,6 @@ pub const MIN_PREDICTED_MOVE_PCT: f64 = 0.012;
 /// intraday noise doesn't shake us out of a multi-day thesis.
 pub const MIN_HOLD_SECS: u64 = 1800;
 
-/// OU simulator parameters
-pub const OU_THETA: f64 = 0.15;
-pub const OU_DT: f64 = 1.0;
 
 /// Micro-candle buffer capacity (10 minutes of 1-second candles)
 pub const CANDLE_BUFFER_CAP: usize = 600;
@@ -210,12 +207,9 @@ pub const KRONOS_INTERVAL_SECS: u64 = 8;
 /// Kronos max age before considered stale
 pub const KRONOS_MAX_AGE_SECS: f64 = 30.0;
 
-/// Yahoo Finance data refresh interval (seconds)
-pub const YF_REFRESH_SECS: u64 = 5;
 
 /// Daily tracker
 pub const EOD_TICK_THRESHOLD: usize = 5000;
-pub const SAVE_INTERVAL_SECS: u64 = 300;
 
 /// ONNX model paths
 pub const ONNX_DIR: &str = "/app/model_cache/onnx";
@@ -223,5 +217,6 @@ pub const ONNX_TOKENIZER_ENCODE: &str = "kronos_tokenizer_encode.onnx";
 pub const ONNX_DECODER: &str = "kronos_decoder.onnx";
 pub const ONNX_TOKENIZER_DECODE: &str = "kronos_tokenizer_decode.onnx";
 
-/// Redis
-pub const REDIS_URL: &str = "redis://redis:6379";
+// REDIS_URL removed along with the redis service: nothing ever connected to
+// it. There is no redis crate in Cargo.toml and no code path that used it —
+// the container was running purely to hold a port open.

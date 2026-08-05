@@ -3,12 +3,11 @@
 //! At EOD, analyzes what went wrong and adjusts parameters for tomorrow.
 //! Saves tuned parameters to disk so the next startup uses them.
 
-use crate::services::performance_ledger::{DayRecord, PerformanceLedger, StrategyParams};
+use crate::services::performance_ledger::{PerformanceLedger, StrategyParams};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::PathBuf;
 use tokio::fs;
-use tracing::info;
 
 const TUNED_PARAMS_PATH: &str = "/app/reports/tuned_params.json";
 
@@ -30,13 +29,6 @@ pub struct TunedParams {
     pub reason: String,
 }
 
-/// Load tuned params from disk, if they exist.
-pub async fn load_tuned_params() -> Option<TunedParams> {
-    match fs::read_to_string(TUNED_PARAMS_PATH).await {
-        Ok(contents) => serde_json::from_str(&contents).ok(),
-        Err(_) => None,
-    }
-}
 
 /// Save tuned params to disk.
 pub async fn save_tuned_params(params: &TunedParams) {

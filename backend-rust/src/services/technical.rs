@@ -133,37 +133,6 @@ pub fn bollinger(candles: &[Candle], period: usize, num_std: f64) -> (Vec<f64>, 
     (upper, mid, lower)
 }
 
-/// ATR (Average True Range).
-pub fn atr(candles: &[Candle], period: usize) -> Vec<f64> {
-    let n = candles.len();
-    let mut result = vec![f64::NAN; n];
-    if n < 2 {
-        return result;
-    }
-
-    // True Range
-    let mut tr = vec![0.0; n];
-    tr[0] = candles[0].high - candles[0].low;
-    for i in 1..n {
-        let hl = candles[i].high - candles[i].low;
-        let hc = (candles[i].high - candles[i - 1].close).abs();
-        let lc = (candles[i].low - candles[i - 1].close).abs();
-        tr[i] = hl.max(hc).max(lc);
-    }
-
-    if n < period {
-        return result;
-    }
-
-    let mut atr_val: f64 = tr[..period].iter().sum::<f64>() / period as f64;
-    result[period - 1] = atr_val;
-
-    for i in period..n {
-        atr_val = (atr_val * (period as f64 - 1.0) + tr[i]) / period as f64;
-        result[i] = atr_val;
-    }
-    result
-}
 
 /// Micro-momentum: quick RSI + price rate-of-change on last N candles.
 pub fn micro_momentum(candles: &[Candle], window: usize) -> f64 {

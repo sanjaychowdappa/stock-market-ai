@@ -52,7 +52,6 @@ struct PersistedState {
     daily_trades: u32,
     last_trading_date: String,
     day_start_value: f64,
-    circuit_breaker_tripped: bool,
     #[serde(default)]
     did_daily_skim: bool,
     /// Highest day P&L (%) reached today — drives the profit-lock ratchet.
@@ -105,11 +104,11 @@ pub struct PaperTrader {
     /// biggest failure mode was buying into down/choppy markets. Updated by a
     /// background task in state.rs.
     market_risk_on: Arc<AtomicBool>,
-    /// Daily circuit breaker state: portfolio value at day start and
-    /// whether the -2% loss limit has tripped (blocks new entries only).
+    /// Portfolio value at the start of the trading day — the denominator for
+    /// every day-P&L calculation, including the damage-control floor.
     day_start_value: f64,
+    /// ET date of the session currently in progress; a change triggers NEW_DAY.
     last_trading_date: String,
-    circuit_breaker_tripped: bool,
     /// True once today's 3:55pm profit-skim + reset has run, so it happens
     /// exactly once per day and no further trading occurs afterwards.
     did_daily_skim: bool,
@@ -359,7 +358,6 @@ impl PaperTrader {
             market_risk_on: Arc::new(AtomicBool::new(true)),
             day_start_value: INITIAL_CASH,
             last_trading_date: String::new(),
-            circuit_breaker_tripped: false,
             did_daily_skim: false,
             day_peak_pnl_pct: 0.0,
             damage_halted: false,
@@ -403,7 +401,6 @@ impl PaperTrader {
             trader.daily_trades = ps.daily_trades;
             trader.last_trading_date = ps.last_trading_date;
             trader.day_start_value = ps.day_start_value;
-            trader.circuit_breaker_tripped = ps.circuit_breaker_tripped;
             trader.did_daily_skim = ps.did_daily_skim;
             trader.day_peak_pnl_pct = ps.day_peak_pnl_pct;
             trader.damage_halted = ps.damage_halted;
@@ -456,7 +453,6 @@ impl PaperTrader {
             daily_trades: self.daily_trades,
             last_trading_date: self.last_trading_date.clone(),
             day_start_value: self.day_start_value,
-            circuit_breaker_tripped: self.circuit_breaker_tripped,
             did_daily_skim: self.did_daily_skim,
             day_peak_pnl_pct: self.day_peak_pnl_pct,
             damage_halted: self.damage_halted,
@@ -510,7 +506,6 @@ impl PaperTrader {
             daily_trades: self.daily_trades,
             last_trading_date: self.last_trading_date.clone(),
             day_start_value: self.day_start_value,
-            circuit_breaker_tripped: self.circuit_breaker_tripped,
             did_daily_skim: self.did_daily_skim,
             day_peak_pnl_pct: self.day_peak_pnl_pct,
             damage_halted: self.damage_halted,
@@ -712,7 +707,6 @@ impl PaperTrader {
         // CVD (Cumulative Volume Delta) — buy vs sell pressure
         let cvd = &data["cvd"];
         let cvd_signal = cvd["signal"].as_f64().unwrap_or(0.0);
-        let cvd_direction = cvd["direction"].as_str().unwrap_or("neutral");
         let cvd_buy_sell_ratio = cvd["buy_sell_ratio"].as_f64().unwrap_or(1.0);
 
         // Kalman filter signals (mathematically optimal state estimation)
@@ -720,7 +714,6 @@ impl PaperTrader {
         let kalman_momentum = kalman["momentum"].as_f64().unwrap_or(0.0);
         let kalman_trend_strength = kalman["trend_strength"].as_f64().unwrap_or(0.0);
         let kalman_confidence = kalman["confidence"].as_f64().unwrap_or(0.0);
-        let kalman_strong_trend = kalman["strong_trend"].as_bool().unwrap_or(false);
         let kalman_momentum_building = kalman["momentum_building"].as_bool().unwrap_or(false);
         let kalman_momentum_fading = kalman["momentum_fading"].as_bool().unwrap_or(false);
         let kalman_direction = kalman["direction"].as_str().unwrap_or("neutral");
@@ -815,7 +808,7 @@ impl PaperTrader {
         // reset capital to the fixed budget for tomorrow.
         let eod_liquidation = et_mins >= 15 * 60 + 55; // 3:55 PM ET, any day
 
-        // New trading day: reset circuit breaker, daily counters, and the skim flag
+        // New trading day: reset daily counters, and the skim flag
         let et_date = (utc_now - chrono::Duration::hours(offset_hours)).date_naive().to_string();
         if self.last_trading_date != et_date {
             let prev_date = self.last_trading_date.clone();
@@ -868,7 +861,6 @@ impl PaperTrader {
             }
 
             self.day_start_value = INITIAL_CASH;
-            self.circuit_breaker_tripped = false;
             self.did_daily_skim = false;
             // Damage control is a per-day construct — a halt must not carry into
             // tomorrow, and the peak must restart from flat.
@@ -882,7 +874,7 @@ impl PaperTrader {
             for shadow in &mut self.shadow_traders { shadow.daily_trades = 0; }
             self.day_open_price.clear();
             self.first_hh_return.clear();
-            info!("[NEW_DAY] {} — capital reset to ${:.2}, circuit breaker reset", et_date, self.day_start_value);
+            info!("[NEW_DAY] {} — capital reset to ${:.2}", et_date, self.day_start_value);
             self.save_state_sync();
         }
 
@@ -953,17 +945,16 @@ impl PaperTrader {
 
         self.manage_position(symbol);
 
-        // Daily circuit breaker: once the day is down 2%, stop opening new
-        // positions (exits keep running). Prevents grinding losses all day
-        // when the market regime doesn't match the model.
+        // The -4% circuit breaker that used to live here is removed. Damage
+        // control now stops real orders at -1%, which is strictly tighter, so
+        // the breaker could never fire first on real money — but it COULD fire
+        // on the simulator, which keeps trading below the floor to earn its way
+        // back. It would then block find_best_entry(), the recovery gate would
+        // never accumulate a trade, and Alpaca could never re-engage. A dead
+        // guard that can only deadlock its replacement is worse than no guard.
         let day_pnl_pct = if self.day_start_value > 0.0 {
             (self.total_value() - self.day_start_value) / self.day_start_value * 100.0
         } else { 0.0 };
-        if day_pnl_pct <= DAILY_LOSS_LIMIT_PCT && !self.circuit_breaker_tripped {
-            self.circuit_breaker_tripped = true;
-            info!("[CIRCUIT_BREAKER] Day P&L {:.2}% hit the {:.1}% limit — no new entries until tomorrow",
-                day_pnl_pct, DAILY_LOSS_LIMIT_PCT);
-        }
 
         // ── DAMAGE CONTROL ──────────────────────────────────────────
         // A hard floor plus a ratchet that lifts it once the day is up, so a
@@ -1032,7 +1023,7 @@ impl PaperTrader {
         if et_mins >= 15 * 60 + 50 { return; }
         // Signal trader retired (lost to random) — it no longer opens new
         // positions; existing ones exit normally. ETF momentum is primary.
-        if SIGNAL_TRADER_ENABLED && !self.circuit_breaker_tripped {
+        if SIGNAL_TRADER_ENABLED {
             self.find_best_entry();
         }
 
@@ -1115,7 +1106,7 @@ impl PaperTrader {
                 let at_resistance = vp_pos == "above_value" && vp_sig < -0.3;
 
                 // GEX regime: in long_gamma, mean reversion kicks in faster
-                let gex_mean_revert = gex_regime == "long_gamma" && pnl_pct > 0.03;
+                let _gex_mean_revert = gex_regime == "long_gamma" && pnl_pct > 0.03;
 
                 // Minimum hold time gate: most exits require MIN_HOLD_SECS
                 // to prevent micro-flips that generate fees without capturing moves.
@@ -2397,7 +2388,6 @@ impl PaperTrader {
                 "profit_lock_trigger_pct": PROFIT_LOCK_TRIGGER_PCT,
                 "resumes_used": self.resumes_today,
                 "resumes_allowed": MAX_RESUMES_PER_DAY,
-                "resume_after_mins": HALT_RESUME_SECS / 60,
                 "simulator_still_trading": self.damage_halted,
                 "recovery_trades": self.recovery_trades,
                 "recovery_trades_needed": RECOVERY_MIN_TRADES,

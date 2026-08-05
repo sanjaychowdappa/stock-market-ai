@@ -27,7 +27,6 @@ pub struct AppState {
     pub trader: Mutex<PaperTrader>,
     pub tracker: Mutex<DailyTracker>,
     pub daily_focus: SharedDailyFocus,
-    pub sp500_scan: daily_stock_picker::SharedSp500Scan,
     pub momentum: crate::services::momentum_portfolio::SharedMomentum,
     pub agentic: crate::services::agentic_test::SharedAgent,
     pub institutional: Arc<InstitutionalState>,
@@ -42,7 +41,6 @@ impl AppState {
         }
 
         let daily_focus = daily_stock_picker::create_shared();
-        let sp500_scan = daily_stock_picker::create_scan_shared();
         let momentum = crate::services::momentum_portfolio::create_shared();
         let agentic = crate::services::agentic_test::create_shared();
         let institutional = Arc::new(InstitutionalState {
@@ -57,7 +55,6 @@ impl AppState {
             trader: Mutex::new(PaperTrader::new()),
             tracker: Mutex::new(DailyTracker::new()),
             daily_focus: daily_focus.clone(),
-            sp500_scan: sp500_scan.clone(),
             momentum: momentum.clone(),
             agentic: agentic.clone(),
             institutional: institutional.clone(),
@@ -134,14 +131,6 @@ impl AppState {
                 crate::services::momentum_portfolio::rebalance(&mom2).await;
             }
         });
-
-        // ── S&P 500 scanner: AUTO-SCAN DISABLED (audit 2026-07-29) ──
-        // It cost ~100 daily-bar fetches + ~100 Kronos GPU inferences per day,
-        // but nothing consumed its output — "Phase 2" (wiring picks into live
-        // trading) was never built, so the result only sat on /api/scan.
-        // The scanner still works and can be triggered manually via that
-        // endpoint; it just no longer burns quota on a schedule for nobody.
-        let _ = &sp500_scan;
 
         // ── Spawn Kronos daily ranking ──
         let focus2 = daily_focus.clone();

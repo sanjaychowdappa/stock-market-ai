@@ -11,10 +11,7 @@ services:
     env_file:
       - .env
     environment:
-      - REDIS_URL=redis://redis:6379
       - RUST_LOG=stock_market_ai=info
-    depends_on:
-      - redis
     volumes:
       - model_data:/app/model_cache
       - ./reports:/app/reports
@@ -59,14 +56,9 @@ services:
       - ./frontend/public:/app/public
     restart: unless-stopped
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
+# redis removed: nothing ever connected to it. No redis crate in Cargo.toml,
+# no code path referencing REDIS_URL — the container held a port and a volume
+# for no consumer.
 
 volumes:
-  redis_data:
   model_data:

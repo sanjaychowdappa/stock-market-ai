@@ -6,7 +6,6 @@
 //! Falls back gracefully to pattern-only mode if ONNX models are missing.
 
 use crate::config;
-use crate::models::Candle;
 use parking_lot::RwLock;
 use std::path::Path;
 use std::sync::Arc;
@@ -84,48 +83,6 @@ pub fn load_models(shared: &SharedKronos) -> Result<(), String> {
     Ok(())
 }
 
-/// Predict future candles. Returns None if ONNX not loaded.
-pub fn predict(
-    shared: &SharedKronos,
-    candles: &[Candle],
-    pred_len: usize,
-    _temperature: f64,
-    _top_p: f64,
-) -> Option<Vec<Candle>> {
-    let guard = shared.read();
-    let _kronos = guard.as_ref()?;
-
-    if candles.len() < 60 {
-        return None;
-    }
-
-    // For now, use a simple extrapolation until ONNX is wired up.
-    // This maintains the same interface so the rest of the engine works.
-    let last = candles.last()?;
-    let n = candles.len();
-
-    // Compute recent trend from last 10 candles
-    let lookback = 10.min(n);
-    let start_price = candles[n - lookback].close;
-    let trend_per_step = (last.close - start_price) / lookback as f64;
-
-    let mut predicted = Vec::with_capacity(pred_len);
-    for i in 0..pred_len {
-        let offset = trend_per_step * (i as f64 + 1.0);
-        let close = last.close + offset;
-        let noise = offset.abs() * 0.1;
-        predicted.push(Candle {
-            time: last.time + (i as f64 + 1.0) * 60.0,
-            open: last.close + offset - noise,
-            high: close + noise.abs(),
-            low: close - noise.abs(),
-            close,
-            volume: last.volume,
-        });
-    }
-
-    Some(predicted)
-}
 
 /// Top-p (nucleus) sampling from logits — ready for when ONNX is wired up.
 #[allow(dead_code)]

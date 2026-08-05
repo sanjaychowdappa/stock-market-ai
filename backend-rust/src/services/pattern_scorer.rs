@@ -2,7 +2,7 @@
 //! micro-momentum, and candlestick pattern signals.
 
 use crate::models::Candle;
-use crate::services::pattern_recognition::{self, PatternDir, PatternResult};
+use crate::services::pattern_recognition::{self, PatternResult};
 use crate::services::technical;
 use serde::Serialize;
 
