@@ -33,3 +33,8 @@ model_cache/
 
 reports/trader_state.json
 reports/momentum_state.json
+
+# Rust build artifacts. The Docker test runner mounts backend-rust/ and writes
+# target/ on the host (1.7GB) — this must never reach the repo.
+target/
+backend-rust/target/

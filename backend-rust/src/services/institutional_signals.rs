@@ -57,7 +57,7 @@ impl GammaExposure {
 pub fn estimate_gex(
     current_price: f64,
     prices_1d: &[f64],     // Recent daily closes
-    atr: f64,
+    _atr: f64,
 ) -> GammaExposure {
     if prices_1d.len() < 10 {
         return GammaExposure::new();
@@ -320,7 +320,7 @@ pub fn compute_volume_profile(
 
     let level_size = (max_price - min_price) / num_levels as f64;
     let mut volume_at_level: Vec<f64> = vec![0.0; num_levels];
-    let mut price_at_level: Vec<f64> = (0..num_levels)
+    let price_at_level: Vec<f64> = (0..num_levels)
         .map(|i| min_price + (i as f64 + 0.5) * level_size)
         .collect();
 

@@ -1704,6 +1704,7 @@ dependencies = [
  "dotenvy",
  "futures",
  "ndarray 0.16.1",
+ "once_cell",
  "ort",
  "parking_lot",
  "rand 0.8.6",

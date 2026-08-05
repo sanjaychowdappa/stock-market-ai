@@ -1,0 +1,209 @@
+//! Regression tests: one per bug found on 2026-08-05.
+//!
+//! Every test here encodes a defect that actually shipped and, in several
+//! cases, cost money or reported a loss as a gain. The rule for this file is
+//! that each test must FAIL against the old behaviour — a test that passes
+//! either way documents nothing.
+//!
+//! Context for why this file exists at all: before today the repo had zero
+//! tests, and two bugs regressed within the same session. The state-save race
+//! was "fixed" with a sequence guard that did not work, and had to be fixed a
+//! second time. Nothing would have caught that.
+
+use stock_market_ai::services::alpaca_broker::fifo_stats;
+
+// ── Helpers ─────────────────────────────────────────────────────────────
+
+fn fill(sym: &str, side: &str, qty: f64, price: f64, day: &str) -> String {
+    format!(
+        r#"{{"symbol":"{sym}","side":"{side}","outcome":"filled","qty_filled":{qty},"qty_requested":{qty},"actual_price":{price},"sim_price":{price},"timestamp":"{day}T14:00:00Z"}}"#
+    )
+}
+
+// ── BUG: round_trips counted matched LOTS, not trades ───────────────────
+//
+// `round_trips += 1` sat inside the inner lot-matching loop, so one sell that
+// consumed three buy lots reported three round trips and three win/loss
+// events. Live this inflated 18 real trades to 24 and made "win rate" a
+// per-lot statistic wearing a per-trade label.
+
+#[test]
+fn one_sell_consuming_three_lots_is_one_round_trip() {
+    let log = [
+        fill("NVDA", "buy", 1.0, 100.0, "2026-08-05"),
+        fill("NVDA", "buy", 1.0, 101.0, "2026-08-05"),
+        fill("NVDA", "buy", 1.0, 102.0, "2026-08-05"),
+        fill("NVDA", "sell", 3.0, 110.0, "2026-08-05"),
+    ]
+    .join("\n");
+
+    let s = fifo_stats(&log);
+
+    assert_eq!(s["round_trips"], 1, "one sell is one round trip, not one per lot consumed");
+    assert_eq!(s["wins"], 1, "a single profitable sell is one win, not three");
+    assert_eq!(s["losses"], 0);
+}
+
+#[test]
+fn win_rate_is_per_trade_not_per_lot() {
+    // One winning sell over 3 lots, one losing sell over 1 lot.
+    // Per-lot counting would report 3 wins / 1 loss = 75%.
+    // Per-trade is 1 win / 1 loss = 50%.
+    let log = [
+        fill("NVDA", "buy", 1.0, 100.0, "2026-08-05"),
+        fill("NVDA", "buy", 1.0, 100.0, "2026-08-05"),
+        fill("NVDA", "buy", 1.0, 100.0, "2026-08-05"),
+        fill("NVDA", "sell", 3.0, 110.0, "2026-08-05"),
+        fill("AAPL", "buy", 1.0, 200.0, "2026-08-05"),
+        fill("AAPL", "sell", 1.0, 190.0, "2026-08-05"),
+    ]
+    .join("\n");
+
+    let s = fifo_stats(&log);
+
+    assert_eq!(s["round_trips"], 2);
+    assert_eq!(s["win_rate_pct"], 50.0, "win rate must count trades, not lot matches");
+}
+
+// ── BUG: FIFO underflow silently discarded sells ────────────────────────
+//
+// A sell with no matching buy lot just `break`s out of the match loop. The
+// unmatched quantity vanished with no record, so P&L quietly omitted real
+// exposure. Live, 2 sells totalling 2.03 shares were being dropped.
+
+#[test]
+fn sell_without_a_matching_buy_is_reported_not_swallowed() {
+    let log = [
+        fill("NVDA", "buy", 1.0, 100.0, "2026-08-05"),
+        fill("NVDA", "sell", 3.0, 110.0, "2026-08-05"), // 2.0 unmatched
+    ]
+    .join("\n");
+
+    let s = fifo_stats(&log);
+    let dq = &s["data_quality"];
+
+    assert_eq!(dq["unmatched_sells"], 1, "the unmatched sell must be counted");
+    assert!(
+        (dq["unmatched_qty"].as_f64().unwrap() - 2.0).abs() < 1e-9,
+        "the dropped quantity must be reported, got {:?}", dq["unmatched_qty"]
+    );
+}
+
+// ── BUG: partial fills stored as final quantities ───────────────────────
+//
+// The order poller broke on the first `filled_avg_price` it saw, which Alpaca
+// also reports while an order is still `partially_filled`. A 2.825-share
+// request was stored as "filled 1.000". Those quantities feed this matcher, so
+// the error reached the headline P&L — it is why a +$22.52 account was
+// reported as -$12.29. The poller fix lives in shadow_order; here we assert the
+// matcher at least SURFACES the discrepancy rather than computing silently.
+
+#[test]
+fn quantities_smaller_than_requested_are_flagged_as_suspect() {
+    let log = format!(
+        r#"{{"symbol":"NVDA","side":"buy","outcome":"filled","qty_requested":2.825,"qty_filled":1.0,"actual_price":100.0,"sim_price":100.0,"timestamp":"2026-08-05T14:00:00Z"}}"#
+    );
+
+    let s = fifo_stats(&log);
+
+    assert_eq!(
+        s["data_quality"]["partial_qty_rows"], 1,
+        "a fill materially smaller than its request must be flagged, not trusted"
+    );
+}
+
+#[test]
+fn a_clean_log_reports_no_data_quality_problems() {
+    let log = [
+        fill("NVDA", "buy", 2.0, 100.0, "2026-08-05"),
+        fill("NVDA", "sell", 2.0, 110.0, "2026-08-05"),
+    ]
+    .join("\n");
+
+    let s = fifo_stats(&log);
+    let dq = &s["data_quality"];
+
+    assert_eq!(dq["unmatched_sells"], 0);
+    assert_eq!(dq["partial_qty_rows"], 0);
+    assert_eq!(s["round_trips"], 1);
+    assert!(
+        (s["real_realized_pnl"].as_f64().unwrap() - 20.0).abs() < 1e-9,
+        "2 shares from 100 to 110 is $20"
+    );
+}
+
+// ── BUG: a loss rendered as a gain ──────────────────────────────────────
+//
+// Sign handling is the single most consequential thing in this file: the
+// dashboard once rendered -$6.64 as "$6.64", and separately reported a +$22.52
+// account as -$12.29. Losing trades must produce a negative number here.
+
+#[test]
+fn a_losing_round_trip_is_negative() {
+    let log = [
+        fill("NVDA", "buy", 1.0, 110.0, "2026-08-05"),
+        fill("NVDA", "sell", 1.0, 100.0, "2026-08-05"),
+    ]
+    .join("\n");
+
+    let s = fifo_stats(&log);
+
+    assert!(
+        s["real_realized_pnl"].as_f64().unwrap() < 0.0,
+        "a trade that lost money must report a negative P&L, got {:?}",
+        s["real_realized_pnl"]
+    );
+    assert_eq!(s["losses"], 1);
+    assert_eq!(s["wins"], 0);
+}
+
+// ── Day attribution ─────────────────────────────────────────────────────
+//
+// The simulator ledger separately booked gains on days that really lost money.
+// Per-day attribution has to follow the SELL's timestamp, since that is when
+// the P&L is realized.
+
+#[test]
+fn pnl_is_attributed_to_the_day_the_position_closed() {
+    let log = [
+        fill("NVDA", "buy", 1.0, 100.0, "2026-08-04"),
+        fill("NVDA", "sell", 1.0, 90.0, "2026-08-05"), // opened Tue, closed Wed at a loss
+    ]
+    .join("\n");
+
+    let s = fifo_stats(&log);
+    let days = s["by_day"].as_array().unwrap();
+
+    assert_eq!(days.len(), 1, "only the closing day carries realized P&L");
+    assert_eq!(days[0]["date"], "2026-08-05");
+    assert!(days[0]["real_pnl"].as_f64().unwrap() < 0.0);
+}
+
+// ── Rejected and unfilled orders must never enter P&L ───────────────────
+//
+// 8 wash-trade rejections and 3 mislabelled "unfilled" rows sit in the live
+// log. Only genuinely filled rows may be matched.
+
+#[test]
+fn rejected_and_unfilled_rows_are_ignored() {
+    let log = [
+        fill("NVDA", "buy", 1.0, 100.0, "2026-08-05"),
+        r#"{"symbol":"NVDA","side":"sell","outcome":"rejected","qty":1.0,"sim_price":200.0,"timestamp":"2026-08-05T14:00:00Z"}"#.to_string(),
+        r#"{"symbol":"NVDA","side":"sell","outcome":"unfilled","qty":1.0,"sim_price":200.0,"timestamp":"2026-08-05T14:00:00Z"}"#.to_string(),
+        fill("NVDA", "sell", 1.0, 110.0, "2026-08-05"),
+    ]
+    .join("\n");
+
+    let s = fifo_stats(&log);
+
+    assert_eq!(s["round_trips"], 1, "only the filled sell counts");
+    assert!((s["real_realized_pnl"].as_f64().unwrap() - 10.0).abs() < 1e-9);
+}
+
+#[test]
+fn an_empty_log_does_not_divide_by_zero() {
+    let s = fifo_stats("");
+    assert_eq!(s["round_trips"], 0);
+    assert_eq!(s["win_rate_pct"], 0.0);
+    assert_eq!(s["real_realized_pnl"], 0.0);
+}

@@ -456,6 +456,16 @@ async fn reconcile_inner(
 /// rejected orders simply absent because they never happened.
 pub async fn real_pnl() -> Value {
     let content = tokio::fs::read_to_string(FILL_LOG).await.unwrap_or_default();
+    fifo_stats(&content)
+}
+
+/// FIFO-match a fill log into realized P&L and trade statistics.
+///
+/// Split out from `real_pnl` purely so it can be tested: it is the routine that
+/// mis-counted round trips (incrementing per matched LOT rather than per sell)
+/// and silently dropped sells with no matching buy lot. Both bugs were invisible
+/// because the function only ever ran against a live file.
+pub fn fifo_stats(content: &str) -> Value {
 
     // symbol -> FIFO queue of open lots (qty, price)
     let mut lots: std::collections::HashMap<String, std::collections::VecDeque<(f64, f64)>> =

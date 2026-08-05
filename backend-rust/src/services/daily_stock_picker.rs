@@ -11,7 +11,7 @@
 use crate::config::TOP_SYMBOLS;
 use crate::services::alpaca_stream;
 use parking_lot::Mutex;
-use serde_json::{json, Value};
+use serde_json::json;
 use std::sync::Arc;
 use tracing::{info, warn};
 
