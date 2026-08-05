@@ -119,8 +119,8 @@ function BrokerPanel() {
               color: dmg.halted ? '#ef4444' : '#22c55e',
             }}>
               {dmg.halted
-                ? `HALTED · resume after ${dmg.resume_after_mins}min if risk-on (${dmg.resumes_used}/${dmg.resumes_allowed} used)`
-                : 'ACTIVE · trading'}
+                ? 'REAL ORDERS HALTED · simulator still trading'
+                : 'LIVE · real orders active'}
             </span>
           </div>
           <div style={S.dcGrid}>
@@ -138,11 +138,38 @@ function BrokerPanel() {
                   color={dmg.entries_today >= dmg.entry_cap ? '#f59e0b' : '#93c5fd'}
                   sub={dmg.entries_today >= dmg.entry_cap ? 'cap reached' : 'today'} />
           </div>
+          {dmg.halted && (
+            <div style={S.recBox}>
+              <div style={S.recTitle}>RECOVERY GATE — earning its way back</div>
+              <div style={S.recBody}>
+                Real money is out of the market. The simulator keeps trading, and Alpaca
+                re-engages once it has proven itself — <b>not</b> when a timer expires and
+                <b> not</b> when the balance returns to $3,000.
+              </div>
+              <div style={S.recStats}>
+                <span>
+                  Closed trades:{' '}
+                  <b style={{ color: dmg.recovery_trades >= dmg.recovery_trades_needed ? '#22c55e' : '#fbbf24' }}>
+                    {dmg.recovery_trades} / {dmg.recovery_trades_needed}
+                  </b>
+                </span>
+                <span>
+                  Net of costs:{' '}
+                  <b style={{ color: col(dmg.recovery_pnl) }}>{money(dmg.recovery_pnl)}</b>
+                  {' '}<span style={{ color: '#64748b' }}>(need &gt; ${dmg.recovery_pnl_needed})</span>
+                </span>
+              </div>
+            </div>
+          )}
           <div style={S.dcNote}>
-            Below the floor the book is flattened and entries stop. Once the day peaks
-            above +{dmg.profit_lock_trigger_pct}%, the floor ratchets up behind it so a
-            winning day cannot become a losing one. This <b>bounds</b> a loss — it cannot
-            eliminate one: a stop fills below its trigger and every exit pays a round trip.
+            Below the floor the book is flattened and <b>real orders stop</b> — the simulator
+            trades on, because simulated trades cost nothing and are the only way to learn
+            whether the model has recovered. Each recovery trade is charged a modeled
+            round-trip cost first, so the gate measures the model rather than the simulator's
+            optimism. Once the day peaks above +{dmg.profit_lock_trigger_pct}%, the floor
+            ratchets up behind it so a winning day cannot become a losing one. This{' '}
+            <b>bounds</b> a loss — it cannot eliminate one: a stop fills below its trigger
+            and every exit pays a round trip.
           </div>
         </div>
       )}
@@ -337,6 +364,10 @@ const S = {
   miniValue: { fontSize: 16, fontWeight: 800, marginTop: 3 },
   miniSub: { fontSize: 10, color: '#64748b', marginTop: 2 },
   dcNote: { fontSize: 11.5, color: '#94a3b8', marginTop: 10, lineHeight: 1.55, borderTop: '1px solid #16202f', paddingTop: 9 },
+  recBox: { background: 'rgba(59,130,246,0.07)', borderLeft: '3px solid #3b82f6', borderRadius: 8, padding: '10px 13px', marginTop: 11 },
+  recTitle: { fontSize: 10.5, fontWeight: 800, color: '#93c5fd', letterSpacing: 0.5 },
+  recBody: { fontSize: 12, color: '#cbd5e1', marginTop: 5, lineHeight: 1.55 },
+  recStats: { display: 'flex', gap: 20, flexWrap: 'wrap', marginTop: 8, fontSize: 12, color: '#cbd5e1' },
   muted: { color: '#9ca3af', padding: 40, textAlign: 'center' },
   err: { color: '#dc2626', padding: 40, textAlign: 'center' },
 };

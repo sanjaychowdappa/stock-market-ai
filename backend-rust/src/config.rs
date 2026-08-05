@@ -161,6 +161,28 @@ pub const HALT_RESUME_SECS: u64 = 3600;
 /// Resumptions allowed per day. More than one lets a bad session repeat itself.
 pub const MAX_RESUMES_PER_DAY: u32 = 1;
 
+// ── RECOVERY GATE ────────────────────────────────────────────────────────
+//
+// A halt stops REAL orders at Alpaca. The simulator keeps trading, because
+// simulated trades cost nothing and are the only way to learn whether the model
+// has recovered. Alpaca re-engages when the simulator has demonstrated it — not
+// when a timer expires, and not when it has clawed back to any particular
+// balance.
+//
+// The criterion is pre-committed for a reason: "resume when it looks better" is
+// re-testing until noise obliges. Requiring several closed trades AND a positive
+// cost-adjusted total makes a lucky tick insufficient.
+pub const RECOVERY_GATE_ENABLED: bool = true;
+
+/// Closed round trips required after a halt before Alpaca may re-engage.
+pub const RECOVERY_MIN_TRADES: u32 = 3;
+
+/// Cost-adjusted simulated P&L required over those trades. The simulator books
+/// no spread and no slippage, so each recovery trade is charged
+/// SHADOW_COST_PCT before it counts — otherwise the gate would be measuring the
+/// simulator's optimism rather than the model's recovery.
+pub const RECOVERY_MIN_PNL: f64 = 0.0;
+
 /// How long a symbol is ineligible for re-entry after a strategy exit.
 ///
 /// On 2026-08-05 each stop-out was followed by an immediate re-buy of the same

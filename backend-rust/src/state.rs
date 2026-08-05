@@ -78,7 +78,19 @@ impl AppState {
                 // being allowed to compound.
                 tokio::time::sleep(tokio::time::Duration::from_secs(20)).await;
                 loop {
-                    let (qty, px) = { st.trader.lock().book_snapshot() };
+                    // Damage control: while halted, reconciling would buy back
+                    // at the broker precisely the positions the halt exists to
+                    // keep real money out of. The simulator trades on; Alpaca
+                    // stays flat until the recovery gate passes.
+                    let (halted, qty, px) = {
+                        let t = st.trader.lock();
+                        let (q, p) = t.book_snapshot();
+                        (t.alpaca_halted(), q, p)
+                    };
+                    if halted {
+                        tokio::time::sleep(tokio::time::Duration::from_secs(120)).await;
+                        continue;
+                    }
                     let alpaca_has = crate::services::alpaca_broker::positions()
                         .await.map(|p| !p.is_empty()).unwrap_or(false);
                     if !qty.is_empty() || alpaca_has {

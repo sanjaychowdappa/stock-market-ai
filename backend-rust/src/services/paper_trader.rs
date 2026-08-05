@@ -64,6 +64,12 @@ struct PersistedState {
     /// Resumptions used today. Persisted so a restart cannot hand out more.
     #[serde(default)]
     resumes_today: u32,
+    /// Closed round trips completed since the halt (recovery gate).
+    #[serde(default)]
+    recovery_trades: u32,
+    /// Cost-adjusted simulated P&L accumulated since the halt.
+    #[serde(default)]
+    recovery_pnl: f64,
     shadows: Vec<PersistedShadow>,
     saved_at: String,
 }
@@ -114,6 +120,10 @@ pub struct PaperTrader {
     damage_halted: bool,
     /// Resumptions used today (persisted, so a restart grants no extras).
     resumes_today: u32,
+    /// Recovery gate: closed round trips and cost-adjusted P&L accumulated
+    /// since the halt. Alpaca re-engages only once these clear the thresholds.
+    recovery_trades: u32,
+    recovery_pnl: f64,
     /// When the current halt started. NOT persisted — after a restart the
     /// elapsed clock is meaningless, and `damage_halted` keeps the book shut
     /// until a fresh timestamp is set, so a restart can never shorten a halt.
@@ -354,6 +364,8 @@ impl PaperTrader {
             day_peak_pnl_pct: 0.0,
             damage_halted: false,
             resumes_today: 0,
+            recovery_trades: 0,
+            recovery_pnl: 0.0,
             halted_at: None,
             day_open_price: HashMap::new(),
             first_hh_return: HashMap::new(),
@@ -396,6 +408,8 @@ impl PaperTrader {
             trader.day_peak_pnl_pct = ps.day_peak_pnl_pct;
             trader.damage_halted = ps.damage_halted;
             trader.resumes_today = ps.resumes_today;
+            trader.recovery_trades = ps.recovery_trades;
+            trader.recovery_pnl = ps.recovery_pnl;
             for psh in ps.shadows {
                 if let Some(sh) = trader.shadow_traders.iter_mut().find(|s| s.model_id == psh.model_id) {
                     sh.cash = psh.cash;
@@ -447,6 +461,8 @@ impl PaperTrader {
             day_peak_pnl_pct: self.day_peak_pnl_pct,
             damage_halted: self.damage_halted,
             resumes_today: self.resumes_today,
+            recovery_trades: self.recovery_trades,
+            recovery_pnl: self.recovery_pnl,
             shadows,
             saved_at: Local::now().to_rfc3339(),
         };
@@ -499,6 +515,8 @@ impl PaperTrader {
             day_peak_pnl_pct: self.day_peak_pnl_pct,
             damage_halted: self.damage_halted,
             resumes_today: self.resumes_today,
+            recovery_trades: self.recovery_trades,
+            recovery_pnl: self.recovery_pnl,
             shadows,
             saved_at: Local::now().to_rfc3339(),
         };
@@ -611,6 +629,14 @@ impl PaperTrader {
         if weekday >= 5 { return false; }
         let mins = et_hour * 60 + et_minute;
         mins >= 9 * 60 + 30 && mins < 16 * 60
+    }
+
+    /// True while real orders are suppressed by damage control. The reconcile
+    /// loop must consult this: its whole job is making Alpaca match the
+    /// simulator's book, which would re-open at the broker exactly the
+    /// positions the halt is keeping real money out of.
+    pub fn alpaca_halted(&self) -> bool {
+        self.damage_halted
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<serde_json::Value> {
@@ -850,6 +876,8 @@ impl PaperTrader {
             self.damage_halted = false;
             self.halted_at = None;
             self.resumes_today = 0;
+            self.recovery_trades = 0;
+            self.recovery_pnl = 0.0;
             self.daily_trades = 0;
             for shadow in &mut self.shadow_traders { shadow.daily_trades = 0; }
             self.day_open_price.clear();
@@ -959,37 +987,43 @@ impl PaperTrader {
             if !self.damage_halted && day_pnl_pct <= floor {
                 self.damage_halted = true;
                 self.halted_at = Some(Instant::now());
+                self.recovery_trades = 0;
+                self.recovery_pnl = 0.0;
                 let syms: Vec<String> = self.positions.keys().cloned().collect();
                 for s in &syms { self.sell(s, "DAMAGE_CONTROL_FLATTEN"); }
                 warn!("[DAMAGE_CONTROL] Day P&L {:.2}% breached the {:.2}% floor{} — \
-                       flattened {} position(s), entries halted. Capital ${:.2}.",
+                       flattened {} position(s). REAL ORDERS HALTED; simulator keeps \
+                       trading to earn its way back. Capital ${:.2}.",
                     day_pnl_pct, floor,
                     if locked { format!(" (profit-locked from peak {:.2}%)", self.day_peak_pnl_pct) }
                     else { String::new() },
                     syms.len(), self.total_value());
                 self.save_state_sync();
-                return;
+                // Deliberately NOT returning. The halt stops REAL orders, not
+                // decisions — the simulator has to keep trading or there is no
+                // evidence on which to decide whether to re-engage.
             }
 
-            // Resume: only after the full wait, only while the broad market is
-            // risk-on, and only MAX_RESUMES_PER_DAY times. `halted_at` is None
-            // after a restart, which keeps the book shut rather than reopening
-            // it early — a restart must never shorten a halt.
-            if self.damage_halted {
-                let waited = self.halted_at
-                    .map(|t| t.elapsed().as_secs() >= HALT_RESUME_SECS)
-                    .unwrap_or(false);
-                let risk_on = self.market_risk_on.load(Ordering::Relaxed);
-                if waited && risk_on && self.resumes_today < MAX_RESUMES_PER_DAY {
+            // Recovery gate. Alpaca re-engages when the simulator has actually
+            // demonstrated it is working again — several closed trades with a
+            // positive cost-adjusted total — rather than when a timer expires or
+            // the balance happens to touch some level. Requiring a balance
+            // recovery would keep real money sidelined through exactly the
+            // stretch that earned it back.
+            if self.damage_halted && RECOVERY_GATE_ENABLED {
+                if self.recovery_trades >= RECOVERY_MIN_TRADES
+                    && self.recovery_pnl > RECOVERY_MIN_PNL
+                    && self.resumes_today < MAX_RESUMES_PER_DAY
+                {
                     self.damage_halted = false;
                     self.halted_at = None;
                     self.resumes_today += 1;
-                    info!("[DAMAGE_CONTROL] Resuming ({}/{}) — {}min elapsed, market risk-on, \
-                           day P&L {:.2}%",
-                        self.resumes_today, MAX_RESUMES_PER_DAY, HALT_RESUME_SECS / 60, day_pnl_pct);
+                    info!("[DAMAGE_CONTROL] RECOVERY GATE PASSED — simulator closed {} trade(s) \
+                           for ${:.2} net of modeled costs. Alpaca re-engaging ({}/{}). \
+                           Day P&L {:.2}%.",
+                        self.recovery_trades, self.recovery_pnl,
+                        self.resumes_today, MAX_RESUMES_PER_DAY, day_pnl_pct);
                     self.save_state_sync();
-                } else {
-                    return; // still halted: no entries, no exits to manage (book is flat)
                 }
             }
         }
@@ -1350,8 +1384,12 @@ impl PaperTrader {
         // 5. Max exposure needs enough headroom to fill every slot and re-enter
         // legitimately, so the limit lives in MAX_DAILY_ENTRIES rather than
         // disabling the check.
+        // While halted, no real order is placed, so the cap does not apply — it
+        // exists to stop churn at the broker, and the simulator needs to keep
+        // trading to produce the evidence the recovery gate reads. The cooldown
+        // still applies, so the spiral pattern cannot pollute that evidence.
         let cap = if MAX_EXPOSURE_MODE { MAX_DAILY_ENTRIES } else { MAX_DAILY_TRADES };
-        if self.daily_trades >= cap {
+        if !self.damage_halted && self.daily_trades >= cap {
             if self.daily_trades == cap {
                 info!("[TRADE_CAP] {} entries today — no further entries (cap {})",
                     self.daily_trades, cap);
@@ -1657,8 +1695,10 @@ impl PaperTrader {
                 pos.entry_atr_pct = self.market_data[best_sym].atr_pct;
                 self.positions.insert(best_sym.clone(), pos);
 
-                // Mirror to the Alpaca paper account (observational only).
-                if ALPACA_SHADOW_ORDERS {
+                // Mirror to the Alpaca paper account. Suppressed while halted:
+                // the simulator trades on to earn its way back, but no real
+                // order is placed until the recovery gate passes.
+                if ALPACA_SHADOW_ORDERS && !self.damage_halted {
                     let (s, q, p) = (best_sym.clone(), shares, price);
                     tokio::spawn(async move {
                         crate::services::alpaca_broker::shadow_order(
@@ -2031,6 +2071,19 @@ impl PaperTrader {
             pnl_tag, pos.hold_seconds, reason
         );
 
+        // Recovery evidence. Charge the modeled round-trip cost before counting
+        // it: the simulator books no spread and no slippage, so an uncosted
+        // total would measure its optimism rather than the model's recovery.
+        // The flatten that caused the halt is excluded — it is the damage, not
+        // evidence of recovery.
+        if self.damage_halted && reason != "DAMAGE_CONTROL_FLATTEN" {
+            let cost = value * SHADOW_COST_PCT / 100.0;
+            self.recovery_pnl += pnl - cost;
+            self.recovery_trades += 1;
+            info!("  [RECOVERY] {}/{} trades, ${:.2} net of costs (need >{:.2} to re-engage Alpaca)",
+                self.recovery_trades, RECOVERY_MIN_TRADES, self.recovery_pnl, RECOVERY_MIN_PNL);
+        }
+
         // === PREDICTION ACCURACY LOG ===
         if let Some(pred) = &pos.entry_prediction {
             let actual_direction = if pnl >= 0.0 { "bullish" } else { "bearish" };
@@ -2161,8 +2214,13 @@ impl PaperTrader {
         self.trades.push_back(trade);
         self.cooldowns.insert(symbol.to_string(), Instant::now());
 
-        // Mirror the exit to the Alpaca paper account (observational only).
-        if ALPACA_SHADOW_ORDERS {
+        // Mirror the exit to Alpaca. The DAMAGE_CONTROL_FLATTEN itself must go
+        // through even though it sets the halt — that exit is how real money
+        // leaves the market. Only trades opened after the halt are suppressed,
+        // and those have no Alpaca position to close anyway.
+        let mirror_exit = ALPACA_SHADOW_ORDERS
+            && (!self.damage_halted || reason == "DAMAGE_CONTROL_FLATTEN");
+        if mirror_exit {
             let (s, q, p, r) = (symbol.to_string(), pos.shares, pos.current_price, reason.to_string());
             tokio::spawn(async move {
                 crate::services::alpaca_broker::shadow_order(s, q, "sell", p, r).await;
@@ -2340,6 +2398,11 @@ impl PaperTrader {
                 "resumes_used": self.resumes_today,
                 "resumes_allowed": MAX_RESUMES_PER_DAY,
                 "resume_after_mins": HALT_RESUME_SECS / 60,
+                "simulator_still_trading": self.damage_halted,
+                "recovery_trades": self.recovery_trades,
+                "recovery_trades_needed": RECOVERY_MIN_TRADES,
+                "recovery_pnl": (self.recovery_pnl * 100.0).round() / 100.0,
+                "recovery_pnl_needed": RECOVERY_MIN_PNL,
                 "entries_today": self.daily_trades,
                 "entry_cap": if MAX_EXPOSURE_MODE { MAX_DAILY_ENTRIES } else { MAX_DAILY_TRADES },
             },
