@@ -1726,15 +1726,36 @@ impl PaperTrader {
         candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
         let open_slots = MAX_CONCURRENT_POSITIONS.saturating_sub(self.positions.len());
-        for (best_sym, score, layer_report, bullish_count, prediction) in candidates.iter().take(open_slots) {
+
+        // Only candidates the model actually rates positively. Previously the
+        // top N were taken regardless of score, so every free slot was filled
+        // whatever the signals said — which is why the book looked identical
+        // day after day and why entries were logged at 0.000 and -0.048.
+        let qualified: Vec<_> = candidates.iter()
+            .filter(|(_, score, _, _, _)| *score >= MIN_ENTRY_SCORE)
+            .take(open_slots)
+            .collect();
+
+        if qualified.is_empty() && !candidates.is_empty() {
+            let best = candidates[0].1;
+            info!("[NO_ENTRY] {} candidate(s), best score {:.3} < {:.2} floor — holding cash",
+                candidates.len(), best, MIN_ENTRY_SCORE);
+        }
+
+        for (best_sym, score, layer_report, bullish_count, prediction) in qualified {
             if !MAX_EXPOSURE_MODE && self.daily_trades >= MAX_DAILY_TRADES { break; }
             let price = self.market_data[best_sym].price;
             let bias = *self.kronos_daily_bias.get(best_sym.as_str()).unwrap_or(&0.0);
 
-            // Sizing: max-exposure mode always uses full slot size (deploy the
-            // cash); otherwise scale the bet by signal confidence.
-            let confidence_scale = if MAX_EXPOSURE_MODE { 1.0 }
-                else if *score >= 0.40 { 1.0 }
+            // Size the bet by conviction. This scaling already existed but was
+            // hard-coded to 1.0 under MAX_EXPOSURE_MODE, so every position was
+            // the same size no matter what the signals said — the third
+            // adaptive mechanism that flag silently disabled, after the
+            // re-entry cooldown and the daily trade cap.
+            //
+            // Deploying the full budget is now a consequence of finding several
+            // strong candidates, rather than a goal pursued regardless of them.
+            let confidence_scale = if *score >= 0.40 { 1.0 }
                 else if *score >= 0.25 { 0.75 }
                 else { 0.50 };
             let alloc = (per_slot * confidence_scale).min(self.cash);

@@ -205,6 +205,21 @@ pub const ENTRY_COOLDOWN_SECS: u64 = 1200;
 
 pub const MIN_PREDICTED_MOVE_PCT: f64 = 0.012;
 
+/// Minimum composite score required to open a position.
+///
+/// Entries used to be chosen by ranking candidates and taking the top N for
+/// however many slots were free — with no floor at all. On 2026-08-05 that
+/// bought NVDA at score -0.048 with Kalman reading bearish, and GOOGL at
+/// exactly 0.000 with every layer at 0.00, i.e. on no information whatsoever.
+/// The agent monitor recorded filter_rate 0.0% across 972 evaluations: the
+/// scoring model rejected nothing it was ever shown.
+///
+/// This is a sanity floor, not a tuned parameter. Refusing to buy what the
+/// model itself rates as neutral-or-worse needs no backtest to justify. If
+/// nothing clears the bar, the book holds cash — which is a decision, and the
+/// one the system was previously incapable of making.
+pub const MIN_ENTRY_SCORE: f64 = 0.05;
+
 /// Hold at least ~30 min of market time before any non-stop exit, so
 /// intraday noise doesn't shake us out of a multi-day thesis.
 pub const MIN_HOLD_SECS: u64 = 1800;
