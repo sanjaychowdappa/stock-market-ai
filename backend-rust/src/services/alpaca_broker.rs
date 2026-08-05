@@ -141,7 +141,19 @@ pub async fn equity_pnl() -> Value {
         return json!({"available": false, "reason": "not enough history points"});
     }
     let base_eq = equity[0];
-    let latest = *equity.last().unwrap();
+
+    // "Current" MUST come from the live account, not from the equity curve.
+    // portfolio/history returns DAILY bars, so its last complete point is
+    // yesterday's close — on 2026-08-05 that reported +$22.52 while the account
+    // actually stood at -$27.29, hiding a $49.81 intraday loss behind a stale
+    // bar. This is the same mistake as deriving P&L from our own fill log:
+    // taking a number from a convenient source instead of the authoritative one.
+    let latest = match account().await {
+        Some(a) => a["equity"].as_str()
+            .and_then(|s| s.parse::<f64>().ok())
+            .unwrap_or_else(|| *equity.last().unwrap()),
+        None => *equity.last().unwrap(),
+    };
     let net = latest - base_eq;
 
     // Per-day P&L as Alpaca reports it, paired with its own timestamps.
@@ -159,6 +171,16 @@ pub async fn equity_pnl() -> Value {
         })
         .collect();
 
+    // Today's change, live. `last_equity` is yesterday's close, so this is the
+    // one figure the daily bars cannot express until the session ends.
+    let today = match account().await {
+        Some(a) => {
+            let prev = a["last_equity"].as_str().and_then(|s| s.parse::<f64>().ok());
+            prev.map(|p| latest - p)
+        }
+        None => None,
+    };
+
     json!({
         "available": true,
         "headline": "Net P&L from Alpaca's own equity curve — the authoritative result",
@@ -166,7 +188,10 @@ pub async fn equity_pnl() -> Value {
         "current_equity": (latest * 100.0).round() / 100.0,
         "net_pnl": (net * 100.0).round() / 100.0,
         "net_pnl_pct": if base_eq > 0.0 { (net / base_eq * 1000000.0).round() / 10000.0 } else { 0.0 },
+        "today_pnl": today.map(|t| (t * 100.0).round() / 100.0),
         "by_day": by_day,
+        "by_day_note": "Daily bars from Alpaca. The current session does not appear here \
+                        until it closes — see today_pnl for the live figure.",
     })
 }
 
@@ -354,6 +379,38 @@ fn log_entry(v: Value) {
 }
 
 /// Current Alpaca paper positions as symbol -> signed quantity.
+/// Open positions exactly as Alpaca reports them, for display.
+///
+/// The dashboard used to show the SIMULATOR's book, which diverges from the
+/// broker whenever an order is rejected, partially filled, or suppressed by a
+/// halt — and on 2026-08-05 it showed five holdings while the real account was
+/// flat. Anything presented as a position must come from the broker.
+pub async fn positions_detail() -> Vec<Value> {
+    let (key, secret, base) = match creds() { Some(c) => c, None => return Vec::new() };
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(format!("{}/v2/positions", base))
+        .header("APCA-API-KEY-ID", key)
+        .header("APCA-API-SECRET-KEY", secret)
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await;
+    let arr = match resp {
+        Ok(r) => r.json::<Vec<Value>>().await.unwrap_or_default(),
+        Err(_) => return Vec::new(),
+    };
+    let num = |v: &Value, k: &str| v[k].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+    arr.iter().map(|p| json!({
+        "symbol": p["symbol"],
+        "qty": num(p, "qty"),
+        "avg_entry_price": (num(p, "avg_entry_price") * 100.0).round() / 100.0,
+        "current_price": (num(p, "current_price") * 100.0).round() / 100.0,
+        "market_value": (num(p, "market_value") * 100.0).round() / 100.0,
+        "unrealized_pl": (num(p, "unrealized_pl") * 100.0).round() / 100.0,
+        "unrealized_plpc": (num(p, "unrealized_plpc") * 10000.0).round() / 100.0,
+    })).collect()
+}
+
 pub async fn positions() -> Option<std::collections::HashMap<String, f64>> {
     let (key, secret, base) = creds()?;
     let client = reqwest::Client::new();

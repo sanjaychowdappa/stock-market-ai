@@ -99,10 +99,15 @@ pub async fn broker(State(_state): State<Arc<AppState>>) -> Json<serde_json::Val
     let fills = crate::services::alpaca_broker::fills_summary().await;
     let real = crate::services::alpaca_broker::real_pnl().await;
     let equity = crate::services::alpaca_broker::equity_pnl().await;
+    // Positions straight from the broker. Never the simulator's book — the two
+    // diverge on rejections, partial fills and halts, and on 2026-08-05 the
+    // simulator showed five holdings while the real account was flat.
+    let positions = crate::services::alpaca_broker::positions_detail().await;
     Json(serde_json::json!({
         "mode": "Alpaca PAPER is the REAL scoreboard — real fills, real slippage, real rejections. The simulator is only the decision engine.",
         // Authoritative: Alpaca's own equity curve.
         "equity_pnl": equity,
+        "positions": positions,
         // Diagnostic only: re-derived by FIFO-matching our fill log, so it can
         // inherit our own recording bugs. Useful for attributing cost between
         // simulator-assumed and real prices; NOT the result.

@@ -95,6 +95,12 @@ function BrokerPanel() {
             ${Number(eq.starting_equity).toLocaleString()} → $
             {Number(eq.current_equity).toLocaleString()} ({net >= 0 ? '+' : ''}
             {Number(eq.net_pnl_pct).toFixed(4)}%)
+            {eq.today_pnl != null && (
+              <>
+                {' · today '}
+                <b style={{ color: col(eq.today_pnl) }}>{money(eq.today_pnl)}</b>
+              </>
+            )}
           </div>
         </div>
       ) : (
@@ -229,6 +235,38 @@ function BrokerPanel() {
           </div>
         </div>
       )}
+
+      {/* ── Open positions, straight from the broker ───────── */}
+      <div style={S.sectionLabel}>OPEN POSITIONS — ALPACA'S BOOK</div>
+      <div style={S.box}>
+        <table style={S.table}>
+          <thead>
+            <tr>{['Symbol', 'Qty', 'Entry', 'Now', 'Value', 'Unrealized'].map((h) => (
+              <th key={h} style={S.th}>{h}</th>
+            ))}</tr>
+          </thead>
+          <tbody>
+            {(data.positions || []).map((p) => (
+              <tr key={p.symbol}>
+                <td style={{ ...S.td, fontWeight: 700 }}>{p.symbol}</td>
+                <td style={S.td}>{Number(p.qty).toFixed(4)}</td>
+                <td style={S.td}>${Number(p.avg_entry_price).toFixed(2)}</td>
+                <td style={S.td}>${Number(p.current_price).toFixed(2)}</td>
+                <td style={S.td}>${Number(p.market_value).toFixed(2)}</td>
+                <td style={{ ...S.td, color: col(p.unrealized_pl), fontWeight: 700 }}>
+                  {money(p.unrealized_pl)} ({Number(p.unrealized_plpc).toFixed(2)}%)
+                </td>
+              </tr>
+            ))}
+            {(!data.positions || data.positions.length === 0) && (
+              <tr><td colSpan={6} style={{ ...S.td, color: '#64748b' }}>
+                Flat — no open positions at the broker.
+                {dmg?.halted && ' Real orders are halted; any holdings elsewhere in this app are the simulator.'}
+              </td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {/* ── Daily breakdown, from Alpaca's own books ───────── */}
       <div style={S.sectionLabel}>NET P&amp;L BY DAY — ALPACA</div>
