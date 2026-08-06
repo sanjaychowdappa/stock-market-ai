@@ -207,3 +207,62 @@ fn an_empty_log_does_not_divide_by_zero() {
     assert_eq!(s["win_rate_pct"], 0.0);
     assert_eq!(s["real_realized_pnl"], 0.0);
 }
+
+// ── BUG: every free slot was filled regardless of signal ────────────────
+//
+// Entries were chosen by ranking candidates and taking the top N for however
+// many slots were open, with no floor. The book therefore looked identical
+// every day and positions were opened on no information at all. The agent
+// monitor recorded filter_rate 0.0% across 972 evaluations — the scoring model
+// rejected nothing it was ever shown.
+//
+// These assert against the scores that ACTUALLY opened positions on
+// 2026-08-05, taken from the trade log.
+
+use stock_market_ai::config::{qualifies_for_entry, MIN_ENTRY_SCORE};
+
+#[test]
+fn the_entries_that_lost_money_today_would_now_be_refused() {
+    // Morning deployment: all five slots filled at or below zero.
+    for score in [0.000, -0.048, -0.024, -0.003] {
+        assert!(
+            !qualifies_for_entry(score),
+            "score {score} opened a position on 2026-08-05 and must now be refused"
+        );
+    }
+}
+
+#[test]
+fn buying_on_exactly_zero_information_is_refused() {
+    // GOOGL 09:34: score 0.000 with every layer reading 0.00 — no signal at
+    // all, not a weak one. This is the case that needs no backtest to reject.
+    assert!(!qualifies_for_entry(0.0));
+}
+
+#[test]
+fn a_negative_score_is_never_tradeable() {
+    // NVDA 09:34 was bought at -0.048 with Kalman reading bearish: the model
+    // said "don't" and the trader bought anyway.
+    for score in [-0.001, -0.048, -0.5, -1.0] {
+        assert!(!qualifies_for_entry(score), "negative score {score} must never enter");
+    }
+}
+
+#[test]
+fn genuinely_positive_scores_still_trade() {
+    // The floor must not switch the system off entirely — it filters, it does
+    // not veto. These are real scores from later in the same session.
+    for score in [0.107, 0.173, 0.456, 0.627] {
+        assert!(qualifies_for_entry(score), "score {score} should still qualify");
+    }
+}
+
+#[test]
+fn the_floor_is_a_floor_not_a_veto() {
+    assert!(qualifies_for_entry(MIN_ENTRY_SCORE), "the boundary itself qualifies");
+    assert!(!qualifies_for_entry(MIN_ENTRY_SCORE - 0.001));
+    assert!(
+        MIN_ENTRY_SCORE > 0.0,
+        "a floor at or below zero would still permit buying on no information"
+    );
+}

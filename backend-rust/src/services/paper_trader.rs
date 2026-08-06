@@ -1732,7 +1732,7 @@ impl PaperTrader {
         // whatever the signals said — which is why the book looked identical
         // day after day and why entries were logged at 0.000 and -0.048.
         let qualified: Vec<_> = candidates.iter()
-            .filter(|(_, score, _, _, _)| *score >= MIN_ENTRY_SCORE)
+            .filter(|(_, score, _, _, _)| crate::config::qualifies_for_entry(*score))
             .take(open_slots)
             .collect();
 

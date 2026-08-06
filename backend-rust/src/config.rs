@@ -220,6 +220,15 @@ pub const MIN_PREDICTED_MOVE_PCT: f64 = 0.012;
 /// one the system was previously incapable of making.
 pub const MIN_ENTRY_SCORE: f64 = 0.05;
 
+/// Whether a candidate's composite score justifies opening a position.
+///
+/// A named predicate rather than an inline comparison so the rule can be tested
+/// against the scores that actually shipped positions on 2026-08-05, instead of
+/// being verified by reading the diff and hoping.
+pub fn qualifies_for_entry(score: f64) -> bool {
+    score >= MIN_ENTRY_SCORE
+}
+
 /// Hold at least ~30 min of market time before any non-stop exit, so
 /// intraday noise doesn't shake us out of a multi-day thesis.
 pub const MIN_HOLD_SECS: u64 = 1800;
