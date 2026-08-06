@@ -1461,9 +1461,6 @@ impl PaperTrader {
         // evidence-backed fix for a long-only intraday system.
         if !self.market_risk_on.load(Ordering::Relaxed) { return; }
 
-        let open_slots_available = MAX_CONCURRENT_POSITIONS.saturating_sub(self.positions.len());
-        // Divide available cash evenly across remaining slots so full budget gets deployed
-        let per_slot = (self.cash / open_slots_available as f64).min(self.total_value() * MAX_POSITION_PCT);
         if self.cash < 2.0 { return; }
 
         let mut candidates: Vec<(String, f64, String, usize, EntryPrediction)> = Vec::new();
@@ -1740,24 +1737,35 @@ impl PaperTrader {
             let best = candidates[0].1;
             info!("[NO_ENTRY] {} candidate(s), best score {:.3} < {:.2} floor — holding cash",
                 candidates.len(), best, MIN_ENTRY_SCORE);
+            return;
         }
+
+        // Split the budget across the names that actually QUALIFIED, not across
+        // every open slot. Dividing by open slots left the rejected slot's share
+        // sitting in cash: on 2026-08-06, four names qualified out of five and
+        // only $1,350 of $3,000 was deployed. The floor decides WHICH names are
+        // worth holding; it should not also shrink the position in the ones that
+        // passed it.
+        let per_slot = (self.cash / qualified.len() as f64)
+            .min(self.total_value() * MAX_POSITION_PCT);
 
         for (best_sym, score, layer_report, bullish_count, prediction) in qualified {
             if !MAX_EXPOSURE_MODE && self.daily_trades >= MAX_DAILY_TRADES { break; }
             let price = self.market_data[best_sym].price;
             let bias = *self.kronos_daily_bias.get(best_sym.as_str()).unwrap_or(&0.0);
 
-            // Size the bet by conviction. This scaling already existed but was
-            // hard-coded to 1.0 under MAX_EXPOSURE_MODE, so every position was
-            // the same size no matter what the signals said — the third
-            // adaptive mechanism that flag silently disabled, after the
-            // re-entry cooldown and the daily trade cap.
+            // Full size for anything that clears the floor.
             //
-            // Deploying the full budget is now a consequence of finding several
-            // strong candidates, rather than a goal pursued regardless of them.
-            let confidence_scale = if *score >= 0.40 { 1.0 }
-                else if *score >= 0.25 { 0.75 }
-                else { 0.50 };
+            // Conviction tiers (>=0.40 full, >=0.25 three-quarter, else half)
+            // were tried on 2026-08-06 and are removed: this model's scores span
+            // roughly -0.06 to +0.16, so NOTHING ever reached 0.25. Every entry
+            // that day priced at 50% — a flat haircut wearing the label of an
+            // adaptive mechanism, and the reason only $1,350 of $3,000 was at
+            // work. Rescaling the tiers to the observed range would just be
+            // fitting numbers to two days of data on a strategy with no
+            // demonstrated edge, so selection carries the decision and sizing
+            // stays honest: qualify, and you get a full share.
+            let confidence_scale = 1.0;
             let alloc = (per_slot * confidence_scale).min(self.cash);
 
             let shares = alloc / price;
