@@ -39,7 +39,7 @@ impl DailyFocus {
     pub fn new() -> Self {
         // Default: trade all symbols until Kronos provides ranking
         Self {
-            rankings: TOP_SYMBOLS.iter().map(|&s| StockRanking {
+            rankings: TOP_SYMBOLS.iter().map(|s| StockRanking {
                 symbol: s.to_string(),
                 predicted_change_pct: 0.0,
                 direction: "neutral".to_string(),
@@ -112,7 +112,7 @@ pub async fn run_kronos_ranking(focus: &SharedDailyFocus) {
 
     let mut rankings: Vec<StockRanking> = Vec::new();
 
-    for &sym in TOP_SYMBOLS {
+    for sym in TOP_SYMBOLS.iter() {
         info!("  Analyzing {}...", sym);
 
         // Fetch historical bars from Alpaca

@@ -1,5 +1,41 @@
-/// Top 5 symbols we track and trade.
-pub const TOP_SYMBOLS: &[&str] = &["NVDA", "AAPL", "MSFT", "GOOGL", "AMZN"];
+/// Fallback universe, used only when the sector-leader agent has never run.
+const DEFAULT_SYMBOLS: &[&str] = &["NVDA", "AAPL", "MSFT", "GOOGL", "AMZN"];
+
+/// The symbols this process tracks and trades, resolved ONCE at startup.
+///
+/// Previously a hard-coded list of five names chosen once and never revisited.
+/// It is now whatever the sector-leader agent last selected: the best stock in
+/// each of the strongest sectors, at most one per sector.
+///
+/// WHY STARTUP AND NOT CONTINUOUSLY
+/// Each symbol spawns a RealtimeEngine with its own Kronos and agent loops
+/// against the GPU sidecar, and the Alpaca WebSocket subscribes once when it
+/// connects. Rotating the universe mid-session therefore means tearing down
+/// engines and resubscribing the socket — a lifecycle refactor, not a config
+/// change, and not something to deploy into a live session. Resolving at
+/// startup gives daily rotation for free, because this machine restarts daily
+/// anyway.
+///
+/// The first run has no picks and falls back to DEFAULT_SYMBOLS; every run
+/// after the agent's first scan uses its selection.
+pub static TOP_SYMBOLS: once_cell::sync::Lazy<Vec<String>> = once_cell::sync::Lazy::new(|| {
+    let picks = std::fs::read_to_string("/app/reports/sector_leaders_state.json")
+        .ok()
+        .and_then(|c| serde_json::from_str::<serde_json::Value>(&c).ok())
+        .and_then(|v| v["holdings"].as_array().map(|a| {
+            a.iter().filter_map(|s| s.as_str().map(String::from)).collect::<Vec<_>>()
+        }))
+        .unwrap_or_default();
+
+    if picks.is_empty() {
+        tracing::warn!("[UNIVERSE] sector-leader agent has no picks yet — using default {:?}",
+            DEFAULT_SYMBOLS);
+        DEFAULT_SYMBOLS.iter().map(|s| s.to_string()).collect()
+    } else {
+        tracing::info!("[UNIVERSE] trading the sector-leader selection: {:?}", picks);
+        picks
+    }
+});
 
 // ══════════════════════════════════════════════════════════════
 //  VERSION: claude_1  (2026-07-21)

@@ -167,8 +167,8 @@ impl AppState {
         });
 
         // Create engines
-        for &sym in TOP_SYMBOLS {
-            let engine = RealtimeEngine::new(sym, kronos.clone());
+        for sym in TOP_SYMBOLS.iter() {
+            let engine = RealtimeEngine::new(sym.as_str(), kronos.clone());
             state.engines.insert(sym.to_string(), engine);
         }
 
@@ -176,7 +176,8 @@ impl AppState {
         let state2 = state.clone();
         tokio::spawn(async move {
             tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-            let (tick_tx, bar_tx) = alpaca_stream::spawn_stream(TOP_SYMBOLS);
+            let syms: Vec<&str> = TOP_SYMBOLS.iter().map(|s| s.as_str()).collect();
+            let (tick_tx, bar_tx) = alpaca_stream::spawn_stream(&syms);
             let mut tick_rx = tick_tx.subscribe();
             let mut bar_rx = bar_tx.subscribe();
             tracing::info!("Alpaca stream dispatcher started");
@@ -232,7 +233,7 @@ async fn compute_institutional_signals(inst: &InstitutionalState) {
     }
 
     // 2. Per-symbol: GEX (skipped, 0 weight) + Volume Profile (needed).
-    for &sym in TOP_SYMBOLS {
+    for sym in TOP_SYMBOLS.iter() {
         // GEX needs daily bars for realized volatility (20+ trading days)
         if DEAD_SIGNALS_ENABLED {
         match alpaca_stream::fetch_daily_bars(sym, 60).await {

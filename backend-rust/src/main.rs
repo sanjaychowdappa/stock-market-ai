@@ -77,7 +77,7 @@ fn spawn_orchestrator(state: Arc<AppState>) {
 
         // Subscribe to all engine prediction streams
         let mut receivers: Vec<(String, tokio::sync::broadcast::Receiver<serde_json::Value>)> = Vec::new();
-        for &sym in TOP_SYMBOLS {
+        for sym in TOP_SYMBOLS.iter() {
             let engine = state.get_engine(sym);
             let rx = engine.subscribe_predictions();
             receivers.push((sym.to_string(), rx));
@@ -145,9 +145,9 @@ fn spawn_orchestrator(state: Arc<AppState>) {
 
                 // Sync GEX, Volume Profile, COT into paper trader
                 let cot_signal = state.institutional.cot.lock().signal;
-                for sym in crate::config::TOP_SYMBOLS {
-                    let gex = state.institutional.gex.get(*sym);
-                    let vp = state.institutional.volume_profiles.get(*sym);
+                for sym in crate::config::TOP_SYMBOLS.iter() {
+                    let gex = state.institutional.gex.get(sym);
+                    let vp = state.institutional.volume_profiles.get(sym);
 
                     let (gex_sig, gex_reg) = gex.as_ref()
                         .map(|g| (g.signal, g.regime.clone()))

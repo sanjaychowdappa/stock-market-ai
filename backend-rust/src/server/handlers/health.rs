@@ -10,7 +10,7 @@ pub async fn health(State(_state): State<Arc<AppState>>) -> Json<serde_json::Val
         "engine": "rust",
         "version": crate::config::MODEL_VERSION,
         "config_frozen_until": crate::config::CONFIG_FREEZE_UNTIL,
-        "symbols": crate::config::TOP_SYMBOLS,
+        "symbols": &*crate::config::TOP_SYMBOLS,
     }))
 }
 
@@ -44,9 +44,9 @@ pub async fn eod_report(State(state): State<Arc<AppState>>) -> Json<serde_json::
 pub async fn institutional(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     let cot = state.institutional.cot.lock().clone();
     let mut symbols = serde_json::Map::new();
-    for sym in crate::config::TOP_SYMBOLS {
-        let gex = state.institutional.gex.get(*sym);
-        let vp = state.institutional.volume_profiles.get(*sym);
+    for sym in crate::config::TOP_SYMBOLS.iter() {
+        let gex = state.institutional.gex.get(sym);
+        let vp = state.institutional.volume_profiles.get(sym);
         let engine = state.get_engine(sym);
         let last_payload = engine.get_last_payload();
         let cvd_json = last_payload.as_ref()

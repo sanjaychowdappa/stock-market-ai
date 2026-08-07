@@ -2437,7 +2437,8 @@ impl PaperTrader {
             "reason": t.reason, "time": t.time,
         })).collect();
 
-        let symbols: Vec<serde_json::Value> = TOP_SYMBOLS.iter().map(|&sym| {
+        let symbols: Vec<serde_json::Value> = TOP_SYMBOLS.iter().map(|sym| {
+            let sym = sym.as_str();
             let data = self.market_data.get(sym);
             let bias = self.kronos_daily_bias.get(sym).unwrap_or(&0.0);
             let in_position = self.positions.contains_key(sym);

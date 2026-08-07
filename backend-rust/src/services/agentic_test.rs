@@ -99,14 +99,14 @@ fn et_now() -> (u32, bool) {
 fn check_data_flow(state: &AppState, market_open: bool) -> Finding {
     let mut live = 0;
     let mut stale = Vec::new();
-    for sym in TOP_SYMBOLS {
+    for sym in TOP_SYMBOLS.iter() {
         let engine = state.get_engine(sym);
         match engine.get_last_payload() {
             Some(p) => {
                 let price = p["current_price"].as_f64().unwrap_or(0.0);
-                if price > 0.0 { live += 1; } else { stale.push(*sym); }
+                if price > 0.0 { live += 1; } else { stale.push(sym.clone()); }
             }
-            None => stale.push(*sym),
+            None => stale.push(sym.clone()),
         }
     }
     if live == TOP_SYMBOLS.len() {
