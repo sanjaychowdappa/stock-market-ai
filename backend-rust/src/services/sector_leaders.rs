@@ -44,7 +44,10 @@ use std::sync::Arc;
 use tracing::{info, warn};
 
 const START_CASH: f64 = 3000.0;
-const TOP_N: usize = 5;
+/// One slot per sector covered. Not a tuned number — it is simply the sector
+/// count, so the absolute-momentum filter decides how many names are actually
+/// held. At 5 the agent ranked eleven sectors and threw six picks away.
+const TOP_N: usize = 11;
 const STATE_FILE: &str = "/app/reports/sector_leaders_state.json";
 const LOG_FILE: &str = "/app/reports/sector_leaders.jsonl";
 const BENCH_SYMBOL: &str = "SPY";

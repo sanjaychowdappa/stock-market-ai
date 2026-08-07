@@ -181,7 +181,24 @@ pub const TRADE_COOLDOWN_SECS: u64 = 10800;
 // recovery gate needs to observe.
 
 
-pub const MAX_CONCURRENT_POSITIONS: usize = 5;
+/// One slot per sector the selector covers.
+///
+/// Was 5, which had nothing to do with the strategy — the sector agent ranks
+/// eleven sectors and five of its picks were simply discarded. Raised so the
+/// MOMENTUM FILTER decides how many names are held rather than an arbitrary
+/// cap: every sector whose leader clears MIN_ABSOLUTE_MOMENTUM gets a slot, so
+/// a strong tape holds eleven and a weak one holds two.
+///
+/// The GPU load this implies was measured before changing it, not assumed. Each
+/// symbol costs a Kronos inference every 8s plus an agent call every 3s (~27
+/// sidecar calls/min); eleven symbols is ~300/min against five's ~138. With the
+/// sidecar sitting at 1.4% CPU and 2.2GB of 15GB, that is not close to a limit.
+///
+/// Sizing still self-limits: the budget splits across QUALIFYING names, and
+/// MAX_POSITION_PCT caps any single one at 25%. Eleven names is ~$272 each and
+/// deploys fully; two names is $750 each and deliberately leaves cash idle
+/// rather than concentrate.
+pub const MAX_CONCURRENT_POSITIONS: usize = 11;
 
 
 /// Max hold backstop ≈ 5 trading days of market-hour ticks (~1 week).
