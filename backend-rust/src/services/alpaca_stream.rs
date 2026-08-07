@@ -219,11 +219,26 @@ pub async fn fetch_historical_bars(
     let api_secret = env::var("APCA_API_SECRET_KEY")
         .map_err(|_| "APCA_API_SECRET_KEY not set".to_string())?;
 
+    // Span the previous sessions, not just today.
+    //
+    // Without `start`, Alpaca returns ONLY the current session — verified:
+    // 239 bars all stamped 2026-08-07, the first at 13:30:00Z (09:30 ET). So
+    // every morning began with zero history, Volume Profile could not reach its
+    // 20-bar minimum, and with VP (weight 0.52) absent every score sat at
+    // exactly 0.000. The book therefore sat in cash for the first 20-45 minutes
+    // of EVERY session waiting for bars to accumulate — on 2026-08-07 the first
+    // entry came at 10:01 against a 09:30 open.
+    //
+    // Four calendar days covers a weekend and yields ~1,800 bars, so the profile
+    // is populated at 09:30 instead of mid-morning. Same defect as fetch_daily_bars
+    // had: no `start`, so the window was not what the caller assumed.
+    let start = (chrono::Utc::now() - chrono::Duration::days(4))
+        .format("%Y-%m-%d").to_string();
     let url = format!(
-        "{}/v2/stocks/{}/bars?timeframe=1Min&limit={}&feed=iex",
+        "{}/v2/stocks/{}/bars?timeframe=1Min&start={}&limit=10000&feed=iex",
         env::var("APCA_DATA_URL").unwrap_or_else(|_| "https://data.alpaca.markets".to_string()),
         symbol,
-        limit,
+        start,
     );
 
     let resp = reqwest::Client::new()
@@ -240,7 +255,7 @@ pub async fn fetch_historical_bars(
     let bars = data["bars"].as_array()
         .ok_or("No bars in response")?;
 
-    let candles: Vec<serde_json::Value> = bars.iter().filter_map(|b| {
+    let mut candles: Vec<serde_json::Value> = bars.iter().filter_map(|b| {
         let ts = parse_alpaca_timestamp(b["t"].as_str()?);
         Some(json!({
             "open": b["o"].as_f64()?,
@@ -251,6 +266,13 @@ pub async fn fetch_historical_bars(
             "time": ts,
         }))
     }).collect();
+
+    // Keep the most recent `limit` bars. The request now spans four days so the
+    // window is populated at the open; callers still want the newest slice, and
+    // trimming from the front is what the daily fetch got wrong.
+    if candles.len() > limit {
+        candles.drain(..candles.len() - limit);
+    }
 
     Ok(candles)
 }
