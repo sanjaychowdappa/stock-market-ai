@@ -290,7 +290,14 @@ async fn scan_inner(shared: &SharedSectorLeaders) {
     s.scans += 1;
 
     let snapshot = s.to_json();
-    if let Ok(txt) = serde_json::to_string(&s.to_json()) {
+    // Persist the STRUCT, not to_json(). to_json() is a display view whose
+    // field names do not match SectorLeaders, so writing it meant create_shared()
+    // failed to deserialize on every restart and silently reset the book to
+    // empty — the paper track record could never accumulate past one session,
+    // which is the entire point of running it. The universe resolver kept
+    // working only because it happens to read a "holdings" key that both shapes
+    // contain, which is exactly why this stayed invisible.
+    if let Ok(txt) = serde_json::to_string(&*s) {
         let _ = std::fs::write(STATE_FILE, txt);
     }
     drop(s);

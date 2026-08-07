@@ -1,0 +1,59 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-08-07
+  Generated:  2026-08-07T20:10:01.278256217+00:00
+  Uptime:     2h 7m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $174.89
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     102
+  Winning Trades:   48
+  Win Rate:         47.1%
+  Avg Hold Time:    10178s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $482.28     bullish     0.305    —
+  UNH      $407.09     bearish     -0.290   —
+  RTX      $223.10     neutral     -0.038   —
+  FCX      $69.62      bullish     0.108    —
+  BAC      $63.15      neutral     0.025    —
+  AMZN     $274.37     bullish     0.347    —
+  EQIX     $1042.49    bearish     -0.244   —
+  KO       $87.06      bearish     -0.125   —
+  COP      $117.64     neutral     -0.041   —
+  DIS      $104.91     neutral     0.059    —
+  DUK      $124.87     bullish     0.280    —
+  AAPL     $313.36     bearish     -0.243   —
+  GOOGL    $354.78     neutral     0.040    —
+  MSFT     $499.28     neutral     -0.013   —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   AMZN     $274.99    $749.69  $-0.4062   EOD_DAILY_SKIM
+  19:55:00  SELL   AAPL     $313.26    $754.84  $3.5301    EOD_DAILY_SKIM
+  19:55:00  SELL   MSFT     $500.95    $747.25  $1.5066    EOD_DAILY_SKIM
+  18:46:57  SELL   GOOGL    $353.83    $747.95  $-3.3922   TRAIL_STOP(-0.50% from peak,pnl=-0.45%)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════
