@@ -182,13 +182,9 @@ struct ShadowTrader {
     /// hypothesis the weekly data keeps pointing at: time-in-market with
     /// the swing exit ladder is the driver, and every entry gate hurts.
     is_always_in: bool,
-    /// exp1: short-horizon prediction trader. Buys when the engine's
-    /// next-minute forecast predicts an up-move big enough to clear the
-    /// spread; holds ~5 minutes; exits on target/stop/time/prediction-flip.
-    is_exp1: bool,
-    /// Recent trade log (kept for the dashboard's live exp1 panel).
+    /// Recent trade log, kept for the dashboard.
     trades: VecDeque<Trade>,
-    /// Date this model started trading (kill-criterion clock for exp1).
+    /// Date this model started trading.
     started_date: String,
     /// Trend filter mode for A/B testing: "fullday", "short", or "off".
     trend_mode: String,
@@ -208,7 +204,6 @@ impl ShadowTrader {
             weights,
             is_random: false,
             is_always_in: false,
-            is_exp1: false,
             trades: VecDeque::with_capacity(60),
             started_date: chrono::Local::now().format("%Y-%m-%d").to_string(),
             trend_mode: trend_mode.to_string(),
@@ -232,11 +227,6 @@ impl ShadowTrader {
         s
     }
 
-    fn new_exp1(model_id: &str) -> Self {
-        let mut s = Self::new(model_id, [0.0; 7], "off");
-        s.is_exp1 = true;
-        s
-    }
 
     fn total_value(&self) -> f64 {
         self.cash + self.positions.values().map(|p| p.market_value()).sum::<f64>()
@@ -338,8 +328,6 @@ impl PaperTrader {
                          "description": "Null hypothesis: random coin-flip entries — the bar every model must beat"},
                         {"id": "always_in_max_exposure", "trend": "off",
                          "description": "Max exposure: always fully invested, no entry gates — tests whether time-in-market is the real driver"},
-                        {"id": "exp1", "trend": "off",
-                         "description": "exp1: short-horizon prediction trader — buys when the next-minute forecast predicts an up-move that clears the spread, ~5-min holds"},
                     ]
                 });
                 let mut line = serde_json::to_string(&marker).unwrap_or_default();
@@ -398,9 +386,6 @@ impl PaperTrader {
                     // do all the risk work. If this beats random, exposure is
                     // the driver and entry timing is irrelevant.
                     ShadowTrader::new_always_in("always_in_max_exposure"),
-                    // exp1: short-horizon prediction trader — trades on the
-                    // engine's next-minute forecast, ~5-minute holds.
-                    ShadowTrader::new_exp1("exp1"),
                 ]
             },
         };
@@ -1331,9 +1316,7 @@ impl PaperTrader {
             "realized_pnl": (self.realized_pnl * 100.0).round() / 100.0,
         }));
         for s in &self.shadow_traders {
-            let desc = if s.is_exp1 {
-                "exp1: buys on next-minute forecast (>0.08% predicted), ~5-min holds"
-            } else if s.is_random {
+            let desc = if s.is_random {
                 "Random coin-flip entries — the null-hypothesis bar to beat"
             } else if s.is_always_in {
                 "Always fully invested, no entry gates"
@@ -1342,7 +1325,7 @@ impl PaperTrader {
             };
             models.push(json!({
                 "model_id": s.model_id,
-                "kind": if s.is_exp1 { "experiment" } else { "shadow" },
+                "kind": "shadow",
                 "description": desc,
                 "portfolio_value": (s.total_value() * 100.0).round() / 100.0,
                 "cash": (s.cash * 100.0).round() / 100.0,
@@ -1354,98 +1337,15 @@ impl PaperTrader {
                 "realized_pnl": (s.realized_pnl * 100.0).round() / 100.0,
             }));
         }
-        // exp1 kill-criterion status (pre-committed 2026-07-21): after
-        // EXP1_KILL_DAYS or EXP1_KILL_TRADES closed trades, expectancy after
-        // costs must be > 0 AND beat the random baseline, or exp1 is dead.
-        let exp1_status = {
-            let exp1 = self.shadow_traders.iter().find(|s| s.is_exp1);
-            let rand = self.shadow_traders.iter().find(|s| s.is_random);
-            match exp1 {
-                Some(e) => {
-                    let exp = if e.total_trades > 0 { e.realized_pnl / e.total_trades as f64 } else { 0.0 };
-                    let rand_exp = rand.map(|r| if r.total_trades > 0 { r.realized_pnl / r.total_trades as f64 } else { 0.0 }).unwrap_or(0.0);
-                    let days = chrono::NaiveDate::parse_from_str(&e.started_date, "%Y-%m-%d").ok()
-                        .map(|d| (chrono::Local::now().date_naive() - d).num_days()).unwrap_or(0);
-                    let due = days >= EXP1_KILL_DAYS || e.total_trades >= EXP1_KILL_TRADES;
-                    let verdict = if !due { "in trial" }
-                        else if exp > 0.0 && exp > rand_exp { "PASSED — expectancy positive and beats random" }
-                        else { "DEAD per pre-committed kill criterion" };
-                    json!({
-                        "criterion": format!("by {} days or {} trades: expectancy after costs > 0 AND > random baseline", EXP1_KILL_DAYS, EXP1_KILL_TRADES),
-                        "started": e.started_date,
-                        "days_elapsed": days,
-                        "trades": e.total_trades,
-                        "expectancy_per_trade": (exp * 10000.0).round() / 10000.0,
-                        "random_expectancy": (rand_exp * 10000.0).round() / 10000.0,
-                        "verdict": verdict,
-                    })
-                }
-                None => json!(null),
-            }
-        };
         json!({
             "version": MODEL_VERSION,
             "config_frozen_until": CONFIG_FREEZE_UNTIL,
             "cost_model_pct_round_trip": SHADOW_COST_PCT,
             "note": "All models trade the same live market data in parallel (paper only). Shadow trades are charged a modeled round-trip cost at exit.",
-            "exp1_kill_criterion": exp1_status,
             "models": models,
         })
     }
 
-    /// Detailed live view of the exp1 experiment (positions + trade log),
-    /// mirroring the legacy trader panel — for /api/exp1.
-    pub fn exp1_json(&self) -> serde_json::Value {
-        let s = match self.shadow_traders.iter().find(|s| s.is_exp1) {
-            Some(s) => s,
-            None => return json!({"error": "exp1 not running"}),
-        };
-        let positions: Vec<serde_json::Value> = s.positions.values().map(|p| json!({
-            "symbol": p.symbol,
-            "shares": (p.shares * 10000.0).round() / 10000.0,
-            "entry_price": (p.entry_price * 100.0).round() / 100.0,
-            "current_price": (p.current_price * 100.0).round() / 100.0,
-            "value": (p.market_value() * 100.0).round() / 100.0,
-            "pnl": (p.unrealized_pnl() * 100.0).round() / 100.0,
-            "pnl_pct": (p.unrealized_pnl_pct() * 100.0).round() / 100.0,
-            "hold_seconds": p.hold_seconds,
-            "entry_time": p.entry_time,
-        })).collect();
-        let trades: Vec<serde_json::Value> = s.trades.iter().rev().take(30).map(|t| json!({
-            "time": t.time, "action": t.action, "symbol": t.symbol,
-            "shares": (t.shares * 10000.0).round() / 10000.0,
-            "price": (t.price * 100.0).round() / 100.0,
-            "value": (t.value * 100.0).round() / 100.0,
-            "pnl": t.pnl, "pnl_pct": t.pnl_pct, "reason": t.reason,
-            "hold_seconds": t.hold_seconds,
-        })).collect();
-        let invested: f64 = s.positions.values().map(|p| p.market_value()).sum();
-        let days = chrono::NaiveDate::parse_from_str(&s.started_date, "%Y-%m-%d").ok()
-            .map(|d| (chrono::Local::now().date_naive() - d).num_days()).unwrap_or(0);
-        json!({
-            "model_id": s.model_id,
-            "version": MODEL_VERSION,
-            "cost_model_pct_round_trip": SHADOW_COST_PCT,
-            "retired": EXP1_RETIRED,
-            "kill_criterion": if EXP1_RETIRED {
-                format!("RETIRED 2026-07-29 — FAILED its pre-committed criterion at {} trades (threshold {}): expectancy was negative AND lost to the random baseline. Retired per the rule agreed in advance, not retuned.", s.total_trades, EXP1_KILL_TRADES)
-            } else {
-                format!("pre-committed: by day {} or trade {}, expectancy after costs must be > 0 and beat random ({}d elapsed, {} trades)", EXP1_KILL_DAYS, EXP1_KILL_TRADES, days, s.total_trades)
-            },
-            "strategy": "Buys when the next-minute forecast predicts an up-move >0.08% (30s trend agreeing). Exits: +0.4% target / -0.4% stop / prediction flip / 5-min time box. Round-trip cost charged at exit.",
-            "portfolio_value": ((s.cash + invested) * 100.0).round() / 100.0,
-            "cash": (s.cash * 100.0).round() / 100.0,
-            "invested": (invested * 100.0).round() / 100.0,
-            "realized_pnl": (s.realized_pnl * 100.0).round() / 100.0,
-            "total_trades": s.total_trades,
-            "winning_trades": s.winning_trades,
-            "win_rate_pct": if s.total_trades > 0 {
-                ((s.winning_trades as f64 / s.total_trades as f64) * 10000.0).round() / 100.0
-            } else { 0.0 },
-            "positions": positions,
-            "recent_trades": trades,
-        })
-    }
 
     fn find_best_entry(&mut self) {
         // The cap now applies in max-exposure mode too. It was written as
@@ -1892,7 +1792,7 @@ impl PaperTrader {
         let cvd_sig = data.cvd_signal;
         let cvd_bearish = cvd_sig < -0.4 && data.cvd_buy_sell_ratio < 0.7;
         let at_resistance = data.vp_position == "above_value" && data.vp_signal < -0.3;
-        // Short-horizon forecast for exp1: predicted %-change over the next
+        // Short-horizon forecast: predicted %-change over the next
         // ~60 seconds (Kronos + pattern blend from the engine).
         let pred_next_min = data.kronos_direction;
 
@@ -1908,21 +1808,7 @@ impl PaperTrader {
                     vp_score < -0.5, cvd_bearish, at_resistance]
                     .iter().filter(|&&b| b).count();
 
-                let exit_reason = if shadow.is_exp1 {
-                    // exp1: minutes-scale exits — target, stop, prediction
-                    // flip, or a 5-minute time box. No long-hold gates.
-                    if pnl_pct >= 0.4 {
-                        Some(format!("EXP1_TARGET({:.2}%)", pnl_pct))
-                    } else if pnl_pct <= -0.4 {
-                        Some(format!("EXP1_STOP({:.2}%)", pnl_pct))
-                    } else if pred_next_min < -0.05 && pos.hold_seconds >= 60 {
-                        Some(format!("EXP1_PRED_FLIP(pred={:.2}%,pnl={:.2}%)", pred_next_min, pnl_pct))
-                    } else if pos.hold_seconds >= 300 {
-                        Some(format!("EXP1_TIME_EXIT(300s,{:.2}%)", pnl_pct))
-                    } else {
-                        None
-                    }
-                } else if pnl_pct <= HARD_STOP_PCT {
+                let exit_reason = if pnl_pct <= HARD_STOP_PCT {
                     Some("HARD_STOP".to_string())
                 } else if bearish_count >= 2 && pnl_pct < 0.0 {
                     Some(format!("BEARISH_EXIT({}signals,pnl={:.2}%)", bearish_count, pnl_pct))
@@ -1995,12 +1881,10 @@ impl PaperTrader {
             // Try to enter
             if shadow.positions.contains_key(symbol) { continue; }
             if shadow.positions.len() >= MAX_CONCURRENT_POSITIONS { continue; }
-            // exp1 is a fast trader — the 5/day cap would strangle it.
-            if !shadow.is_exp1 && shadow.daily_trades >= MAX_DAILY_TRADES { continue; }
-            // Cooldowns: always_in = none; exp1 = 90s breather; others = 3h.
-            let cd_secs = if shadow.is_always_in { 0 }
-                else if shadow.is_exp1 { 90 }
-                else { TRADE_COOLDOWN_SECS };
+            if shadow.daily_trades >= MAX_DAILY_TRADES { continue; }
+            // Cooldowns: always_in = none (maximum time-in-market by design);
+            // every other shadow book uses the standard cooldown.
+            let cd_secs = if shadow.is_always_in { 0 } else { TRADE_COOLDOWN_SECS };
             if cd_secs > 0 {
                 if let Some(cd) = shadow.cooldowns.get(symbol) {
                     if cd.elapsed().as_secs() < cd_secs { continue; }
@@ -2028,16 +1912,6 @@ impl PaperTrader {
                 rand::random::<f64>() < 0.001
             } else if shadow.is_always_in {
                 true
-            } else if shadow.is_exp1 {
-                // exp1 RETIRED 2026-07-29 — failed its pre-committed criterion
-                // (325 trades, -$0.256/trade vs random +$0.65). No new entries;
-                // open positions still exit normally through the exit ladder.
-                if EXP1_RETIRED { false } else {
-                    // Original rule: enter when the next-minute forecast predicts
-                    // an up-move big enough to clear a typical spread (~0.08%),
-                    // with the 30s trend agreeing.
-                    pred_next_min > 0.08 && data.trend > 0.0
-                }
             } else {
                 weighted_score > MIN_BUY_SIGNAL && kronos_score >= -0.1 && trend_ok
             };
@@ -2045,7 +1919,7 @@ impl PaperTrader {
             if should_enter {
                 let shadow_open = MAX_CONCURRENT_POSITIONS.saturating_sub(shadow.positions.len());
                 let per_slot = (shadow.cash / shadow_open as f64).min(shadow.total_value() * MAX_POSITION_PCT);
-                let shadow_conf = if shadow.is_always_in || shadow.is_exp1 { 1.0 } // full slot
+                let shadow_conf = if shadow.is_always_in { 1.0 } // full slot
                     else if weighted_score >= 0.40 { 1.0 }
                     else if weighted_score >= 0.25 { 0.75 }
                     else { 0.50 };
@@ -2096,9 +1970,7 @@ impl PaperTrader {
                         symbol: symbol.to_string(), action: "BUY".into(),
                         shares, price, value: shares * price,
                         pnl: None, pnl_pct: None,
-                        reason: if shadow.is_exp1 {
-                            format!("EXP1_ENTRY(pred={:+.2}%)", pred_next_min)
-                        } else { format!("ENTRY(s={:.3})", weighted_score) },
+                        reason: format!("ENTRY(s={:.3})", weighted_score),
                         time: Local::now().format("%H:%M:%S").to_string(),
                         hold_seconds: None,
                     };

@@ -194,39 +194,6 @@ async fn check_ledger_integrity() -> Finding {
     }
 }
 
-/// ── CHECK 4: has exp1 earned its verdict yet? ─────────────────────
-/// Evaluates the PRE-COMMITTED kill criterion. It reports the verdict; it does
-/// not retune exp1 or move the goalposts.
-fn check_exp1_criterion(state: &AppState) -> Finding {
-    let trader = state.trader.lock();
-    let ex = trader.experiments_json();
-    drop(trader);
-    let k = &ex["exp1_kill_criterion"];
-    if k.is_null() {
-        return Finding::new("exp1_kill_criterion", Severity::Info, "exp1 not running.".into(), None);
-    }
-    let days = k["days_elapsed"].as_i64().unwrap_or(0);
-    let trades = k["trades"].as_u64().unwrap_or(0) as u32;
-    let exp = k["expectancy_per_trade"].as_f64().unwrap_or(0.0);
-    let rnd = k["random_expectancy"].as_f64().unwrap_or(0.0);
-    let verdict = k["verdict"].as_str().unwrap_or("unknown");
-    let due = days >= EXP1_KILL_DAYS || trades >= EXP1_KILL_TRADES;
-
-    if !due {
-        Finding::new("exp1_kill_criterion", Severity::Info,
-            format!("exp1 in trial: day {}/{}, {}/{} trades. Expectancy ${:.4} vs random ${:.4}.",
-                days, EXP1_KILL_DAYS, trades, EXP1_KILL_TRADES, exp, rnd), None)
-    } else if verdict.starts_with("PASSED") {
-        Finding::new("exp1_kill_criterion", Severity::Info,
-            format!("exp1 PASSED its pre-committed criterion: expectancy ${:.4}/trade beats random ${:.4}.", exp, rnd),
-            Some("Criterion met. Consider a longer confirmation run before trusting it further.".into()))
-    } else {
-        Finding::new("exp1_kill_criterion", Severity::Warn,
-            format!("exp1 FAILED its pre-committed criterion (expectancy ${:.4}/trade vs random ${:.4}).", exp, rnd),
-            Some("Per the rule agreed in advance, exp1 should be retired rather than retuned.".into()))
-    }
-}
-
 /// ── CHECK: live signal trader kill criterion ──────────────────────
 ///
 /// Judged on REAL Alpaca round trips. The simulator's own count is not used:
@@ -289,7 +256,6 @@ pub async fn run_cycle(state: &Arc<AppState>, agent: &SharedAgent) {
     let mut findings = vec![
         check_data_flow(state, market_open),
         check_deployment(state, market_open),
-        check_exp1_criterion(state),
         check_positions(state),
     ];
     findings.push(check_ledger_integrity().await);

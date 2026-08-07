@@ -82,15 +82,9 @@ pub const MODEL_VERSION: &str = "claude_1";
 
 /// Modeled round-trip trading cost for SHADOW/experiment trades, as % of
 /// trade value, charged at exit (spread + slippage on liquid megacaps).
-/// Without this, fast traders like exp1 look better than reality.
+/// Without this, fast traders look better than reality.
 pub const SHADOW_COST_PCT: f64 = 0.04;
 
-/// exp1 kill criterion, pre-committed 2026-07-21: after EXP1_KILL_DAYS days
-/// or EXP1_KILL_TRADES closed trades (whichever first), exp1's expectancy per
-/// trade AFTER costs must be positive AND beat the random baseline — or exp1
-/// is declared dead. No retuning before the deadline.
-pub const EXP1_KILL_DAYS: i64 = 14;
-pub const EXP1_KILL_TRADES: u32 = 200;
 
 // ── LIVE SIGNAL TRADER KILL CRITERION ────────────────────────────────────
 //
@@ -125,14 +119,6 @@ pub const LIVE_KILL_MIN_EXPECTANCY: f64 = 0.0;
 /// The date the criterion was fixed. Trading days are counted from here.
 pub const LIVE_KILL_START_DATE: &str = "2026-08-06";
 
-/// VERDICT DELIVERED 2026-07-29: exp1 FAILED its pre-committed criterion.
-/// At 325 closed trades (threshold was 200) its expectancy was -$0.256/trade
-/// (total -$83.18) versus the random baseline's +$0.65/trade — failing both
-/// required conditions (positive expectancy AND beating random).
-/// Per the rule agreed BEFORE any results were seen, exp1 is retired rather
-/// than retuned. It stops opening new positions; open ones exit normally and
-/// its history is preserved for the record.
-pub const EXP1_RETIRED: bool = true;
 
 /// Mirror every simulated trade as a real order on the Alpaca PAPER account
 /// (fake money, real execution). Purely observational — the internal simulator

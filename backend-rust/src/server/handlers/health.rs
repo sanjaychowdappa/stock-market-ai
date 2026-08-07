@@ -99,10 +99,6 @@ pub async fn experiments(State(state): State<Arc<AppState>>) -> Json<serde_json:
     Json(trader.experiments_json())
 }
 
-pub async fn exp1(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
-    let trader = state.trader.lock();
-    Json(trader.exp1_json())
-}
 
 /// Alpaca paper account snapshot + simulator-vs-reality fill comparison.
 pub async fn broker(State(_state): State<Arc<AppState>>) -> Json<serde_json::Value> {

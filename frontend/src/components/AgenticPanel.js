@@ -17,7 +17,6 @@ const HEALTH = {
 function AgenticPanel() {
   const [agent, setAgent] = useState(null);
   const [broker, setBroker] = useState(null);
-  const [exp1, setExp1] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -25,12 +24,11 @@ function AgenticPanel() {
     try {
       // P&L comes from the broker, never from /api/profit. That ledger has
       // duplicated dates and books gains on days that really lost money.
-      const [a, b, e] = await Promise.all([
+      const [a, b] = await Promise.all([
         fetch(`${API}/agentic`).then(r => r.json()),
         fetch(`${API}/broker`).then(r => r.json()).catch(() => null),
-        fetch(`${API}/exp1`).then(r => r.json()).catch(() => null),
       ]);
-      setAgent(a); setBroker(b); setExp1(e); setError(null);
+      setAgent(a); setBroker(b); setError(null);
     } catch (err) { setError('Backend not reachable'); }
   };
 
@@ -91,13 +89,6 @@ function AgenticPanel() {
               sub={today ? today.date : 'no completed round trips'} />
         <Stat label="Per round trip" value={money(rp.avg_per_round_trip ?? 0)}
               color={col(rp.avg_per_round_trip ?? 0)} sub="average, after real costs" />
-        <Stat label={`exp1 realized${exp1?.retired ? ' (RETIRED)' : ''}`}
-              value={exp1 ? money(exp1.realized_pnl ?? 0) : '—'}
-              color={exp1 ? col(exp1.realized_pnl ?? 0) : '#94a3b8'}
-              sub={exp1
-                ? `${exp1.total_trades} trades · ${(exp1.win_rate_pct ?? 0).toFixed(0)}% win${
-                    exp1.retired ? ' · stopped, not running' : ''}`
-                : ''} />
       </div>
 
       {days.length > 0 && (
@@ -162,7 +153,7 @@ const S = {
   btn: { display: 'block', marginTop: 8, marginLeft: 'auto', background: '#1e293b', color: '#93c5fd', border: '1px solid #334155', borderRadius: 6, padding: '5px 12px', fontSize: 11, cursor: 'pointer' },
   summary: { fontSize: 13, color: '#cbd5e1', background: '#111827', border: '1px solid #1f2937', borderRadius: 8, padding: '10px 14px', marginBottom: 16 },
   sectionLabel: { fontSize: 11, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.6, margin: '18px 0 8px 0' },
-  statRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 },
+  statRow: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 },
   stat: { background: '#111827', border: '1px solid #1f2937', borderRadius: 10, padding: 12 },
   statLabel: { fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4 },
   statValue: { fontSize: 19, fontWeight: 800, marginTop: 5 },
