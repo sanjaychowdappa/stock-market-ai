@@ -24,6 +24,39 @@ pub const SHADOW_COST_PCT: f64 = 0.04;
 pub const EXP1_KILL_DAYS: i64 = 14;
 pub const EXP1_KILL_TRADES: u32 = 200;
 
+// ── LIVE SIGNAL TRADER KILL CRITERION ────────────────────────────────────
+//
+// Pre-committed 2026-08-06, written while the strategy stood at -$44.66 —
+// deliberately BEFORE more data arrived, because the pull to move the
+// goalposts is strongest exactly when the number is bad. exp1 was retired on
+// a rule agreed in advance rather than retuned, and that is the precedent.
+//
+// Judged on REAL Alpaca round trips, not simulator trades. The first three
+// days of trustworthy measurement gave 33.3% win rate on both full sessions,
+// with expectancy -$0.68 then -$1.43 per trade while slippage fell to 0.002%
+// — so the losses are the trades themselves, not friction.
+//
+// THE RULE: at LIVE_KILL_TRADES completed real round trips, or after
+// LIVE_KILL_DAYS trading days, whichever comes first — if expectancy per trade
+// is negative, the intraday signal trader is retired. Not retuned. Not given a
+// new threshold. Retired, exactly as exp1 was.
+//
+// Nothing about the entry rules, the score floor, position sizing, or the exit
+// ladder may be changed while this trial runs. A parameter changed mid-trial
+// resets the count to zero, because the data before the change describes a
+// different system.
+pub const LIVE_KILL_ENABLED: bool = true;
+pub const LIVE_KILL_TRADES: u32 = 100;
+pub const LIVE_KILL_DAYS: i64 = 20;
+
+/// Expectancy per real round trip below which the trader is retired.
+/// Zero, not a negative tolerance: a system that loses money on average has
+/// no case for continuing, whatever its win rate looks like.
+pub const LIVE_KILL_MIN_EXPECTANCY: f64 = 0.0;
+
+/// The date the criterion was fixed. Trading days are counted from here.
+pub const LIVE_KILL_START_DATE: &str = "2026-08-06";
+
 /// VERDICT DELIVERED 2026-07-29: exp1 FAILED its pre-committed criterion.
 /// At 325 closed trades (threshold was 200) its expectancy was -$0.256/trade
 /// (total -$83.18) versus the random baseline's +$0.65/trade — failing both

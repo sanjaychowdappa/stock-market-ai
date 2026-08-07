@@ -227,6 +227,45 @@ fn check_exp1_criterion(state: &AppState) -> Finding {
     }
 }
 
+/// ── CHECK: live signal trader kill criterion ──────────────────────
+///
+/// Judged on REAL Alpaca round trips. The simulator's own count is not used:
+/// it disagreed with the broker in sign as recently as 2026-08-05, and a
+/// retirement decision must not rest on a number we derive ourselves.
+async fn check_live_kill_criterion() -> Finding {
+    if !LIVE_KILL_ENABLED {
+        return Finding::new("live_kill_criterion", Severity::Info,
+            "Live kill criterion disabled.".into(), None);
+    }
+    let r = crate::services::alpaca_broker::real_pnl().await;
+    let trades = r["round_trips"].as_u64().unwrap_or(0) as u32;
+    let exp = r["avg_per_round_trip"].as_f64().unwrap_or(0.0);
+
+    let days = chrono::NaiveDate::parse_from_str(LIVE_KILL_START_DATE, "%Y-%m-%d")
+        .map(|s| (chrono::Local::now().date_naive() - s).num_days())
+        .unwrap_or(0);
+    let due = trades >= LIVE_KILL_TRADES || days >= LIVE_KILL_DAYS;
+
+    if !due {
+        Finding::new("live_kill_criterion", Severity::Info,
+            format!("Trial running: {}/{} real round trips, day {}/{}. \
+                     Expectancy ${:.4}/trade (retire below ${:.2}).",
+                trades, LIVE_KILL_TRADES, days, LIVE_KILL_DAYS, exp, LIVE_KILL_MIN_EXPECTANCY),
+            Some("No entry rule, score floor, sizing or exit parameter may change \
+                  while this runs — a mid-trial change resets the count.".into()))
+    } else if exp > LIVE_KILL_MIN_EXPECTANCY {
+        Finding::new("live_kill_criterion", Severity::Info,
+            format!("PASSED: expectancy ${:.4}/trade over {} real round trips.", exp, trades),
+            Some("Criterion met. Confirm over a second window before trusting it.".into()))
+    } else {
+        Finding::new("live_kill_criterion", Severity::Critical,
+            format!("FAILED its pre-committed criterion: expectancy ${:.4}/trade over {} real \
+                     round trips, against a ${:.2} floor.", exp, trades, LIVE_KILL_MIN_EXPECTANCY),
+            Some("Per the rule fixed on 2026-08-06, the intraday signal trader should be \
+                  RETIRED, not retuned. exp1 was retired on the same basis.".into()))
+    }
+}
+
 /// ── CHECK 5: stuck positions ──────────────────────────────────────
 fn check_positions(state: &AppState) -> Finding {
     let trader = state.trader.lock();
@@ -254,6 +293,7 @@ pub async fn run_cycle(state: &Arc<AppState>, agent: &SharedAgent) {
         check_positions(state),
     ];
     findings.push(check_ledger_integrity().await);
+    findings.push(check_live_kill_criterion().await);
 
     let crit = findings.iter().filter(|f| f.severity == "critical").count();
     let warn = findings.iter().filter(|f| f.severity == "warn").count();

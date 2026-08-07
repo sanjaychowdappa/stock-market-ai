@@ -307,12 +307,18 @@ pub async fn fetch_daily_bars(
     let lookback_days = (limit as i64 * 7 / 5) + 40;
     let start = (chrono::Utc::now() - chrono::Duration::days(lookback_days))
         .format("%Y-%m-%d").to_string();
+    // NO `limit` in the request. Alpaca's limit truncates from the START of the
+    // window, so `&start=<124 days ago>&limit=60` returned 2026-04-06..06-30 —
+    // the OLDEST 60 bars, ending five weeks before today. Callers take
+    // bars.last() as "current", so the market-regime filter spent weeks
+    // comparing a stale price to a stale SMA: it logged "QQQ $736.07 vs 50d SMA
+    // $706.13 -> RISK-ON" on 2026-08-06, where $736.07 is the June 30 close.
+    // Fetch the whole window and keep the most recent `limit` bars instead.
     let url = format!(
-        "{}/v2/stocks/{}/bars?timeframe=1Day&start={}&limit={}&feed=iex",
+        "{}/v2/stocks/{}/bars?timeframe=1Day&start={}&feed=iex",
         env::var("APCA_DATA_URL").unwrap_or_else(|_| "https://data.alpaca.markets".to_string()),
         symbol,
         start,
-        limit,
     );
 
     let resp = reqwest::Client::new()
@@ -329,7 +335,7 @@ pub async fn fetch_daily_bars(
     let bars = data["bars"].as_array()
         .ok_or("No bars in daily response")?;
 
-    let candles: Vec<serde_json::Value> = bars.iter().filter_map(|b| {
+    let mut candles: Vec<serde_json::Value> = bars.iter().filter_map(|b| {
         Some(json!({
             "open": b["o"].as_f64()?,
             "high": b["h"].as_f64()?,
@@ -340,6 +346,13 @@ pub async fn fetch_daily_bars(
             "time": b["t"].as_str().map(parse_alpaca_timestamp).unwrap_or(0.0),
         }))
     }).collect();
+
+    // Keep the most recent `limit` bars. Every caller treats bars.last() as the
+    // current price, so the tail is what matters — trimming from the front is
+    // what made the regime filter read a five-week-old close as "now".
+    if candles.len() > limit {
+        candles.drain(..candles.len() - limit);
+    }
 
     Ok(candles)
 }

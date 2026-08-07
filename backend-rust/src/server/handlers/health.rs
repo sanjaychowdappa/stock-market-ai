@@ -137,6 +137,32 @@ pub async fn damage_control(State(state): State<Arc<AppState>>) -> Json<serde_js
     Json(trader.build_payload()["damage_control"].clone())
 }
 
+/// The strategy against buy-and-hold — the benchmark that decides whether any
+/// of this is worth running. Strategy P&L comes from Alpaca's equity curve.
+pub async fn benchmark(State(_state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    let eq = crate::services::alpaca_broker::equity_pnl().await;
+    let strategy_pnl = eq["net_pnl"].as_f64().unwrap_or(0.0);
+
+    // Both sides must cover the SAME window. Using the kill-criterion date
+    // compared a zero-length hold against the strategy's whole life and
+    // reported "buy-and-hold $0.00 vs strategy -$44.66" — which reads as the
+    // benchmark making nothing rather than as no elapsed time at all.
+    // strategy_pnl spans every real fill, so the benchmark starts at the first.
+    let first_trade_day = tokio::fs::read_to_string("/app/reports/broker_fills.jsonl")
+        .await.ok()
+        .and_then(|c| c.lines()
+            .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+            .filter_map(|v| v["timestamp"].as_str().map(|t| t[..10].to_string()))
+            .min())
+        .unwrap_or_else(|| crate::config::LIVE_KILL_START_DATE.to_string());
+
+    Json(crate::services::alpaca_broker::buy_and_hold_benchmark(
+        &first_trade_day,
+        crate::config::INITIAL_CASH,
+        strategy_pnl,
+    ).await)
+}
+
 /// agentic_test supervisor status + findings.
 pub async fn agentic(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     Json(state.agentic.lock().to_json())

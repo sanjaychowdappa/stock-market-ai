@@ -195,6 +195,66 @@ pub async fn equity_pnl() -> Value {
     })
 }
 
+/// The strategy against doing nothing.
+///
+/// Everything measured so far has been compared to NOTHING. A strategy that
+/// cannot beat sitting in an index has no reason to exist, and most cannot —
+/// so this is the comparison that decides whether any of the machinery is worth
+/// running, and it should have existed from the first day.
+///
+/// Deliberately uses the same capital and the same window as the live trader,
+/// and takes QQQ's price from Alpaca rather than any internal record.
+pub async fn buy_and_hold_benchmark(start_date: &str, capital: f64, strategy_pnl: f64) -> Value {
+    let bars = match crate::services::alpaca_stream::fetch_daily_bars("QQQ", 60).await {
+        Ok(b) => b,
+        Err(e) => return json!({"available": false, "reason": format!("QQQ bars: {}", e)}),
+    };
+
+    // fetch_daily_bars remaps Alpaca's fields: close is "close", not "c", and
+    // "time" is epoch seconds rather than an RFC3339 string. Reading the raw
+    // Alpaca names here would have compiled fine and silently reported the
+    // benchmark as unavailable forever.
+    let day_of = |b: &Value| -> Option<String> {
+        let secs = b["time"].as_f64()?;
+        chrono::DateTime::from_timestamp(secs as i64, 0)
+            .map(|d| d.format("%Y-%m-%d").to_string())
+    };
+    let entry = bars.iter()
+        .find(|b| day_of(b).map(|d| d.as_str() >= start_date).unwrap_or(false))
+        .and_then(|b| b["close"].as_f64());
+    let latest = bars.last().and_then(|b| b["close"].as_f64());
+
+    let (entry_px, last_px) = match (entry, latest) {
+        (Some(e), Some(l)) if e > 0.0 => (e, l),
+        _ => return json!({"available": false, "reason": "no QQQ bar at or after start date"}),
+    };
+
+    let shares = capital / entry_px;
+    let hold_value = shares * last_px;
+    let hold_pnl = hold_value - capital;
+    let edge = strategy_pnl - hold_pnl;
+
+    json!({
+        "available": true,
+        "headline": "Strategy vs doing nothing — the comparison that decides whether this is worth running",
+        "benchmark": "QQQ buy-and-hold",
+        "start_date": start_date,
+        "capital": capital,
+        "entry_price": (entry_px * 100.0).round() / 100.0,
+        "latest_price": (last_px * 100.0).round() / 100.0,
+        "buy_hold_pnl": (hold_pnl * 100.0).round() / 100.0,
+        "buy_hold_pct": ((hold_pnl / capital) * 10000.0).round() / 100.0,
+        "strategy_pnl": (strategy_pnl * 100.0).round() / 100.0,
+        "edge_vs_hold": (edge * 100.0).round() / 100.0,
+        "beating_buy_hold": edge > 0.0,
+        "verdict": if edge > 0.0 {
+            "Strategy ahead of buy-and-hold over this window."
+        } else {
+            "Buy-and-hold is ahead. The strategy is doing worse than sitting still."
+        },
+    })
+}
+
 /// Submit a market order to the paper account, wait briefly for the fill, and
 /// record the simulated price alongside the real one.
 ///
