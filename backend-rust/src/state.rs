@@ -28,6 +28,7 @@ pub struct AppState {
     pub tracker: Mutex<DailyTracker>,
     pub daily_focus: SharedDailyFocus,
     pub momentum: crate::services::momentum_portfolio::SharedMomentum,
+    pub sector_leaders: crate::services::sector_leaders::SharedSectorLeaders,
     pub agentic: crate::services::agentic_test::SharedAgent,
     pub institutional: Arc<InstitutionalState>,
 }
@@ -42,6 +43,7 @@ impl AppState {
 
         let daily_focus = daily_stock_picker::create_shared();
         let momentum = crate::services::momentum_portfolio::create_shared();
+        let sector_leaders = crate::services::sector_leaders::create_shared();
         let agentic = crate::services::agentic_test::create_shared();
         let institutional = Arc::new(InstitutionalState {
             gex: DashMap::new(),
@@ -56,6 +58,7 @@ impl AppState {
             tracker: Mutex::new(DailyTracker::new()),
             daily_focus: daily_focus.clone(),
             momentum: momentum.clone(),
+            sector_leaders: sector_leaders.clone(),
             agentic: agentic.clone(),
             institutional: institutional.clone(),
         });
@@ -131,6 +134,9 @@ impl AppState {
                 crate::services::momentum_portfolio::rebalance(&mom2).await;
             }
         });
+
+        // ── Spawn daily sector-leader scan (paper book, SPY-benchmarked) ──
+        crate::services::sector_leaders::spawn(sector_leaders.clone());
 
         // ── Spawn Kronos daily ranking ──
         let focus2 = daily_focus.clone();

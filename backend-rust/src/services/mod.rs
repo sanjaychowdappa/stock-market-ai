@@ -16,5 +16,6 @@ pub mod daily_stock_picker;
 pub mod kalman_filter;
 pub mod institutional_signals;
 pub mod momentum_portfolio;
+pub mod sector_leaders;
 pub mod agentic_test;
 pub mod alpaca_broker;

@@ -83,6 +83,17 @@ pub async fn momentum(State(state): State<Arc<AppState>>) -> Json<serde_json::Va
     Json(state.momentum.lock().to_json())
 }
 
+/// Daily sector-leader picks: best stock per sector, max one name per sector.
+pub async fn sector_leaders(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    Json(state.sector_leaders.lock().to_json())
+}
+
+/// Force an immediate scan (otherwise runs once daily).
+pub async fn sector_leaders_scan(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    crate::services::sector_leaders::scan(&state.sector_leaders).await;
+    Json(state.sector_leaders.lock().to_json())
+}
+
 pub async fn experiments(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     let trader = state.trader.lock();
     Json(trader.experiments_json())

@@ -14,6 +14,8 @@ pub fn build(state: Arc<AppState>) -> Router {
         .route("/api/performance", get(handlers::health::performance))
         .route("/api/institutional", get(handlers::health::institutional))
         .route("/api/momentum", get(handlers::health::momentum))
+        .route("/api/sector-leaders", get(handlers::health::sector_leaders))
+        .route("/api/sector-leaders/scan", get(handlers::health::sector_leaders_scan))
         .route("/api/profit", get(handlers::health::profit))
         .route("/api/experiments", get(handlers::health::experiments))
         .route("/api/exp1", get(handlers::health::exp1))
