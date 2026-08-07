@@ -27,14 +27,46 @@ pub static TOP_SYMBOLS: once_cell::sync::Lazy<Vec<String>> = once_cell::sync::La
         }))
         .unwrap_or_default();
 
-    if picks.is_empty() {
+    let mut universe = if picks.is_empty() {
         tracing::warn!("[UNIVERSE] sector-leader agent has no picks yet — using default {:?}",
             DEFAULT_SYMBOLS);
-        DEFAULT_SYMBOLS.iter().map(|s| s.to_string()).collect()
+        DEFAULT_SYMBOLS.iter().map(|s| s.to_string()).collect::<Vec<_>>()
     } else {
-        tracing::info!("[UNIVERSE] trading the sector-leader selection: {:?}", picks);
+        tracing::info!("[UNIVERSE] sector-leader selection: {:?}", picks);
         picks
+    };
+
+    // ALWAYS include anything currently held, even if the agent has since
+    // dropped that sector.
+    //
+    // Without this a universe change orphans open positions: no engine is
+    // created for them, so no ticks arrive, so their prices freeze at whatever
+    // they were at restart. Every price-based exit — trailing stop, hard stop,
+    // take-profit — silently stops working, and the damage-control floor goes
+    // blind too because total_value() sums stale marks.
+    //
+    // Observed for real on 2026-08-07: rotating the universe mid-session left
+    // AMZN, AAPL, GOOGL and MSFT held with frozen prices and no stop
+    // protection. A position you hold must be a position you can see.
+    let held: Vec<String> = std::fs::read_to_string("/app/reports/trader_state.json")
+        .ok()
+        .and_then(|c| serde_json::from_str::<serde_json::Value>(&c).ok())
+        .and_then(|v| v["positions"].as_object().map(|m| m.keys().cloned().collect()))
+        .unwrap_or_default();
+
+    let mut added = Vec::new();
+    for h in held {
+        if !universe.contains(&h) {
+            added.push(h.clone());
+            universe.push(h);
+        }
     }
+    if !added.is_empty() {
+        tracing::warn!("[UNIVERSE] also streaming {:?} — held from a previous universe and \
+                        they need live prices for their stops to work", added);
+    }
+    tracing::info!("[UNIVERSE] tracking {} symbols: {:?}", universe.len(), universe);
+    universe
 });
 
 // ══════════════════════════════════════════════════════════════
