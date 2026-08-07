@@ -1089,8 +1089,20 @@ impl PaperTrader {
 
         // Don't open new positions in last 10 minutes
         if et_mins >= 15 * 60 + 50 { return; }
-        // Signal trader retired (lost to random) — it no longer opens new
-        // positions; existing ones exit normally. ETF momentum is primary.
+        // THE SIGNAL TRADER IS LIVE. It opens positions on every qualifying
+        // tick and places the real Alpaca orders — it is not a leftover.
+        //
+        // This comment previously read "Signal trader retired (lost to random)
+        // — it no longer opens new positions", which was false while
+        // SIGNAL_TRADER_ENABLED stayed true. exp1 is the model that was
+        // retired; the two were conflated here. Anyone auditing this file would
+        // have concluded the thing responsible for every real order was dormant
+        // — and it is the source of the -$44.82 on the broker account.
+        //
+        // Its shadow books do say it should probably follow exp1: over the same
+        // period always_in_max_exposure returned +$67.60 and random_baseline
+        // +$29.00, both beating every signal-driven variant. That decision
+        // belongs to the kill criterion fixed on 2026-08-06, not to a comment.
         if SIGNAL_TRADER_ENABLED {
             self.find_best_entry();
         }

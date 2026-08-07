@@ -46,13 +46,20 @@ git config core.hooksPath .githooks
 Then:
 
 ```bash
-docker compose up -d          # starts backend, frontend, redis, GPU sidecar
+docker compose up -d          # starts backend, frontend, GPU sidecar
 ```
 
 First build takes several minutes (Rust compile). After that it is fast.
 
-**Dashboard:** http://localhost:3000
-**Backend API:** http://localhost:8000
+**Dashboard:** http://127.0.0.1:3000
+**Backend API:** http://127.0.0.1:8000
+
+> Use `127.0.0.1`, **not** `localhost`. On this machine `localhost` resolves to
+> the IPv6 loopback, where a `wslrelay` listener swallows port 8000 — the API
+> appears dead while the container is perfectly healthy. Port 3000 happens to
+> work either way; 8000 does not.
+>
+> (redis was removed on 2026-08-05: nothing ever connected to it.)
 
 ---
 
@@ -76,14 +83,25 @@ There is deliberately very little to do — that is the design.
 
 | Endpoint | Shows |
 |---|---|
+| `/api/broker` | **THE SCOREBOARD** — equity, positions and P&L read from Alpaca |
+| `/api/benchmark` | strategy vs QQQ buy-and-hold over the same window |
+| `/api/damage-control` | floor, headroom, halt state, recovery gate |
 | `/api/health` | version, config-freeze date, symbols |
-| `/api/profit` | **daily + weekly banked profit** (the real scoreboard) |
 | `/api/daily/status` | live portfolio value, per-symbol tick counts |
 | `/api/experiments` | A/B scoreboard + exp1 kill-criterion status |
 | `/api/exp1` | exp1 detail (retired) |
 | `/api/agentic` | supervisor health + findings (`/api/agentic/run` forces a pass) |
 | `/api/momentum` | ETF portfolio vs SPY |
-| `/api/scan` | S&P 500 Kronos scan (manual only — auto-scan disabled) |
+| `/api/profit` | simulator ledger — **NOT a scoreboard**, see below |
+
+> **`/api/profit` is not the scoreboard and this file used to say it was.**
+> That ledger double-counted the same dollars three times and booked gains on
+> days that really lost money; its pre-2026-08-04 rows are quarantined and
+> excluded from every total. Alpaca's own books are the only record of money
+> made — `/api/broker`.
+>
+> `/api/scan` was removed on 2026-08-05 along with the S&P 500 scanner: its
+> auto-run had been off since July and it served a cache nothing filled.
 
 ---
 
