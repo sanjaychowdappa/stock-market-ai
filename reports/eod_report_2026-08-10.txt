@@ -1,0 +1,64 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-08-10
+  Generated:  2026-08-10T20:10:00.638588447+00:00
+  Uptime:     7h 38m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $164.73
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     108
+  Winning Trades:   51
+  Win Rate:         47.2%
+  Avg Hold Time:    23000s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $470.17     bullish     0.293    —
+  UNH      $408.75     neutral     -0.054   —
+  RTX      $224.16     bullish     0.229    —
+  FCX      $70.51      neutral     -0.051   —
+  BAC      $63.88      neutral     -0.069   —
+  AMZN     $277.97     bullish     0.221    —
+  EQIX     $1043.22    neutral     0.039    —
+  KO       $86.88      neutral     0.069    —
+  COP      $123.05     bullish     0.152    —
+  DIS      $103.22     neutral     0.027    —
+  DUK      $121.18     bullish     0.136    —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   DIS      $103.19    $740.15  $-9.2528   EOD_DAILY_SKIM
+  19:55:00  SELL   EQIX     $1044.24   $189.21  $1.4249    EOD_DAILY_SKIM
+  19:55:00  SELL   DUK      $121.27    $368.41  $-6.2886   EOD_DAILY_SKIM
+  19:55:00  SELL   FCX      $70.48     $190.17  $2.8194    EOD_DAILY_SKIM
+  19:55:00  SELL   AMD      $472.01    $744.96  $-6.2341   EOD_DAILY_SKIM
+  19:55:00  SELL   AMZN     $277.64    $757.37  $7.3652    EOD_DAILY_SKIM
+  13:36:03  BUY    EQIX     $1033.98   $187.35  $0.0000    ENTRY(s=0.580,K+,2of7)
+  13:31:23  BUY    FCX      $69.44     $187.35  $0.0000    ENTRY(s=0.139,K~,1of7)
+  13:31:07  BUY    DUK      $123.34    $374.70  $0.0000    ENTRY(s=0.108,K~,1of7)
+  13:30:56  BUY    DIS      $104.48    $749.40  $0.0000    ENTRY(s=0.149,K~,2of7)
+  13:30:12  BUY    AMD      $475.96    $751.19  $0.0000    ENTRY(s=0.101,K~,2of7)
+  13:30:00  BUY    AMZN     $274.94    $750.00  $0.0000    ENTRY(s=0.155,K+,1of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

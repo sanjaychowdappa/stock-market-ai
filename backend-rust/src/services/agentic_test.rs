@@ -204,9 +204,18 @@ async fn check_live_kill_criterion() -> Finding {
         return Finding::new("live_kill_criterion", Severity::Info,
             "Live kill criterion disabled.".into(), None);
     }
-    let r = crate::services::alpaca_broker::real_pnl().await;
-    let trades = r["round_trips"].as_u64().unwrap_or(0) as u32;
-    let exp = r["avg_per_round_trip"].as_f64().unwrap_or(0.0);
+    // Both numbers come from ALPACA, not from our fill log.
+    //
+    // This read real_pnl(), which FIFO-matches reports/broker_fills.jsonl. On
+    // 2026-08-10 that log held 9 filled and 15 "unfilled" while Alpaca had
+    // filled all 24 — the poller's 10s window was tuned on megacaps and the new
+    // sector leaders settle slower. The criterion was therefore judging the
+    // strategy on 11 unmatched sells and 16 suspect rows. Reconstructing from
+    // our own records is precisely the mistake this project keeps repeating.
+    let eq = crate::services::alpaca_broker::equity_pnl().await;
+    let net = eq["net_pnl"].as_f64().unwrap_or(0.0);
+    let trades = crate::services::alpaca_broker::round_trips_from_broker().await;
+    let exp = if trades > 0 { net / trades as f64 } else { 0.0 };
 
     let days = chrono::NaiveDate::parse_from_str(LIVE_KILL_START_DATE, "%Y-%m-%d")
         .map(|s| (chrono::Local::now().date_naive() - s).num_days())

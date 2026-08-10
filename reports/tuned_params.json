@@ -7,9 +7,9 @@
   "take_profit_pct": 4.0,
   "trade_cooldown_secs": 10800,
   "flat_exit_secs": 117000,
-  "max_concurrent_positions": 5,
+  "max_concurrent_positions": 11,
   "max_daily_trades": 5,
   "min_predicted_move_pct": 0.012,
-  "tuned_at": "2026-08-06T20:05:46.905487658+00:00",
-  "reason": "Diagnosis: Net P&L negative: $-17.9100; Regression: today $-17.9100 < yesterday $256.9256. Actions: Slightly tightened hard stop (floor -0.50%); Blended toward yesterday's better-performing params"
+  "tuned_at": "2026-08-10T20:05:17.547591494+00:00",
+  "reason": "Diagnosis: Net P&L negative: $-10.1700; Regression: today $-10.1700 < yesterday $-0.4000. Actions: Slightly tightened hard stop (floor -0.50%); Blended toward yesterday's better-performing params"
 }

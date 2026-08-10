@@ -115,6 +115,38 @@ pub async fn account() -> Option<Value> {
 /// snapshots as final quantities, the reconstruction reported -$12.29 for an
 /// account Alpaca showed as +$22.52. A number rebuilt from our own records can
 /// inherit our own bugs; the broker's equity curve cannot.
+/// Completed round trips counted from ALPACA's own filled sell orders.
+///
+/// The kill criterion previously took its trade count and expectancy from
+/// real_pnl(), which FIFO-matches OUR fill log. On 2026-08-10 that log recorded
+/// 9 filled and 15 unfilled while Alpaca had filled all 24 — the order poller's
+/// 10s window was tuned on megacaps and the new sector leaders (DIS, DUK, EQIX)
+/// settle slower. So a retirement decision was resting on a number that was
+/// demonstrably wrong.
+///
+/// A sell that Alpaca reports as filled closed a position. That is the round
+/// trip, and the broker is the only place to count it.
+pub async fn round_trips_from_broker() -> u32 {
+    let (key, secret, base) = match creds() { Some(c) => c, None => return 0 };
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(format!("{}/v2/orders?status=closed&limit=500&direction=desc", base))
+        .header("APCA-API-KEY-ID", key)
+        .header("APCA-API-SECRET-KEY", secret)
+        .timeout(std::time::Duration::from_secs(15))
+        .send()
+        .await;
+    match resp {
+        Ok(r) => match r.json::<Vec<Value>>().await {
+            Ok(orders) => orders.iter().filter(|o| {
+                o["status"].as_str() == Some("filled") && o["side"].as_str() == Some("sell")
+            }).count() as u32,
+            Err(_) => 0,
+        },
+        Err(_) => 0,
+    }
+}
+
 pub async fn equity_pnl() -> Value {
     let (key, secret, base) = match creds() {
         Some(c) => c,
@@ -339,7 +371,12 @@ pub async fn shadow_order(symbol: String, qty: f64, side: &str, sim_price: f64, 
     let mut filled_qty: Option<f64> = None;
     let mut final_status = String::from("pending");
     let mut settled = false;
-    for _ in 0..20 {
+    // 60s, not 10s. The old window was tuned against megacaps and broke the
+    // moment the universe moved to sector leaders: on 2026-08-10 Alpaca filled
+    // all 24 orders while this loop timed out on 15 of them and logged
+    // "unfilled" — DIS, DUK and EQIX simply settle slower on IEX than AAPL
+    // does. A fix validated on one universe is not validated on another.
+    for _ in 0..120 {
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         let got = client
             .get(format!("{}/v2/orders/{}", base, order_id))
@@ -413,12 +450,20 @@ pub async fn shadow_order(symbol: String, qty: f64, side: &str, sim_price: f64, 
             }));
         }
         None => {
-            warn!("[BROKER] {} {} not filled (status {})", side, symbol, final_status);
+            // "pending", not "unfilled". We stopped watching; that is not the
+            // same as the order failing, and calling it "unfilled" put a claim
+            // in the log that Alpaca contradicted 15 times on 2026-08-10.
+            // Anything reading this file must be able to tell "it did not fill"
+            // from "we did not wait long enough".
+            warn!("[BROKER] {} {} still {} after 60s — recording as pending, NOT as a \
+                   failure. Alpaca may well fill it; check the broker, not this log.",
+                side, symbol, final_status);
             log_entry(json!({
                 "timestamp": chrono::Local::now().to_rfc3339(),
                 "symbol": symbol, "side": side, "qty": qty,
                 "sim_price": sim_price, "reason": reason,
-                "outcome": "unfilled", "status": final_status, "order_id": order_id,
+                "outcome": "pending", "status": final_status, "order_id": order_id,
+                "note": "poll window elapsed before a terminal status; outcome unknown to us",
             }));
         }
     }
