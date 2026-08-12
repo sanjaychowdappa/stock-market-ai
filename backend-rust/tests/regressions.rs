@@ -266,3 +266,87 @@ fn the_floor_is_a_floor_not_a_veto() {
         "a floor at or below zero would still permit buying on no information"
     );
 }
+
+// ── Reconcile vs. in-flight orders (2026-08-12) ─────────────────────────
+//
+// At 15:55:19 the EOD skim's KO sell was partially filled. A reconcile cycle
+// read the position mid-fill, saw 1.716 shares that the simulator had already
+// written off, and submitted a duplicate sell. Alpaca rejected it only because
+// those shares were committed to the open order. Accepted, it would have taken
+// the account short — the simulator's book said zero.
+//
+// claim_symbol() did not prevent this. It serialises execution, not decisions:
+// the duplicate waited for the real fill and then submitted anyway, because the
+// delta had already been computed from the stale snapshot.
+
+use std::collections::{HashMap, HashSet};
+use stock_market_ai::services::alpaca_broker::reconcile_plan;
+
+fn books(pairs: &[(&str, f64)]) -> HashMap<String, f64> {
+    pairs.iter().map(|(s, q)| (s.to_string(), *q)).collect()
+}
+
+#[test]
+fn mid_fill_position_is_never_reconciled() {
+    // The exact 2026-08-12 state: simulator flat, Alpaca still showing the
+    // unfilled remainder of a sell that is actively working.
+    let sim = books(&[("KO", 0.0)]);
+    let live = books(&[("KO", 1.716)]);
+    let prices = books(&[("KO", 86.70)]);
+    let busy: HashSet<String> = ["KO".to_string()].into_iter().collect();
+
+    let (actions, deferred) = reconcile_plan(&sim, &live, &prices, &busy);
+
+    assert!(
+        actions.is_empty(),
+        "reconcile ordered {actions:?} against a position that was still mid-fill"
+    );
+    assert_eq!(deferred, vec!["KO".to_string()], "the symbol must be reported as deferred, not silently dropped");
+}
+
+#[test]
+fn the_same_gap_is_corrected_once_the_order_settles() {
+    // Same numbers, nothing in flight. This is real drift and MUST be fixed —
+    // the guard has to defer, not disable.
+    let sim = books(&[("KO", 0.0)]);
+    let live = books(&[("KO", 1.716)]);
+    let prices = books(&[("KO", 86.70)]);
+
+    let (actions, deferred) = reconcile_plan(&sim, &live, &prices, &HashSet::new());
+
+    assert!(deferred.is_empty());
+    assert_eq!(actions.len(), 1, "settled drift must still be corrected");
+    assert_eq!(actions[0]["action"], "sell");
+    assert_eq!(actions[0]["symbol"], "KO");
+    assert!((actions[0]["qty"].as_f64().unwrap() - 1.716).abs() < 1e-6);
+}
+
+#[test]
+fn a_busy_symbol_does_not_block_the_others() {
+    // Deferring must be per symbol. Skipping the whole cycle would mean one
+    // slow fill at 15:55 leaves every other book unreconciled overnight.
+    let sim = books(&[("KO", 0.0), ("DIS", 7.329), ("RTX", 0.0)]);
+    let live = books(&[("KO", 1.716), ("DIS", 0.0), ("RTX", 3.398)]);
+    let prices = books(&[("KO", 86.70), ("DIS", 103.48), ("RTX", 222.79)]);
+    let busy: HashSet<String> = ["KO".to_string()].into_iter().collect();
+
+    let (actions, deferred) = reconcile_plan(&sim, &live, &prices, &busy);
+
+    assert_eq!(deferred, vec!["KO".to_string()]);
+    let syms: Vec<&str> = actions.iter().map(|a| a["symbol"].as_str().unwrap()).collect();
+    assert_eq!(syms, vec!["DIS", "RTX"], "unaffected symbols must still reconcile");
+    assert_eq!(actions[0]["action"], "buy", "sim holds DIS the broker does not");
+    assert_eq!(actions[1]["action"], "sell", "broker holds RTX the sim does not");
+}
+
+#[test]
+fn dust_is_still_ignored_when_nothing_is_in_flight() {
+    // A sub-dollar gap is not worth a round trip in fees. Guard must not have
+    // disturbed this.
+    let sim = books(&[("KO", 0.0)]);
+    let live = books(&[("KO", 0.001)]);
+    let prices = books(&[("KO", 86.70)]);
+
+    let (actions, _) = reconcile_plan(&sim, &live, &prices, &HashSet::new());
+    assert!(actions.is_empty(), "$0.09 of KO is not worth an order");
+}

@@ -540,6 +540,37 @@ pub async fn positions() -> Option<std::collections::HashMap<String, f64>> {
     Some(map)
 }
 
+/// Symbols with an order still working at the broker.
+///
+/// A position that is mid-fill reads as a partial quantity, which is NOT drift —
+/// it is a number in motion. Reconciling against it books a correction for shares
+/// that are already committed to an open order.
+///
+/// Returns None on any failure. Callers must treat that as "unknown, do not
+/// reconcile": guessing here means duplicate orders, so the safe default when we
+/// cannot see the broker's working orders is to do nothing.
+async fn open_order_symbols() -> Option<std::collections::HashSet<String>> {
+    let (key, secret, base) = creds()?;
+    let r = reqwest::Client::new()
+        .get(format!("{}/v2/orders?status=open&limit=500", base))
+        .header("APCA-API-KEY-ID", &key)
+        .header("APCA-API-SECRET-KEY", &secret)
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+        .ok()?;
+    if !r.status().is_success() {
+        return None;
+    }
+    let orders: Vec<Value> = r.json().await.ok()?;
+    Some(
+        orders
+            .iter()
+            .filter_map(|o| o["symbol"].as_str().map(|s| s.to_string()))
+            .collect(),
+    )
+}
+
 /// Force the Alpaca paper account to match the simulator's book exactly.
 ///
 /// Drift is inevitable: the broker may be deployed mid-session, an order can be
@@ -562,15 +593,22 @@ pub async fn reconcile(
     out
 }
 
-async fn reconcile_inner(
-    sim: std::collections::HashMap<String, f64>,
-    prices: std::collections::HashMap<String, f64>,
-) -> Value {
-    let live = match positions().await {
-        Some(p) => p,
-        None => return json!({"error": "could not read Alpaca positions"}),
-    };
-
+/// Decide what a reconcile cycle should do. Pure: no network, no clock, no
+/// global state — the whole point is that this can be tested, because the bug it
+/// exists to prevent is one that only appears for a few hundred milliseconds a
+/// day and cannot be reproduced against a live broker.
+///
+/// `busy` is the set of symbols with an order in flight (ours or the broker's).
+/// Those are deferred, never corrected: their quantities are mid-change, so any
+/// delta computed from them is measuring a snapshot, not a discrepancy.
+///
+/// Returns (corrections to submit, symbols deferred).
+pub fn reconcile_plan(
+    sim: &std::collections::HashMap<String, f64>,
+    live: &std::collections::HashMap<String, f64>,
+    prices: &std::collections::HashMap<String, f64>,
+    busy: &std::collections::HashSet<String>,
+) -> (Vec<Value>, Vec<String>) {
     // Union of both books — a symbol held on only one side still needs fixing.
     let mut symbols: Vec<String> = sim.keys().cloned().collect();
     for s in live.keys() {
@@ -578,9 +616,16 @@ async fn reconcile_inner(
             symbols.push(s.clone());
         }
     }
+    symbols.sort(); // deterministic order, so tests and logs are readable
 
     let mut actions: Vec<Value> = Vec::new();
+    let mut deferred: Vec<String> = Vec::new();
     for sym in symbols {
+        if busy.contains(&sym) {
+            deferred.push(sym);
+            continue;
+        }
+
         let want = sim.get(&sym).copied().unwrap_or(0.0);
         let have = live.get(&sym).copied().unwrap_or(0.0);
         let delta = want - have;
@@ -591,22 +636,85 @@ async fn reconcile_inner(
             continue;
         }
 
-        let side = if delta > 0.0 { "buy" } else { "sell" };
-        info!("[RECONCILE] {} sim={:.4} alpaca={:.4} → {} {:.4}", sym, want, have, side, delta.abs());
         actions.push(json!({
-            "symbol": sym, "sim_qty": want, "alpaca_qty": have,
-            "action": side, "qty": (delta.abs() * 10000.0).round() / 10000.0,
+            "symbol": sym,
+            "sim_qty": want,
+            "alpaca_qty": have,
+            "action": if delta > 0.0 { "buy" } else { "sell" },
+            "qty": (delta.abs() * 10000.0).round() / 10000.0,
         }));
-        shadow_order(sym.clone(), delta.abs(), side, px, "RECONCILE".to_string()).await;
+    }
+    (actions, deferred)
+}
+
+async fn reconcile_inner(
+    sim: std::collections::HashMap<String, f64>,
+    prices: std::collections::HashMap<String, f64>,
+) -> Value {
+    // Read working orders BEFORE positions. A symbol mid-fill reports a partial
+    // quantity that looks exactly like drift, and correcting it double-sells the
+    // shares the open order is already working. This is not hypothetical: on
+    // 2026-08-12 at 15:55:19 the EOD skim was partially filled on KO when a
+    // reconcile cycle read the position, and the resulting duplicate sell for
+    // 1.716 shares was rejected by Alpaca only because those shares were already
+    // committed. Accepted, it would have taken the account short.
+    //
+    // shadow_order's claim_symbol() does not prevent this. It serialises
+    // *execution*, so the duplicate waits politely for the real fill to finish
+    // and then submits anyway — the decision was made from the stale snapshot.
+    // The guard has to happen here, where the delta is computed.
+    let working = match open_order_symbols().await {
+        Some(w) => w,
+        None => {
+            warn!("[RECONCILE] cannot read open orders — skipping cycle rather than risk duplicates");
+            return json!({
+                "checked": chrono::Local::now().to_rfc3339(),
+                "skipped": "open orders unreadable",
+            });
+        }
+    };
+
+    let live = match positions().await {
+        Some(p) => p,
+        None => return json!({"error": "could not read Alpaca positions"}),
+    };
+
+    // Our own in-flight set, folded in alongside the broker's working orders: an
+    // order we submitted but have not finished polling is just as much "in
+    // motion" as one Alpaca reports, and during the EOD skim it is usually ours.
+    let mut busy = working;
+    for s in IN_FLIGHT.lock().iter() {
+        busy.insert(s.clone());
     }
 
-    if actions.is_empty() {
+    let (actions, deferred) = reconcile_plan(&sim, &live, &prices, &busy);
+
+    for a in &actions {
+        let sym = a["symbol"].as_str().unwrap_or_default().to_string();
+        let qty = a["qty"].as_f64().unwrap_or(0.0);
+        let side = a["action"].as_str().unwrap_or("buy");
+        let px = prices.get(&sym).copied().unwrap_or(0.0);
+        info!(
+            "[RECONCILE] {} sim={:.4} alpaca={:.4} → {} {:.4}",
+            sym, a["sim_qty"].as_f64().unwrap_or(0.0), a["alpaca_qty"].as_f64().unwrap_or(0.0), side, qty
+        );
+        shadow_order(sym, qty, side, px, "RECONCILE".to_string()).await;
+    }
+    for sym in &deferred {
+        info!("[RECONCILE] {} has an order in flight — deferring to next cycle", sym);
+    }
+
+    if actions.is_empty() && deferred.is_empty() {
         info!("[RECONCILE] books already match");
     }
     json!({
         "checked": chrono::Local::now().to_rfc3339(),
-        "in_sync": actions.is_empty(),
+        // Deferred symbols are unknown, not verified — claiming in_sync while
+        // orders are still working is the same false confidence that let the
+        // duplicate through.
+        "in_sync": actions.is_empty() && deferred.is_empty(),
         "corrections": actions,
+        "deferred_in_flight": deferred,
     })
 }
 

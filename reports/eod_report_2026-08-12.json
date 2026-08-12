@@ -1,0 +1,272 @@
+{
+  "data_quality": {
+    "finetune_triggered": true,
+    "snapshots": 21476,
+    "tracker": {
+      "AMD": {
+        "predictions": 21476,
+        "ticks": 21476,
+        "trades": 0
+      },
+      "AMZN": {
+        "predictions": 21467,
+        "ticks": 21467,
+        "trades": 0
+      },
+      "BAC": {
+        "predictions": 21466,
+        "ticks": 21466,
+        "trades": 0
+      },
+      "COP": {
+        "predictions": 21343,
+        "ticks": 21343,
+        "trades": 0
+      },
+      "DIS": {
+        "predictions": 21451,
+        "ticks": 21451,
+        "trades": 2
+      },
+      "EQIX": {
+        "predictions": 21114,
+        "ticks": 21114,
+        "trades": 0
+      },
+      "FCX": {
+        "predictions": 21433,
+        "ticks": 21433,
+        "trades": 2
+      },
+      "KO": {
+        "predictions": 21465,
+        "ticks": 21465,
+        "trades": 2
+      },
+      "RTX": {
+        "predictions": 21435,
+        "ticks": 21435,
+        "trades": 2
+      },
+      "TMO": {
+        "predictions": 21448,
+        "ticks": 21448,
+        "trades": 0
+      }
+    }
+  },
+  "portfolio": {
+    "cash": 3000.0,
+    "drawdown_pct": 0.0,
+    "initial_capital": 3000.0,
+    "positions_value": -0.0,
+    "realized_pnl": 198.9115,
+    "target": {
+      "goal": "$500 → $600 challenge",
+      "progress_pct": 0.0,
+      "target_value": 3100.0
+    },
+    "total_pnl": 0.0,
+    "total_pnl_pct": 0.0,
+    "total_value": 3000.0
+  },
+  "positions": [],
+  "recent_trades": [
+    {
+      "action": "SELL",
+      "pnl": 5.5346,
+      "pnl_pct": 0.74,
+      "price": 86.705,
+      "reason": "EOD_DAILY_SKIM",
+      "shares": 8.715863,
+      "symbol": "KO",
+      "time": "19:55:00",
+      "total": 755.71
+    },
+    {
+      "action": "SELL",
+      "pnl": -0.8668,
+      "pnl_pct": -0.12,
+      "price": 69.14,
+      "reason": "EOD_DAILY_SKIM",
+      "shares": 10.834434,
+      "symbol": "FCX",
+      "time": "19:55:00",
+      "total": 749.09
+    },
+    {
+      "action": "SELL",
+      "pnl": 8.6817,
+      "pnl_pct": 1.16,
+      "price": 103.485,
+      "reason": "EOD_DAILY_SKIM",
+      "shares": 7.329229,
+      "symbol": "DIS",
+      "time": "19:55:00",
+      "total": 758.47
+    },
+    {
+      "action": "SELL",
+      "pnl": 7.2727,
+      "pnl_pct": 0.97,
+      "price": 222.88,
+      "reason": "EOD_DAILY_SKIM",
+      "shares": 3.39844,
+      "symbol": "RTX",
+      "time": "19:55:00",
+      "total": 757.44
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 69.195,
+      "reason": "ENTRY(s=0.136,K~,2of7)",
+      "shares": 10.834434050638466,
+      "symbol": "FCX",
+      "time": "13:46:46",
+      "total": 749.69
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 220.655,
+      "reason": "ENTRY(s=0.388,K~,1of7)",
+      "shares": 3.398439977764254,
+      "symbol": "RTX",
+      "time": "13:46:39",
+      "total": 749.88
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 86.05,
+      "reason": "ENTRY(s=0.329,K~,1of7)",
+      "shares": 8.715862870424171,
+      "symbol": "KO",
+      "time": "13:46:28",
+      "total": 750.0
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 102.33,
+      "reason": "ENTRY(s=0.352,K~,1of7)",
+      "shares": 7.32922896511287,
+      "symbol": "DIS",
+      "time": "13:46:28",
+      "total": 750.0
+    }
+  ],
+  "report": {
+    "date": "2026-08-12",
+    "generated_at": "2026-08-12T20:10:00.454632637+00:00",
+    "market_session": {
+      "close": "16:00 ET",
+      "open": "09:30 ET",
+      "status": "closed"
+    },
+    "type": "end_of_day"
+  },
+  "symbols": [
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 482.845,
+      "position_pnl": 0.0,
+      "signal_strength": 0.09376718347774417,
+      "symbol": "AMD"
+    },
+    {
+      "direction": "bearish",
+      "in_position": false,
+      "last_price": 603.145,
+      "position_pnl": 0.0,
+      "signal_strength": -0.23410824611115902,
+      "symbol": "TMO"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 222.73,
+      "position_pnl": 0.0,
+      "signal_strength": 0.3581008468922538,
+      "symbol": "RTX"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 64.81,
+      "position_pnl": 0.0,
+      "signal_strength": 0.2456019534360143,
+      "symbol": "BAC"
+    },
+    {
+      "direction": "bearish",
+      "in_position": false,
+      "last_price": 267.47,
+      "position_pnl": 0.0,
+      "signal_strength": -0.3082442450712522,
+      "symbol": "AMZN"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 127.33,
+      "position_pnl": 0.0,
+      "signal_strength": -0.08143979346621828,
+      "symbol": "COP"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 69.21,
+      "position_pnl": 0.0,
+      "signal_strength": 0.02749223984849425,
+      "symbol": "FCX"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 86.735,
+      "position_pnl": 0.0,
+      "signal_strength": -0.015386193937596073,
+      "symbol": "KO"
+    },
+    {
+      "direction": "bearish",
+      "in_position": false,
+      "last_price": 1068.94,
+      "position_pnl": 0.0,
+      "signal_strength": -0.1556315669910766,
+      "symbol": "EQIX"
+    },
+    {
+      "direction": "bearish",
+      "in_position": false,
+      "last_price": 103.22,
+      "position_pnl": 0.0,
+      "signal_strength": -0.21656820143928063,
+      "symbol": "DIS"
+    }
+  ],
+  "trading_stats": {
+    "avg_hold_seconds": 20538,
+    "open_positions": 0,
+    "total_trades": 117,
+    "uptime_seconds": 21485,
+    "win_rate": 47.86,
+    "winning_trades": 56
+  },
+  "value_history": [
+    3000.0,
+    3007.2726616,
+    3015.954382544286,
+    3015.087627824286,
+    3020.6222008292857,
+    3000.0
+  ]
+}

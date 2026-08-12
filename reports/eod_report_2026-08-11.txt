@@ -1,0 +1,56 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-08-11
+  Generated:  2026-08-11T20:10:00.988112844+00:00
+  Uptime:     1h 27m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $178.29
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     113
+  Winning Trades:   53
+  Win Rate:         46.9%
+  Avg Hold Time:    22978s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $473.46     bullish     0.146    —
+  RTX      $223.85     neutral     -0.068   —
+  TMO      $604.83     bearish     -0.197   —
+  AMZN     $272.24     bearish     -0.339   —
+  FCX      $68.84      bearish     -0.137   —
+  BAC      $63.99      neutral     -0.091   —
+  COP      $125.91     bearish     -0.115   —
+  KO       $86.50      neutral     0.069    —
+  EQIX     $1032.04    bearish     -0.441   —
+  GOOGL    $343.79     neutral     0.031    —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   AMZN     $272.63    $738.54  $-10.5920  EOD_DAILY_SKIM
+  19:55:00  SELL   COP      $125.81    $765.42  $16.6396   EOD_DAILY_SKIM
+  19:55:00  SELL   BAC      $63.88     $2.32    $-0.0020   EOD_DAILY_SKIM
+  19:55:00  SELL   KO       $86.65     $748.73  $-1.0369   EOD_DAILY_SKIM
+  19:55:00  SELL   AMD      $474.50    $758.55  $8.5527    EOD_DAILY_SKIM
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

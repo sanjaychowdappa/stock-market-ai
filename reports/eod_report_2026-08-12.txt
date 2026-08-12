@@ -1,0 +1,59 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-08-12
+  Generated:  2026-08-12T20:10:00.454632637+00:00
+  Uptime:     5h 58m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $198.91
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     117
+  Winning Trades:   56
+  Win Rate:         47.9%
+  Avg Hold Time:    20538s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $482.85     neutral     0.094    —
+  TMO      $603.14     bearish     -0.234   —
+  RTX      $222.73     bullish     0.358    —
+  BAC      $64.81      bullish     0.246    —
+  AMZN     $267.47     bearish     -0.308   —
+  COP      $127.33     neutral     -0.081   —
+  FCX      $69.21      neutral     0.027    —
+  KO       $86.73      neutral     -0.015   —
+  EQIX     $1068.94    bearish     -0.156   —
+  DIS      $103.22     bearish     -0.217   —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   KO       $86.70     $755.71  $5.5346    EOD_DAILY_SKIM
+  19:55:00  SELL   FCX      $69.14     $749.09  $-0.8668   EOD_DAILY_SKIM
+  19:55:00  SELL   DIS      $103.48    $758.47  $8.6817    EOD_DAILY_SKIM
+  19:55:00  SELL   RTX      $222.88    $757.44  $7.2727    EOD_DAILY_SKIM
+  13:46:46  BUY    FCX      $69.19     $749.69  $0.0000    ENTRY(s=0.136,K~,2of7)
+  13:46:39  BUY    RTX      $220.66    $749.88  $0.0000    ENTRY(s=0.388,K~,1of7)
+  13:46:28  BUY    KO       $86.05     $750.00  $0.0000    ENTRY(s=0.329,K~,1of7)
+  13:46:28  BUY    DIS      $102.33    $750.00  $0.0000    ENTRY(s=0.352,K~,1of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════
