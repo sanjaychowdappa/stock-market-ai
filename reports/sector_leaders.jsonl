@@ -15,3 +15,5 @@
 {"benchmark":2997.59,"date":"2026-08-12","edge_pct":0.26,"holdings":["AMD","TMO","RTX","BAC","COP","AMZN","EQIX","FCX","KO"],"value":3005.33}
 {"benchmark":3020.1,"date":"2026-08-13","edge_pct":-0.73,"holdings":["AMD","TMO","BAC","RTX","AMZN","COP","EQIX","KO","SHW","DIS"],"value":2998.15}
 {"benchmark":3018.16,"date":"2026-08-13","edge_pct":-1.08,"holdings":["AMD","TMO","BAC","RTX","AMZN","COP","EQIX","KO","SHW","DIS","DUK"],"value":2985.77}
+{"benchmark":3018.16,"date":"2026-08-13","edge_pct":-1.08,"holdings":["AMD","TMO","BAC","RTX","AMZN","COP","EQIX","KO","SHW","DIS","DUK"],"value":2985.77}
+{"benchmark":3018.16,"date":"2026-08-13","edge_pct":-1.08,"holdings":["AMD","TMO","BAC","RTX","AMZN","COP","EQIX","KO","SHW","DIS","DUK"],"value":2985.77}
