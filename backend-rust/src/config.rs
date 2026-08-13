@@ -189,6 +189,44 @@ pub const TRAIL_ATR_MULT: f64 = 1.5;        // trail ~1.5x ATR off the peak
 pub const PARTIAL_ATR_MULT: f64 = 1.5;      // book half at ~1.5x ATR
 pub const ATR_PCT_FLOOR: f64 = 0.3;         // treat ATR as >= 0.3% of price
 
+// ── Trailing-stop width: fixed, NOT ATR-scaled (2026-08-13) ──────────
+//
+// `entry_atr_pct` is sampled from 1-minute bars at the instant of entry and
+// then frozen for the life of the position. Through the old
+// `(1.5 * atr).clamp(0.5, 3.0)` that made stop width a function of WHAT TIME
+// the position opened — a 6x range driven by intraday noise rather than by
+// anything about the position's risk.
+//
+// FCX demonstrated it inside one symbol on one day (2026-08-13):
+//     10:18 entry -> TRAIL_STOP at -1.69% from peak
+//     13:53 entry -> TRAIL_STOP at -0.50% from peak
+// Same stock, same session, stop three times wider in the morning. The
+// consequence was visible on both sides: morning entries could not be stopped
+// (TMO sat 118 minutes past its threshold and rode to the close for -$6.76,
+// COP 209 minutes), while afternoon entries were cut on ordinary noise and
+// immediately re-entered (FCX three times, AMD twice).
+//
+// Replayed against all 76 reliable positions (2026-08-05 onward; earlier fills
+// have known-bad quantities from before the partial-fill parse fix). A flat
+// 0.50% scored best overall at +$24.74 vs actual, but leave-one-day-out showed
+// it collapsing to -$5.50 once 2026-08-05 was removed: it had memorised one
+// day. 0.75% was the only width positive in all seven folds (+3.8 to +16.6),
+// so it is chosen for robustness, not for the highest backtest score.
+//
+// This does NOT make the strategy profitable — the best rule tested still lost
+// money, because a stop cannot fix negative entry expectancy. It removes an
+// arbitrary dependency on entry timing.
+pub const TRAIL_STOP_FIXED_PCT: f64 = 0.75;
+
+/// Trailing-stop width for a position, in percent below its peak.
+///
+/// Takes the position's entry ATR and deliberately ignores it. The parameter
+/// is kept so the call site reads as a decision rather than an omission, and
+/// so a test can assert that volatility at entry does not move the stop.
+pub fn trail_stop_pct(_entry_atr_pct: f64) -> f64 {
+    TRAIL_STOP_FIXED_PCT
+}
+
 // Cooldown is wall-clock: ~3h before re-entering the same symbol.
 pub const TRADE_COOLDOWN_SECS: u64 = 10800;
 

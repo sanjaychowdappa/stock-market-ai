@@ -1185,7 +1185,11 @@ impl PaperTrader {
                 let atr = pos.entry_atr_pct.max(ATR_PCT_FLOOR);
                 let hard_stop_lvl = -(HARD_STOP_ATR_MULT * atr).clamp(1.0, 5.0);
                 let take_profit_lvl = (TAKE_PROFIT_ATR_MULT * atr).clamp(2.0, 8.0);
-                let trail_lvl = (TRAIL_ATR_MULT * atr).clamp(0.5, 3.0);
+                // Trail is deliberately NOT ATR-scaled: entry_atr_pct is a
+                // 1-minute reading frozen at entry, so scaling by it set stop
+                // width from the entry timestamp rather than from risk. See
+                // TRAIL_STOP_FIXED_PCT for the evidence and the replay.
+                let trail_lvl = crate::config::trail_stop_pct(pos.entry_atr_pct);
 
                 // === EXIT LOGIC — VP-ANCHORED (fixed based on accuracy data) ===
                 // VP is 72.6% accurate. Kalman/Pattern fire false bearish constantly.

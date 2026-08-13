@@ -350,3 +350,88 @@ fn dust_is_still_ignored_when_nothing_is_in_flight() {
     let (actions, _) = reconcile_plan(&sim, &live, &prices, &HashSet::new());
     assert!(actions.is_empty(), "$0.09 of KO is not worth an order");
 }
+
+// ── Trailing-stop width vs entry timing (2026-08-13) ────────────────────
+//
+// The trail level used to be (1.5 * entry_atr_pct).clamp(0.5, 3.0), where
+// entry_atr_pct was a 1-minute ATR frozen at entry. That made stop width a
+// function of what time the position opened. FCX, one symbol, one session:
+//     10:18 entry -> TRAIL_STOP at -1.69% from peak
+//     13:53 entry -> TRAIL_STOP at -0.50% from peak
+// Morning entries then could not be stopped at all (TMO spent 118 minutes past
+// its threshold and rode to the close), while afternoon entries were cut on
+// noise and re-entered.
+
+use stock_market_ai::config::{TRAIL_STOP_FIXED_PCT, ATR_PCT_FLOOR, TRAIL_ATR_MULT, trail_stop_pct};
+
+/// The old, buggy computation. Kept here so the tests can demonstrate the
+/// defect rather than merely assert the new value.
+fn legacy_trail_lvl(entry_atr_pct: f64) -> f64 {
+    (TRAIL_ATR_MULT * entry_atr_pct.max(ATR_PCT_FLOOR)).clamp(0.5, 3.0)
+}
+
+#[test]
+fn trail_width_no_longer_depends_on_when_the_position_opened() {
+    // The two ATR readings FCX actually produced on 2026-08-13.
+    let morning_atr = 1.13; // volatile open
+    let afternoon_atr = 0.20; // calm afternoon, below the floor
+
+    assert!(
+        (legacy_trail_lvl(morning_atr) - legacy_trail_lvl(afternoon_atr)).abs() > 1.0,
+        "the old rule really did vary stop width by over a full percent on entry time"
+    );
+
+    // The whole point of the fix: the production path returns an identical
+    // width for every entry ATR, including the two FCX readings above.
+    let baseline = trail_stop_pct(morning_atr);
+    for atr in [0.05, 0.20, 0.33, 1.13, 4.0, 50.0] {
+        assert_eq!(
+            trail_stop_pct(atr), baseline,
+            "entry-time volatility {atr} must not change the trailing stop"
+        );
+    }
+    assert_eq!(trail_stop_pct(afternoon_atr), trail_stop_pct(morning_atr),
+        "FCX's morning and afternoon entries must now get the same stop");
+}
+
+#[test]
+fn tmo_would_now_be_stopped_out() {
+    // TMO drew down 1.60% from its peak and sat past 0.5% for 118 minutes,
+    // exiting only via the EOD skim for -$6.76. Under the old rule its frozen
+    // morning ATR bought it a stop wider than the drawdown ever reached.
+    let tmo_max_drawdown_pct = 1.60;
+    assert!(
+        tmo_max_drawdown_pct > TRAIL_STOP_FIXED_PCT,
+        "TMO's drawdown must now breach the trail and force an exit"
+    );
+    // And the old rule genuinely would not have caught it.
+    assert!(
+        tmo_max_drawdown_pct < legacy_trail_lvl(1.13),
+        "under the old width TMO's drawdown stayed inside the stop — the bug"
+    );
+}
+
+#[test]
+fn the_width_is_the_robust_choice_not_the_best_backtest_score() {
+    // A flat 0.50% scored highest overall (+$24.74 vs actual) but fell to
+    // -$5.50 with 2026-08-05 removed. 0.75% was positive in all seven
+    // leave-one-day-out folds. If someone later "optimises" this back down to
+    // the higher-scoring value, that is the overfit returning.
+    assert!(
+        (TRAIL_STOP_FIXED_PCT - 0.75).abs() < 1e-9,
+        "0.75% was chosen for leave-one-out robustness; re-tuning needs a new replay"
+    );
+}
+
+#[test]
+fn positions_still_get_room_to_breathe() {
+    // The stop must not be so tight that ordinary noise closes everything --
+    // that was the other half of the 2026-08-13 damage (FCX x3, AMD x2).
+    // BAC/KO/EQIX drew down 0.40/0.21/0.30% and were correctly held.
+    for quiet_drawdown in [0.21, 0.30, 0.40] {
+        assert!(
+            quiet_drawdown < TRAIL_STOP_FIXED_PCT,
+            "a {quiet_drawdown}% wiggle must not trigger the trailing stop"
+        );
+    }
+}
