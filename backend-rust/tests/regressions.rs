@@ -362,12 +362,16 @@ fn dust_is_still_ignored_when_nothing_is_in_flight() {
 // its threshold and rode to the close), while afternoon entries were cut on
 // noise and re-entered.
 
-use stock_market_ai::config::{TRAIL_STOP_FIXED_PCT, ATR_PCT_FLOOR, TRAIL_ATR_MULT, trail_stop_pct};
+use stock_market_ai::config::{TRAIL_STOP_FIXED_PCT, trail_stop_pct};
 
-/// The old, buggy computation. Kept here so the tests can demonstrate the
+/// The old, buggy computation, frozen. Kept so the tests can demonstrate the
 /// defect rather than merely assert the new value.
+///
+/// The numbers are hardcoded on purpose. Importing the live constants would let
+/// a future edit redefine what "the old rule" meant, and these tests would then
+/// be comparing the fix against something that never shipped.
 fn legacy_trail_lvl(entry_atr_pct: f64) -> f64 {
-    (TRAIL_ATR_MULT * entry_atr_pct.max(ATR_PCT_FLOOR)).clamp(0.5, 3.0)
+    (1.5 * entry_atr_pct.max(0.3)).clamp(0.5, 3.0)
 }
 
 #[test]

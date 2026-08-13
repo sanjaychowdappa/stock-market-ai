@@ -172,7 +172,11 @@ pub const SELL_SIGNAL_THRESHOLD: f64 = -0.10;
 // Wide, multi-day risk bands. Swings need room to breathe.
 // These now act as CLAMP BOUNDS for the ATR-based exits below (fallbacks when
 // ATR is unavailable), not fixed thresholds.
-pub const TRAILING_STOP_PCT: f64 = 1.5;
+//
+// TRAILING_STOP_PCT (1.5) removed 2026-08-13. Nothing computed with it — the
+// trail came from the ATR clamp — but two reporting sites still published it,
+// so the session record and every performance ledger row documented a 1.5%
+// stop the system did not use. The operative value is TRAIL_STOP_FIXED_PCT.
 
 pub const HARD_STOP_PCT: f64 = -3.0;
 
@@ -185,7 +189,9 @@ pub const TAKE_PROFIT_PCT: f64 = 4.0;
 // band so a bad ATR reading can't produce an absurd stop.
 pub const HARD_STOP_ATR_MULT: f64 = 2.0;    // stop ~2x ATR below entry
 pub const TAKE_PROFIT_ATR_MULT: f64 = 3.0;  // target ~3x ATR
-pub const TRAIL_ATR_MULT: f64 = 1.5;        // trail ~1.5x ATR off the peak
+// TRAIL_ATR_MULT removed 2026-08-13 with the ATR-scaled trail. The regression
+// test that reproduces the old behaviour hardcodes 1.5 instead of importing it,
+// so that a live constant can never silently redefine what "the old rule" meant.
 pub const PARTIAL_ATR_MULT: f64 = 1.5;      // book half at ~1.5x ATR
 pub const ATR_PCT_FLOOR: f64 = 0.3;         // treat ATR as >= 0.3% of price
 

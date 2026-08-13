@@ -100,7 +100,12 @@ impl StrategyParams {
             min_buy_signal: MIN_BUY_SIGNAL,
             strong_buy_signal: STRONG_BUY_SIGNAL,
             sell_signal_threshold: SELL_SIGNAL_THRESHOLD,
-            trailing_stop_pct: TRAILING_STOP_PCT,
+            // The width the exit ladder actually applies. This used to read
+            // TRAILING_STOP_PCT (1.5), which stopped being the operative value
+            // when the trail became a fixed 0.75% — every performance record
+            // written after that would have documented a stop the system was
+            // not using.
+            trailing_stop_pct: TRAIL_STOP_FIXED_PCT,
             hard_stop_pct: HARD_STOP_PCT,
             take_profit_pct: TAKE_PROFIT_PCT,
             trade_cooldown_secs: TRADE_COOLDOWN_SECS,

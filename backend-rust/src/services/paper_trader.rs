@@ -314,7 +314,10 @@ impl PaperTrader {
                         "min_buy_signal": MIN_BUY_SIGNAL,
                         "take_profit_pct": TAKE_PROFIT_PCT,
                         "hard_stop_pct": HARD_STOP_PCT,
-                        "trailing_stop_pct": TRAILING_STOP_PCT,
+                        // Must be the width actually applied, not the old
+                        // TRAILING_STOP_PCT — this record is what the
+                        // experiment log uses to describe the run.
+                        "trailing_stop_pct": TRAIL_STOP_FIXED_PCT,
                     },
                     "experiment": "trend-filter A/B/C — identical weights, only trend gate differs",
                     "shadow_models": [
