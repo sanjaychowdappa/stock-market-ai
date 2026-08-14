@@ -36,31 +36,56 @@ function CandlestickChart({ symbol }) {
     // Connect to live WebSocket for real-time candles
     let ws;
     let reconnectTimer;
+    // The 1-minute bar currently being built from incoming trade ticks.
+    let bar = null;
 
     const connect = () => {
       ws = new WebSocket(`${WS_URL}/ws/live/${symbol}`);
 
       ws.onmessage = (event) => {
-        const tick = JSON.parse(event.data);
-        if (!tick.last_candle || disposed) return;
+        if (disposed) return;
+        let tick;
+        try { tick = JSON.parse(event.data); } catch (e) { return; }
 
-        const now = Math.floor(Date.now() / 1000);
-        const bucket = now - (now % 60); // 1-minute candles
+        // The stream sends trade ticks, NOT pre-built candles. This used to
+        // read tick.last_candle and bail when it was missing — which is every
+        // message — so the chart connected, received ticks, and drew nothing.
+        // It was not slow to fill; it could never fill.
+        const price = Number(tick.price);
+        if (!Number.isFinite(price)) return;
 
-        const candle = {
-          time: bucket,
-          open: tick.last_candle.open,
-          high: tick.last_candle.high,
-          low: tick.last_candle.low,
-          close: tick.price || tick.last_candle.close,
-        };
+        // Bucket on the tick's OWN timestamp. The old code used Date.now(),
+        // which labels each bar with the browser's clock instead of the
+        // exchange's and skews every candle by the client's drift.
+        const ts = Number(tick.timestamp);
+        const secs = Number.isFinite(ts) ? Math.floor(ts) : Math.floor(Date.now() / 1000);
+        const bucket = secs - (secs % 60);
+
+        if (!bar || bucket > bar.time) {
+          bar = { time: bucket, open: price, high: price, low: price, close: price, volume: 0 };
+        } else if (bucket < bar.time) {
+          return; // late tick from a bar already closed — dropping beats rewriting
+        } else {
+          // Build the range from traded prices. tick.high/tick.low are NOT the
+          // bar's range: the backend sends price +/- ATR (503.40 +/- 4.06 =
+          // 507.46 / 499.34), so using them would draw wicks several dollars
+          // wide on every candle.
+          if (price > bar.high) bar.high = price;
+          if (price < bar.low) bar.low = price;
+          bar.close = price;
+        }
+        // `size` is this trade's quantity; `volume` is the cumulative session
+        // total, so only `size` can accumulate into a per-bar figure.
+        bar.volume += Number(tick.size) || 0;
 
         try {
-          candleSeries.update(candle);
+          candleSeries.update({
+            time: bar.time, open: bar.open, high: bar.high, low: bar.low, close: bar.close,
+          });
           volumeSeries.update({
-            time: bucket,
-            value: tick.last_candle.volume || 0,
-            color: candle.close >= candle.open ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)',
+            time: bar.time,
+            value: bar.volume,
+            color: bar.close >= bar.open ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)',
           });
         } catch (e) { /* chart may be disposed */ }
       };

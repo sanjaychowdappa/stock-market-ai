@@ -284,3 +284,17 @@ time="2026-08-13T17:53:22-04:00" level=warning msg="C:\\Users\\sanja\\stock-mark
 [13-08-2026 17:53:23.72] Backend healthy - paper trading active 
 {"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","TMO","BAC","RTX","AMZN","COP","EQIX","KO","SHW","DIS","DUK"],"version":"claude_1"} 
 [13-08-2026 17:53:23.75] Auto start complete 
+[14-08-2026  9:53:43.09] === AUTO START === 
+[14-08-2026  9:53:43.15] Docker Desktop not running - launching 
+[14-08-2026  9:53:51.47] Docker daemon ready after 1 attempts 
+[14-08-2026  9:53:51.47] Starting containers... 
+time="2026-08-14T09:53:51-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-backend-1 Starting 
+ Container stock-market-ai-finetune-sidecar-1 Starting 
+ Container stock-market-ai-backend-1 Started 
+ Container stock-market-ai-frontend-1 Starting 
+ Container stock-market-ai-frontend-1 Started 
+ Container stock-market-ai-finetune-sidecar-1 Started 
+[14-08-2026  9:53:53.42] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","TMO","BAC","RTX","AMZN","COP","EQIX","KO","SHW","DIS","DUK"],"version":"claude_1"} 
+[14-08-2026  9:53:53.44] Auto start complete 
