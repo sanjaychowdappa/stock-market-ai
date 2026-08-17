@@ -1,0 +1,64 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-08-14
+  Generated:  2026-08-14T20:10:00.807850118+00:00
+  Uptime:     6h 14m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $191.74
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     135
+  Winning Trades:   60
+  Win Rate:         44.4%
+  Avg Hold Time:    17727s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $515.75     bullish     0.416    —
+  TMO      $588.00     bullish     0.173    —
+  BAC      $64.48      bullish     0.114    —
+  RTX      $222.96     bearish     -0.189   —
+  AMZN     $262.57     bearish     -0.399   —
+  COP      $126.78     bearish     -0.126   —
+  EQIX     $1102.06    bullish     0.280    —
+  KO       $87.71      bearish     -0.203   —
+  SHW      $358.93     bullish     0.384    —
+  DIS      $106.88     neutral     0.020    —
+  DUK      $123.92     bearish     -0.152   —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   BAC      $64.36     $374.22  $-0.4070   EOD_DAILY_SKIM
+  19:55:00  SELL   SHW      $358.22    $373.89  $-0.6889   EOD_DAILY_SKIM
+  19:55:00  SELL   AMZN     $262.60    $745.01  $-2.6201   EOD_DAILY_SKIM
+  19:55:00  SELL   RTX      $222.50    $758.29  $7.8898    EOD_DAILY_SKIM
+  19:48:09  SELL   TMO      $590.00    $749.40  $-0.7748   TRAIL_STOP(-0.77% from peak,pnl=-0.10%)
+  15:02:47  BUY    AMZN     $263.52    $747.62  $0.0000    ENTRY(s=0.084,K-,1of7)
+  15:02:40  SELL   COP      $126.38    $747.69  $-2.5440   TRAIL_STOP(-0.78% from peak,pnl=-0.34%)
+  14:00:01  BUY    SHW      $358.87    $374.56  $0.0000    ENTRY(s=0.364,K~,1of7)
+  13:58:24  BUY    BAC      $64.42     $374.59  $0.0000    ENTRY(s=0.137,K~,2of7)
+  13:58:22  BUY    TMO      $590.22    $749.68  $0.0000    ENTRY(s=0.604,K+,2of7)
+  13:57:23  BUY    RTX      $220.04    $749.92  $0.0000    ENTRY(s=0.137,K~,2of7)
+  13:55:19  BUY    COP      $126.77    $750.00  $0.0000    ENTRY(s=0.063,K-,1of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

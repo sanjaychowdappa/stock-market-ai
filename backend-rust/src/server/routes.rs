@@ -26,6 +26,7 @@ pub fn build(state: Arc<AppState>) -> Router {
         .route("/api/agentic/run", get(handlers::health::agentic_run))
         .route("/api/layer-monitor", get(handlers::health::layer_monitor))
         .route("/api/stocks/{symbol}", get(handlers::stocks::get_stock))
+        .route("/api/bars/{symbol}", get(handlers::stocks::get_bars))
         .route("/api/signals/{symbol}", get(handlers::stocks::get_signals))
         .route("/api/patterns/{symbol}", get(handlers::stocks::get_patterns))
         .route("/api/realtime/{symbol}/predict", get(handlers::realtime::predict))

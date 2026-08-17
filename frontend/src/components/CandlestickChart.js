@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { createChart } from 'lightweight-charts';
 
 const WS_URL = process.env.REACT_APP_WS_URL || 'ws://127.0.0.1:8000';
+const API_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000/api';
 
 function CandlestickChart({ symbol }) {
   const containerRef = useRef(null);
@@ -38,6 +39,32 @@ function CandlestickChart({ symbol }) {
     let reconnectTimer;
     // The 1-minute bar currently being built from incoming trade ticks.
     let bar = null;
+
+    // Seed with history before the socket takes over. Without this the chart
+    // opens empty and draws forward one bar per minute, so a fresh load shows
+    // nothing and a reload throws away everything already on screen.
+    //
+    // Ticks that arrive during the fetch are NOT dropped: they build `bar`
+    // through the socket handler, and setData below is skipped once a live bar
+    // exists, because setData would wipe it.
+    fetch(`${API_URL}/bars/${symbol}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (disposed || !Array.isArray(d.bars) || d.bars.length === 0) return;
+        // Guard against the live handler having already started a bar: seeding
+        // after that point would erase it and reset the volume accumulator.
+        if (bar) return;
+        candleSeries.setData(d.bars.map((b) => ({
+          time: b.time, open: b.open, high: b.high, low: b.low, close: b.close,
+        })));
+        volumeSeries.setData(d.bars.map((b) => ({
+          time: b.time,
+          value: b.volume,
+          color: b.close >= b.open ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)',
+        })));
+        chart.timeScale().fitContent();
+      })
+      .catch(() => { /* live ticks still draw the chart forward */ });
 
     const connect = () => {
       ws = new WebSocket(`${WS_URL}/ws/live/${symbol}`);

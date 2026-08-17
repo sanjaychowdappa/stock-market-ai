@@ -298,3 +298,27 @@ time="2026-08-14T09:53:51-04:00" level=warning msg="C:\\Users\\sanja\\stock-mark
 [14-08-2026  9:53:53.42] Backend healthy - paper trading active 
 {"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","TMO","BAC","RTX","AMZN","COP","EQIX","KO","SHW","DIS","DUK"],"version":"claude_1"} 
 [14-08-2026  9:53:53.44] Auto start complete 
+[14-08-2026 16:10:00.76] === AUTO STOP === 
+[14-08-2026 16:10:00.76] Fetching final EOD report... 
+[14-08-2026 16:10:00.81] EOD report saved to reports/ 
+[14-08-2026 16:10:00.81] Final daily status: 
+{"data_collected":{"AMD":{"predictions":22484,"ticks":22484,"trades":0},"AMZN":{"predictions":22478,"ticks":22478,"trades":2},"BAC":{"predictions":22489,"ticks":22489,"trades":2},"COP":{"predictions":22474,"ticks":22474,"trades":2},"DIS":{"predictions":22396,"ticks":22396,"trades":0},"DUK":{"predictions":22425,"ticks":22425,"trades":0},"EQIX":{"predictions":22155,"ticks":22155,"trades":0},"KO":{"predictions":22477,"ticks":22477,"trades":0},"RTX":{"predictions":22390,"ticks":22390,"trades":2},"SHW":{"predictions":22131,"ticks":22131,"trades":2},"TMO":{"predictions":22230,"ticks":22230,"trades":2}},"date":"2026-08-14","finetune_triggered":true,"portfolio":{"current_value":3000.0,"pnl":0.0,"profitable":false,"start_value":3000.0},"running":true,"snapshots_count":22490} 
+[14-08-2026 16:10:00.84] Stopping containers... 
+time="2026-08-14T16:10:01-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-frontend-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopped 
+ Container stock-market-ai-finetune-sidecar-1 Removing 
+ Container stock-market-ai-finetune-sidecar-1 Removed 
+ Container stock-market-ai-frontend-1 Stopped 
+ Container stock-market-ai-frontend-1 Removing 
+ Container stock-market-ai-frontend-1 Removed 
+ Container stock-market-ai-backend-1 Stopping 
+ Container stock-market-ai-backend-1 Stopped 
+ Container stock-market-ai-backend-1 Removing 
+ Container stock-market-ai-backend-1 Removed 
+ Network stock-market-ai_default Removing 
+ Network stock-market-ai_default Removed 
+[14-08-2026 16:10:13.25] All containers stopped 
+[14-08-2026 16:10:13.25] === SESSION COMPLETE === 
+ 
