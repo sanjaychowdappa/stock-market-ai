@@ -1,0 +1,71 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-08-17
+  Generated:  2026-08-17T20:10:00.825855572+00:00
+  Uptime:     8h 22m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $185.71
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     147
+  Winning Trades:   65
+  Win Rate:         44.2%
+  Avg Hold Time:    8764s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $506.19     bearish     -0.175   —
+  BAC      $63.92      bearish     -0.274   —
+  TMO      $585.49     bullish     0.153    —
+  RTX      $221.63     neutral     -0.027   —
+  AMZN     $261.10     bearish     -0.180   —
+  COP      $127.59     bearish     -0.182   —
+  EQIX     $1098.07    neutral     0.097    —
+  KO       $86.99      bearish     -0.160   —
+  FCX      $68.43      bullish     0.151    —
+  DIS      $103.49     bearish     -0.248   —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   COP      $127.70    $751.65  $7.5045    EOD_DAILY_SKIM
+  19:55:00  SELL   EQIX     $1100.92   $744.28  $0.6139    EOD_DAILY_SKIM
+  19:55:00  SELL   KO       $87.11     $373.22  $0.1714    EOD_DAILY_SKIM
+  19:12:07  SELL   AMD      $507.80    $369.12  $-2.3857   TRAIL_STOP(-0.77% from peak,pnl=-0.64%)
+  17:56:27  SELL   TMO      $587.72    $755.84  $5.8452    TRAIL_STOP(-0.77% from peak,pnl=0.78%)
+  16:56:31  BUY    COP      $126.41    $744.03  $0.0000    ENTRY(s=0.424,K-,2of7)
+  16:56:20  SELL   DIS      $104.53    $744.17  $-5.8266   TRAIL_STOP(-0.75% from peak,pnl=-0.78%)
+  16:41:00  BUY    AMD      $510.91    $371.38  $0.0000    ENTRY(s=0.154,K+,2of7)
+  16:41:00  SELL   AMZN     $259.88    $371.40  $-2.0722   TRAIL_STOP(-0.76% from peak,pnl=-0.55%)
+  15:43:03  BUY    KO       $87.06     $373.01  $0.0000    ENTRY(s=0.339,K-,1of7)
+  15:43:03  SELL   AMD      $513.14    $372.99  $-1.0612   TRAIL_STOP(-0.79% from peak,pnl=-0.28%)
+  15:03:30  BUY    AMD      $514.62    $374.07  $0.0000    ENTRY(s=0.091,K-,2of7)
+  14:58:17  SELL   COP      $125.77    $373.09  $-1.9133   TRAIL_STOP(-0.75% from peak,pnl=-0.51%)
+  14:54:08  BUY    DIS      $105.33    $749.83  $0.0000    ENTRY(s=0.635,K+,3of7)
+  14:54:02  SELL   KO       $87.34     $751.12  $1.1180    TRAIL_STOP(-0.76% from peak,pnl=0.15%)
+  14:34:09  BUY    EQIX     $1100.02   $743.68  $0.0000    ENTRY(s=0.070,K+,1of7)
+  14:34:05  SELL   DIS      $105.41    $744.14  $-5.8594   TRAIL_STOP(-0.78% from peak,pnl=-0.78%)
+  14:01:54  BUY    AMZN     $261.30    $373.43  $0.0000    ENTRY(s=0.239,K+,1of7)
+  14:01:54  SELL   FCX      $66.74     $373.43  $-1.5667   TRAIL_STOP(-0.85% from peak,pnl=-0.42%)
+  13:31:55  BUY    FCX      $67.02     $375.00  $0.0000    ENTRY(s=0.388,K~,1of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

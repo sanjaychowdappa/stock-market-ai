@@ -1,15 +1,15 @@
 {
-  "min_buy_signal": 0.2,
+  "min_buy_signal": 0.22,
   "strong_buy_signal": 0.35,
   "sell_signal_threshold": -0.1,
-  "trailing_stop_pct": 1.5,
+  "trailing_stop_pct": 0.75,
   "hard_stop_pct": -2.95,
   "take_profit_pct": 4.0,
   "trade_cooldown_secs": 10800,
   "flat_exit_secs": 117000,
   "max_concurrent_positions": 11,
   "max_daily_trades": 5,
-  "min_predicted_move_pct": 0.012,
-  "tuned_at": "2026-08-13T20:05:42.466918643+00:00",
-  "reason": "Diagnosis: Net P&L negative: $-7.3400; Regression: today $-7.3400 < yesterday $15.6712. Actions: Slightly tightened hard stop (floor -0.50%); Blended toward yesterday's better-performing params"
+  "min_predicted_move_pct": 0.015600000000000001,
+  "tuned_at": "2026-08-17T20:05:36.324137705+00:00",
+  "reason": "Diagnosis: Win rate 44.2% below 45% — entering bad trades; Net P&L negative: $-6.0400; Regression: today $-6.0400 < yesterday $0.1292. Actions: Raised entry threshold and min predicted move; Slightly tightened hard stop (floor -0.50%); Blended toward yesterday's better-performing params"
 }

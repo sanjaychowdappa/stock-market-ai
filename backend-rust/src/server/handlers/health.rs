@@ -1,5 +1,6 @@
 use axum::extract::State;
 use axum::Json;
+use serde_json::json;
 use crate::state::AppState;
 use std::sync::Arc;
 use chrono::Datelike;
@@ -94,9 +95,67 @@ pub async fn sector_leaders_scan(State(state): State<Arc<AppState>>) -> Json<ser
     Json(state.sector_leaders.lock().to_json())
 }
 
+/// A/B scoreboard, with the REAL_TRADER row corrected against the broker.
+///
+/// The row is labelled `kind: "real"` and sits at the top of the board, but its
+/// numbers came from the simulator: `realized_pnl` was `self.realized_pnl`,
+/// which books a trade whether or not Alpaca filled it, at simulator prices.
+/// On 2026-08-17 it read +$185.71 while the paper account was -$32.45 — a $218
+/// overstatement, in the flattering direction, in the most prominent
+/// "how am I doing" number in the UI.
+///
+/// The simulator's figures are kept, under names that say what they are, so the
+/// simulator-vs-reality gap stays visible instead of being quietly dropped.
 pub async fn experiments(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
-    let trader = state.trader.lock();
-    Json(trader.experiments_json())
+    // Scoped so the trader lock is released before the awaits below. Holding a
+    // parking_lot guard across an await makes the future non-Send.
+    let mut payload = { state.trader.lock().experiments_json() };
+
+    let equity = crate::services::alpaca_broker::equity_pnl().await;
+    let real = crate::services::alpaca_broker::real_pnl().await;
+    let broker_net = equity["net_pnl"].as_f64();
+
+    if let Some(models) = payload["models"].as_array_mut() {
+        for m in models.iter_mut() {
+            if m["model_id"].as_str() != Some("REAL_TRADER") {
+                continue;
+            }
+            let sim_pnl = m["realized_pnl"].clone();
+            let sim_trades = m["total_trades"].clone();
+            let sim_win = m["win_rate_pct"].clone();
+
+            if let Some(obj) = m.as_object_mut() {
+                // Only overwrite when the broker actually answered. Falling back
+                // to the simulator silently is how the wrong number got trusted
+                // in the first place, so the row says which source it used.
+                match broker_net {
+                    Some(net) => {
+                        obj.insert("realized_pnl".into(), json!((net * 100.0).round() / 100.0));
+                        obj.insert("source".into(), json!("alpaca /v2/account"));
+                        // Round trips and win rate from real fills, not from
+                        // simulated ones: the simulator counted 147 trades
+                        // against 87 round trips the broker actually closed.
+                        if let Some(rt) = real["round_trips"].as_u64() {
+                            obj.insert("total_trades".into(), json!(rt));
+                        }
+                        if let Some(wr) = real["win_rate_pct"].as_f64() {
+                            obj.insert("win_rate_pct".into(), json!(wr));
+                        }
+                    }
+                    None => {
+                        obj.insert("source".into(), json!("SIMULATOR — broker unreachable, treat as unverified"));
+                    }
+                }
+                obj.insert("simulator_realized_pnl".into(), sim_pnl);
+                obj.insert("simulator_total_trades".into(), sim_trades);
+                obj.insert("simulator_win_rate_pct".into(), sim_win);
+                obj.insert("description".into(), json!(
+                    "The live paper trader. P&L and trade count come from Alpaca, not the simulator."
+                ));
+            }
+        }
+    }
+    Json(payload)
 }
 
 

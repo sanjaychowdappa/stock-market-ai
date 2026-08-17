@@ -74,6 +74,18 @@ function ExperimentsPanel() {
                   {m.model_id}
                   {isExp && <span style={S.tagExp}> EXPERIMENT</span>}
                   {isReal && <span style={S.tagReal}> REAL</span>}
+                  {/* This row read the simulator's own P&L while claiming to be
+                      "REAL" — +$185.71 against a -$32.45 account. Now it comes
+                      from Alpaca, and the simulator's number is shown beside it
+                      so the gap is visible rather than quietly corrected. */}
+                  {isReal && m.simulator_realized_pnl != null
+                    && Math.abs((m.simulator_realized_pnl ?? 0) - (m.realized_pnl ?? 0)) >= 0.01 && (
+                    <div style={S.divergence}>
+                      simulator claims {(m.simulator_realized_pnl ?? 0) >= 0 ? '+' : ''}
+                      ${(m.simulator_realized_pnl ?? 0).toFixed(2)} — overstated by $
+                      {((m.simulator_realized_pnl ?? 0) - (m.realized_pnl ?? 0)).toFixed(2)}
+                    </div>
+                  )}
                 </td>
                 <td style={S.td}>${(m.portfolio_value ?? 0).toFixed(2)}</td>
                 <td style={{ ...S.td, color: col(m.realized_pnl ?? 0), fontWeight: 600 }}>
@@ -92,6 +104,10 @@ function ExperimentsPanel() {
       <div style={S.note}>
         Judge models by <b>realized P&L per trade</b> over many trades, not by a lucky day.
         The random baseline is the bar: any model that can't beat it has no real skill.
+        <br /><br />
+        REAL_TRADER is measured at the broker; the shadow models are simulated on the
+        same prices. Compare the shadows against <b>each other</b> — that is the
+        apples-to-apples test of whether the signals add anything.
       </div>
     </div>
   );
@@ -120,6 +136,7 @@ const S = {
   td: { padding: '10px 12px', fontSize: 13, color: '#e5e7eb', borderBottom: '1px solid #1f2937' },
   tagExp: { fontSize: 9, fontWeight: 800, color: '#60a5fa', marginLeft: 6 },
   tagReal: { fontSize: 9, fontWeight: 800, color: '#34d399', marginLeft: 6 },
+  divergence: { fontSize: 10.5, fontWeight: 600, color: '#fbbf24', marginTop: 3, lineHeight: 1.4 },
   note: { fontSize: 12, color: '#6b7280', lineHeight: 1.5, background: '#111827', padding: 12, borderRadius: 8, border: '1px solid #1f2937', marginTop: 14 },
   muted: { color: '#9ca3af', padding: 40, textAlign: 'center' },
   err: { color: '#dc2626', padding: 40, textAlign: 'center' },
