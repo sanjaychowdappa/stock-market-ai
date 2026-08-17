@@ -439,3 +439,86 @@ fn positions_still_get_room_to_breathe() {
         );
     }
 }
+
+// ── Ledger: observation rows must never join the banked total (2026-08-14) ──
+//
+// The daily ledger diverged from Alpaca by a growing amount. Decomposing every
+// day showed the cause was not accounting drift but non-fills: the banked
+// figure is `cash - INITIAL_CASH` from the SIMULATOR, which books a trade
+// whether or not the broker filled it.
+//
+//   day         ledger    broker   non-filled orders
+//   2026-08-13  -$7.34    -$6.83     0   (agrees, slippage only)
+//   2026-08-14  +$0.17    +$1.19     0   (agrees, slippage only)
+//   2026-08-10 -$10.17    +$1.47    16   (diverges by $11.64)
+//   2026-08-11 +$13.56     $0.00     6   (diverges by $13.56, zero round trips)
+//
+// Recording the broker's own figure alongside means adding a row type, and
+// ledger_cumulative() used to sum EVERY row carrying `day_pnl`. That is the
+// same shape as the bug that banked $72.28 twice.
+
+use stock_market_ai::services::paper_trader::{ledger_sum, is_banking_kind};
+
+fn row(s: &str) -> serde_json::Value {
+    serde_json::from_str(s).expect("test row must parse")
+}
+
+#[test]
+fn an_observation_row_does_not_change_the_banked_total() {
+    let banked = vec![
+        row(r#"{"date":"2026-08-13","kind":"skim","day_pnl":-7.34}"#),
+        row(r#"{"date":"2026-08-14","kind":"skim","day_pnl":0.17}"#),
+    ];
+    let before = ledger_sum(&banked);
+
+    let mut with_broker = banked.clone();
+    // The broker's figure for a day already banked. If this joins the sum, the
+    // day is counted twice.
+    with_broker.push(row(r#"{"date":"2026-08-14","kind":"broker","broker_day_pnl":1.19}"#));
+
+    assert!(
+        (ledger_sum(&with_broker) - before).abs() < 1e-9,
+        "a broker observation row changed the banked total: {} -> {}",
+        before, ledger_sum(&with_broker)
+    );
+}
+
+#[test]
+fn a_stray_day_pnl_on_a_non_banking_row_is_still_ignored() {
+    // Defence in depth: even if some future writer puts `day_pnl` on an
+    // observation row, the kind filter must keep it out of the total.
+    let rows = vec![
+        row(r#"{"date":"2026-08-13","kind":"skim","day_pnl":-7.34}"#),
+        row(r#"{"date":"2026-08-13","kind":"broker","day_pnl":-6.83}"#),
+    ];
+    assert!(
+        (ledger_sum(&rows) - (-7.34)).abs() < 1e-9,
+        "the kind filter must exclude non-banking rows regardless of their fields"
+    );
+}
+
+#[test]
+fn genuine_banking_rows_still_sum() {
+    // The guard must not switch the ledger off. Both real kinds count.
+    let rows = vec![
+        row(r#"{"date":"2026-08-12","kind":"skim","day_pnl":20.62}"#),
+        row(r#"{"date":"2026-08-13","kind":"carryover","day_pnl":-7.34}"#),
+    ];
+    assert!((ledger_sum(&rows) - 13.28).abs() < 1e-9, "got {}", ledger_sum(&rows));
+    assert!(is_banking_kind("skim") && is_banking_kind("carryover"));
+    assert!(!is_banking_kind("broker"), "the broker's own figure is not banked capital");
+}
+
+#[test]
+fn the_quarantined_era_stays_excluded() {
+    // Pre-2026-08-04 rows double-counted the same dollars and cannot be
+    // reconstructed. Adding the kind filter must not accidentally readmit them.
+    let rows = vec![
+        row(r#"{"date":"2026-08-01","kind":"skim","day_pnl":72.28,"reliable":false}"#),
+        row(r#"{"date":"2026-08-13","kind":"skim","day_pnl":-7.34}"#),
+    ];
+    assert!(
+        (ledger_sum(&rows) - (-7.34)).abs() < 1e-9,
+        "quarantined rows must not count"
+    );
+}

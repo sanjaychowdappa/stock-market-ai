@@ -13,11 +13,20 @@ $ErrorActionPreference = "Stop"
 $root = Join-Path $PSScriptRoot "backend-rust"
 
 Write-Host "Running regression tests in Docker..." -ForegroundColor Cyan
-docker run --rm -v "${root}:/build" -w /build rust:1.95-bookworm `
-    sh -c "cargo test 2>&1 | tail -40"
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "`nTESTS FAILED" -ForegroundColor Red
-    exit 1
+# Capture cargo's exit code, NOT the pipeline's.
+#
+# This used to run `cargo test 2>&1 | tail -40`, so $LASTEXITCODE was tail's
+# status — which is 0 whether or not the tests passed. The script therefore
+# printed "All tests passed" unconditionally, including for builds that failed
+# to compile. A harness that cannot report failure is worse than no harness,
+# because it is trusted.
+$inner = 'cargo test > /tmp/test-out 2>&1; code=$?; tail -60 /tmp/test-out; exit $code'
+docker run --rm -v "${root}:/build" -w /build rust:1.95-bookworm sh -c $inner
+$testExit = $LASTEXITCODE
+
+if ($testExit -ne 0) {
+    Write-Host "`nTESTS FAILED (exit $testExit)" -ForegroundColor Red
+    exit $testExit
 }
 Write-Host "`nAll tests passed." -ForegroundColor Green

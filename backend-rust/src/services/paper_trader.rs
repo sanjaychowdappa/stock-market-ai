@@ -20,6 +20,33 @@ use std::time::Instant;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::broadcast;
+
+/// Does this ledger row kind represent capital actually banked?
+///
+/// Rows that merely observe the day — the broker's own figure, diagnostics —
+/// must answer false, or they get added to the running total a second time.
+pub fn is_banking_kind(kind: &str) -> bool {
+    matches!(kind, "skim" | "carryover")
+}
+
+/// Sum the banked days from ledger rows.
+///
+/// Pure, and separated from the file read so it can be tested: this total is
+/// the number that was silently wrong for days, and the failure mode is a row
+/// type joining the sum without anyone intending it.
+///
+/// Two filters, both load-bearing:
+///   * `reliable: false` rows are the pre-2026-08-04 era that double-counted
+///     the same dollars and cannot be reconstructed.
+///   * only banking kinds count. This used to sum ANY row carrying a `day_pnl`
+///     field, so a new row type would silently join the total.
+pub fn ledger_sum(rows: &[serde_json::Value]) -> f64 {
+    rows.iter()
+        .filter(|v| v["reliable"].as_bool() != Some(false))
+        .filter(|v| v["kind"].as_str().map(is_banking_kind).unwrap_or(false))
+        .filter_map(|v| v["day_pnl"].as_f64())
+        .sum()
+}
 use tracing::{error, info, warn};
 
 /// Where the trader persists its state so multi-day swing positions survive
@@ -548,10 +575,29 @@ impl PaperTrader {
         // note in the ledger itself) and cannot be reconstructed — guessing which
         // of them were genuine would just be a different fabricated number. They
         // stay in the file for audit; they do not count toward any total.
-        Self::ledger_rows().iter()
-            .filter(|v| v["reliable"].as_bool() != Some(false))
-            .filter_map(|v| v["day_pnl"].as_f64())
-            .sum::<f64>()
+        //
+        // The kind filter is a guard, not decoration. This used to sum any row
+        // carrying a `day_pnl` field, so ANY new row type would silently join
+        // the total — which is precisely how the same dollars got banked more
+        // than once before. Only the kinds that represent banked capital count;
+        // everything else in this file is annotation.
+        ledger_sum(&Self::ledger_rows())
+    }
+
+    /// Orders logged today that never reached a filled state.
+    ///
+    /// This is the single best predictor of whether the banked figure will
+    /// match the broker: every day with a full fill rate agreed with Alpaca to
+    /// within about a dollar of slippage, while the two days with heavy
+    /// non-fills diverged by $11.64 and $13.56.
+    fn unfilled_count_today(date: &str) -> usize {
+        std::fs::read_to_string(crate::services::alpaca_broker::FILL_LOG)
+            .map(|c| c.lines()
+                .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+                .filter(|v| v["timestamp"].as_str().map(|t| t.starts_with(date)).unwrap_or(false))
+                .filter(|v| v["outcome"].as_str() != Some("filled"))
+                .count())
+            .unwrap_or(0)
     }
 
     /// Every parsed row of the daily profit ledger, in file order.
@@ -580,15 +626,27 @@ impl PaperTrader {
             warn!("[LEDGER] refusing duplicate {} row for {} — already banked", kind, date);
             return;
         }
-        let cumulative = Self::ledger_cumulative() + day_pnl;
-        let mut row = json!({
-            "date": date,
-            "kind": kind,
-            "day_pnl": (day_pnl * 100.0).round() / 100.0,
-            "cumulative_pnl": (cumulative * 100.0).round() / 100.0,
-            "capital": INITIAL_CASH,
-            "timestamp": Local::now().to_rfc3339(),
-        });
+        // Only banking rows get `day_pnl` / `cumulative_pnl` at all. An
+        // observation row that carried a zeroed `day_pnl` would look like a
+        // day that broke even, and would start counting the moment anyone
+        // widened the kind filter.
+        let mut row = if is_banking_kind(kind) {
+            let cumulative = Self::ledger_cumulative() + day_pnl;
+            json!({
+                "date": date,
+                "kind": kind,
+                "day_pnl": (day_pnl * 100.0).round() / 100.0,
+                "cumulative_pnl": (cumulative * 100.0).round() / 100.0,
+                "capital": INITIAL_CASH,
+                "timestamp": Local::now().to_rfc3339(),
+            })
+        } else {
+            json!({
+                "date": date,
+                "kind": kind,
+                "timestamp": Local::now().to_rfc3339(),
+            })
+        };
         if let (Some(obj), Some(ex)) = (row.as_object_mut(), extra.as_object()) {
             for (k, v) in ex { obj.insert(k.clone(), v.clone()); }
         }
@@ -943,7 +1001,43 @@ impl PaperTrader {
             // the banked days summed to $128.60.
             info!("[DAILY_SKIM] {} — day P&L ${:.2} banked | cumulative ${:.2} | reset to ${:.0}",
                 et_date, day_pnl, Self::ledger_cumulative() + day_pnl, INITIAL_CASH);
-            Self::bank_day(&et_date, "skim", day_pnl, json!({}));
+            // This figure is the SIMULATOR's cash, and the simulator books a
+            // trade whether or not Alpaca filled it. On 2026-08-10, 16 of 25
+            // orders did not fill and the ledger banked -$10.17 against a real
+            // +$1.47; on 08-11, six sells stayed pending, no round trip closed
+            // at the broker at all, and the ledger still banked +$13.56. Days
+            // with a full fill rate agree with the broker to within slippage.
+            //
+            // So the row carries the count that explains its own reliability.
+            let unfilled = Self::unfilled_count_today(&et_date);
+            if unfilled > 0 {
+                warn!("[DAILY_SKIM] {} — {} order(s) did not fill today; banked figure is \
+                       simulator cash and will diverge from the broker", et_date, unfilled);
+            }
+            Self::bank_day(&et_date, "skim", day_pnl, json!({
+                "unfilled_today": unfilled,
+                "basis": "simulator cash",
+            }));
+            // The broker's own number for the same day, recorded as a separate
+            // observation row. It deliberately does NOT carry a `day_pnl` key,
+            // and its kind is not a banking kind, so it can never join the
+            // running total.
+            //
+            // Timing matters: today_pnl is equity minus Alpaca's last_equity,
+            // and Alpaca rolls last_equity forward to the session's close once
+            // the day is over — after which the figure reads 0.00. The skim
+            // fires at 15:55 ET, before the 16:00 close, so it reads the real
+            // number. Moving the skim later would silently start banking zeros.
+            let date_for_broker = et_date.clone();
+            tokio::spawn(async move {
+                let pnl = crate::services::alpaca_broker::equity_pnl().await;
+                if let Some(today) = pnl["today_pnl"].as_f64() {
+                    Self::bank_day(&date_for_broker, "broker", 0.0, json!({
+                        "broker_day_pnl": (today * 100.0).round() / 100.0,
+                        "basis": "alpaca /v2/account",
+                    }));
+                }
+            });
             // Reset working capital for tomorrow. Profit is "taken out".
             self.cash = INITIAL_CASH;
             self.did_daily_skim = true;

@@ -16,7 +16,9 @@ use serde_json::{json, Value};
 use std::env;
 use tracing::{info, warn};
 
-const FILL_LOG: &str = "/app/reports/broker_fills.jsonl";
+/// Path to the broker fill log. Public so other services can read fill
+/// outcomes without duplicating the path as a literal.
+pub const FILL_LOG: &str = "/app/reports/broker_fills.jsonl";
 
 /// A real fill reported back so the simulator can adopt the ACTUAL execution
 /// price instead of its assumed last-tick price. Draining these keeps the two
