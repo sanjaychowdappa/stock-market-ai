@@ -203,8 +203,48 @@ research code with no demonstrated edge; that rail is deliberate.
 | [`DECISIONS.md`](DECISIONS.md) | Settled verdicts and the reasoning behind them |
 | [`TIMELINE.md`](TIMELINE.md) | Dated history and per-day P&L across all eras |
 | [`RESUME_HERE.md`](RESUME_HERE.md) | Restart procedure and known gotchas |
+| [`StockAI_Project_Explained.pdf`](StockAI_Project_Explained.pdf) | Plain-English guide for non-specialists (July 2026 snapshot: universe has since grown from 5 names to 11 sector leaders) |
+| [`docs/README.md`](docs/README.md) | The raw development transcript and how to search it |
 
 ---
+
+## What I would do differently
+
+The engineering mistakes here were more instructive than the trading result.
+
+**Build the null hypothesis first.** Five signal layers were built before the
+random-entry baseline existed. The baseline is what settled the question, and
+it is about thirty lines. Had it been written on day one, this project would
+have reached its conclusion in a week instead of months — and every layer added
+after it would have had to justify itself against a coin flip immediately.
+
+**Make the broker the scoreboard architecturally, not by convention.** Three
+separate P&L reports were wrong in the flattering direction, and all three trace
+to the same root: P&L was derived from our own records, so it inherited our own
+bugs. The rule "the broker's equity curve wins" was adopted late and enforced by
+discipline. It should have been a type — one that makes a
+simulator-derived number impossible to render where a real one is expected.
+
+**Validate parameters by withholding data, always.** The best-scoring trailing
+stop turned out to be memorising a single day: it scored `+$24.74` overall and
+`−$5.50` with that day removed. Leave-one-out was added only after being burned
+by an earlier overfit. It costs almost nothing to run and it changed the answer.
+
+**Test the test harness.** `run-tests.ps1` piped `cargo test` into `tail`, which
+made the exit code always `0`. It printed "All tests passed" for builds that did
+not compile, for weeks. A harness that cannot fail is worse than no harness,
+because it is trusted. The fix was two lines; noticing was the hard part.
+
+**Log somewhere that survives the container.** Backend stdout died with each
+`compose down`, so post-mortems were impossible for exactly the sessions worth
+investigating. Twice a bug could only be characterised from the report files
+because the logs that would have settled it were gone.
+
+**Separate "the strategy lost money" from "the measurement is broken".** Much of
+the debugging time went to bugs that changed the reported result without
+changing the strategy's actual expectancy. Fixing them was necessary — but each
+fix made the picture more accurate, not better, and it is worth being clear-eyed
+about which of the two is happening.
 
 ## Status
 
