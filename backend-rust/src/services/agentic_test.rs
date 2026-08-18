@@ -270,6 +270,27 @@ pub async fn run_cycle(state: &Arc<AppState>, agent: &SharedAgent) {
     findings.push(check_ledger_integrity().await);
     findings.push(check_live_kill_criterion().await);
 
+    // Fold the config-epoch monitor in here rather than leaving it on its
+    // own endpoint. On 2026-08-18 the deployment check DID detect the
+    // stranded capital and logged it; nobody saw it. A finding that only
+    // reaches a log file is a finding that does not exist.
+    let mon = crate::services::change_monitor::run().await;
+    if let Some(items) = mon["findings"].as_array() {
+        for f in items {
+            let sev = match f["severity"].as_str() {
+                Some("critical") => Severity::Critical,
+                Some("warn") => Severity::Warn,
+                _ => Severity::Info,
+            };
+            findings.push(Finding::new(
+                f["check"].as_str().unwrap_or("change_monitor"),
+                sev,
+                f["message"].as_str().unwrap_or("").to_string(),
+                None,
+            ));
+        }
+    }
+
     let crit = findings.iter().filter(|f| f.severity == "critical").count();
     let warn = findings.iter().filter(|f| f.severity == "warn").count();
     let health = if crit > 0 { "CRITICAL" } else if warn > 0 { "DEGRADED" } else { "HEALTHY" };

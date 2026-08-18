@@ -272,12 +272,20 @@ pub const MAX_DAILY_TRADES: u32 = 5;
 
 /// Entry cap while MAX_EXPOSURE_MODE is on.
 ///
-/// Max exposure fills every slot at the open, so a cap of 5 would forbid any
-/// re-entry for the rest of the session. This allows the initial deployment
-/// (one per slot) plus limited redeployment after exits, then stops — a hard
-/// backstop against the runaway churn seen on 2026-08-05 (25 orders, 11 of them
-/// the same symbol) rather than a tuned parameter.
-pub const MAX_DAILY_ENTRIES: u32 = 12;
+/// Raised from 12 to 60 on 2026-08-18. At 12, with MAX_CONCURRENT_POSITIONS
+/// at 11, the initial deployment consumed the entire budget: 11 slots filled
+/// at the open plus a single re-entry hit the ceiling. On 2026-08-18 the cap
+/// was reached at 10:45, and for the remaining five and a quarter hours the
+/// system could only sell. Capital drained to idle as positions closed and
+/// nothing could replace them -- $2,120.68 of $3,000 sat uninvested while two
+/// leftover positions were held with no way to rotate out of them.
+///
+/// That defeats the point of max-exposure mode, which exists to keep the book
+/// fully deployed. 60 allows roughly five cycles per slot across a session,
+/// which is enough to stay invested, while still backstopping the runaway
+/// churn this constant was originally added for (2026-08-05: 25 orders, 11 of
+/// them the same symbol). It is a backstop, not a tuned parameter.
+pub const MAX_DAILY_ENTRIES: u32 = 60;
 
 // ── DAMAGE CONTROL ───────────────────────────────────────────────────────
 //

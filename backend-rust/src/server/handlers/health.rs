@@ -327,3 +327,8 @@ pub async fn performance(State(_state): State<Arc<AppState>>) -> Json<serde_json
 pub async fn broker_backfill() -> Json<serde_json::Value> {
     Json(crate::services::alpaca_broker::backfill_pending_fills().await)
 }
+
+/// Config-epoch monitor: what changed, and whether behaviour changed with it.
+pub async fn monitor() -> Json<serde_json::Value> {
+    Json(crate::services::change_monitor::run().await)
+}

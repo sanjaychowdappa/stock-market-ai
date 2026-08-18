@@ -572,3 +572,131 @@ fn out_of_order_rows_are_attributed_to_the_closing_day() {
     assert_eq!(days[0]["date"], "2026-08-13", "realized on the day it closed");
     assert!(days[0]["real_pnl"].as_f64().unwrap() < 0.0);
 }
+
+// ── Change monitor: tripwires must fire without a market (2026-08-18) ──────
+//
+// MAX_DAILY_ENTRIES (12) sat one above MAX_CONCURRENT_POSITIONS (11), so
+// filling the book at the open consumed the whole daily budget. The cap bound
+// at 10:45 and for the next five hours the system could only sell: $2,120 of
+// $3,000 sat idle and two positions could not be rotated out.
+//
+// The deployment health check DID detect this and logged it. Nobody saw it, and
+// nothing tied the behaviour to the parameter responsible. These tests pin the
+// comparison rules so they can be trusted without waiting for a session.
+
+use stock_market_ai::services::change_monitor::{compare, epoch_stats};
+
+#[test]
+fn a_binding_entry_cap_is_reported_as_critical() {
+    // A day that used exactly its cap. Whether it "wanted" more entries is not
+    // observable, which is why hitting the cap at all must be the alarm.
+    let cur = serde_json::json!({
+        "days": 1, "entries_per_day": 12.0, "cap_bound_days": 1,
+        "fill_rate": 1.0, "expectancy": -0.3, "round_trips": 12,
+        "median_hold_secs": 3600, "trail_stops_per_day": 5.0
+    });
+    let prev = serde_json::json!({"days": 0});
+
+    let out = compare(&prev, &cur, 12);
+
+    let hit = out.iter().find(|(c, _, _)| c == "entry_cap_binding")
+        .expect("a bound cap must be reported");
+    assert_eq!(hit.1, "critical", "stranded capital is not a warning, it is a fault");
+}
+
+#[test]
+fn a_cap_that_never_binds_is_silent() {
+    // The guard must not cry wolf once the cap is raised above what is used.
+    let cur = serde_json::json!({
+        "days": 2, "entries_per_day": 12.0, "cap_bound_days": 0,
+        "fill_rate": 1.0, "expectancy": -0.3, "round_trips": 24,
+        "median_hold_secs": 3600, "trail_stops_per_day": 5.0
+    });
+    let prev = serde_json::json!({
+        "days": 2, "entries_per_day": 11.0, "cap_bound_days": 0,
+        "fill_rate": 1.0, "expectancy": -0.3, "round_trips": 22,
+        "median_hold_secs": 3600, "trail_stops_per_day": 5.0
+    });
+
+    let out = compare(&prev, &cur, 60);
+
+    assert!(
+        !out.iter().any(|(c, _, _)| c == "entry_cap_binding"),
+        "cap not reached, so it must not be flagged: {out:?}"
+    );
+}
+
+#[test]
+fn a_collapsed_fill_rate_is_reported() {
+    // 2026-08-10: 16 of 25 orders never reached a filled state, and the P&L
+    // built on that log was wrong by $11.64.
+    let cur = serde_json::json!({
+        "days": 1, "entries_per_day": 9.0, "cap_bound_days": 0,
+        "fill_rate": 0.36, "expectancy": -0.3, "round_trips": 9,
+        "median_hold_secs": 3600, "trail_stops_per_day": 0.0
+    });
+    let prev = serde_json::json!({"days": 0});
+
+    let out = compare(&prev, &cur, 60);
+
+    assert!(out.iter().any(|(c, _, _)| c == "fill_rate"), "a 36% fill rate must be flagged");
+}
+
+#[test]
+fn worsened_expectancy_after_a_change_is_critical() {
+    let prev = serde_json::json!({
+        "days": 5, "entries_per_day": 6.0, "cap_bound_days": 0, "fill_rate": 1.0,
+        "expectancy": -0.30, "round_trips": 40, "median_hold_secs": 3600,
+        "trail_stops_per_day": 3.0
+    });
+    let cur = serde_json::json!({
+        "days": 3, "entries_per_day": 7.0, "cap_bound_days": 0, "fill_rate": 1.0,
+        "expectancy": -0.95, "round_trips": 30, "median_hold_secs": 3600,
+        "trail_stops_per_day": 4.0
+    });
+
+    let out = compare(&prev, &cur, 60);
+
+    let hit = out.iter().find(|(c, _, _)| c == "expectancy").expect("must flag expectancy");
+    assert_eq!(hit.1, "critical");
+}
+
+#[test]
+fn a_thin_sample_does_not_trigger_an_expectancy_alarm() {
+    // Two trades cannot distinguish a bad change from a bad morning. A tripwire
+    // that fires on noise gets ignored, which is worse than none.
+    let prev = serde_json::json!({
+        "days": 5, "entries_per_day": 6.0, "cap_bound_days": 0, "fill_rate": 1.0,
+        "expectancy": -0.30, "round_trips": 40, "median_hold_secs": 3600,
+        "trail_stops_per_day": 3.0
+    });
+    let cur = serde_json::json!({
+        "days": 1, "entries_per_day": 6.0, "cap_bound_days": 0, "fill_rate": 1.0,
+        "expectancy": -4.00, "round_trips": 2, "median_hold_secs": 3600,
+        "trail_stops_per_day": 3.0
+    });
+
+    let out = compare(&prev, &cur, 60);
+
+    assert!(
+        !out.iter().any(|(c, s, _)| c == "expectancy" && s == "critical"),
+        "2 round trips is too thin to declare a regression: {out:?}"
+    );
+}
+
+#[test]
+fn epoch_stats_counts_a_cap_bound_day_from_the_fill_log() {
+    // Built from the log, not from a hand-written summary, so the metric the
+    // alarm reads is the metric the log actually produces.
+    let mut rows = Vec::new();
+    for i in 0..12 {
+        rows.push(fill("AMD", "buy", 1.0, 100.0 + i as f64, "2026-08-18"));
+    }
+    let log = rows.join("\n");
+
+    let s = epoch_stats(&log, "2026-08-18", 12);
+
+    assert_eq!(s["days"], 1);
+    assert_eq!(s["entries_per_day"], 12.0);
+    assert_eq!(s["cap_bound_days"], 1, "12 entries against a cap of 12 is bound");
+}
