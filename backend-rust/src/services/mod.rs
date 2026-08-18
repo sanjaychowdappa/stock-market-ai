@@ -20,3 +20,4 @@ pub mod sector_leaders;
 pub mod agentic_test;
 pub mod alpaca_broker;
 pub mod change_monitor;
+pub mod accumulator;

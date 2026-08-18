@@ -1,0 +1,56 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-08-18 16:10   |   Report date: 2026-08-18   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-08-18) ===
+  Trades:       17   (W 6 / L 11)
+  Win rate:     35.3%
+  Gross P/L:    $-0.3303
+  Avg win:      $3.9481    Avg loss: $-2.1835
+  Expectancy:   $-0.0194/trade gross  ->  ~$-0.1319/trade after est. fees
+  Per symbol:
+    RTX     2 trades  W1   $9.3694
+    BAC     2 trades  W1   $7.3964
+    FCX     3 trades  W1   $0.9439
+    TMO     1 trades  W0   $-0.7288
+    EQIX    2 trades  W0   $-1.2178
+    DIS     2 trades  W1   $-1.9483
+    AMZN    2 trades  W1   $-2.1842
+    AMD     3 trades  W1   $-11.961
+  Exit reasons:
+    TRAIL_STOP         13
+    EOD_DAILY_SKIM     4
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       51   (W 18 / L 33)
+  Win rate:     35.3%
+  Gross P/L:    $8.4979
+  Avg win:      $3.9444    Avg loss: $-1.894
+  Expectancy:   $0.1666/trade gross  ->  ~$0.0541/trade after est. fees
+  Per symbol:
+    RTX     5 trades  W4   $26.9261
+    BAC     4 trades  W2   $7.106
+    KO      4 trades  W3   $6.8076
+    COP     4 trades  W1   $2.0856
+    SHW     1 trades  W0   $-0.6889
+    EQIX    4 trades  W1   $-0.7192
+    TMO     4 trades  W1   $-2.1073
+    FCX     8 trades  W1   $-3.2486
+    DIS     5 trades  W2   $-4.9525
+    AMZN    5 trades  W1   $-7.2142
+    AMD     7 trades  W2   $-15.4968
+  Exit reasons:
+    TRAIL_STOP         29
+    EOD_DAILY_SKIM     22
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $0.1666/trade  (51 trades)
+  always_in_max_exposure   expectancy $-0.3466/trade  (34 trades)
+  trend_30min              expectancy $-0.1003/trade  (30 trades)
+  trend_fullday            expectancy $0.0088/trade  (26 trades)
+  trend_off                expectancy $-0.0472/trade  (29 trades)
+  random_baseline          expectancy $0.0125/trade  (33 trades)  <-- the bar to beat
+  VERDICT: real beats random by $0.1541/trade - signals show edge (need bigger sample to confirm)
+
+LIVE: portfolio $3000.0  (P/L $0.0)  running=True

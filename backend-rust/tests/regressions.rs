@@ -700,3 +700,73 @@ fn epoch_stats_counts_a_cap_bound_day_from_the_fill_log() {
     assert_eq!(s["entries_per_day"], 12.0);
     assert_eq!(s["cap_bound_days"], 1, "12 entries against a cap of 12 is bound");
 }
+
+// ── The accumulator must be invisible to reconcile (2026-08-18) ────────────
+//
+// reconcile() unions the simulator's book with LIVE Alpaca positions and
+// corrects the difference. The accumulator buys SPY that the simulator knows
+// nothing about, so without a guard it reads as want=0 / have=N — a SELL — and
+// the reconcile loop liquidates the entire long-term accumulation every cycle.
+//
+// That is the exact opposite of a buy-and-never-sell strategy, and it would
+// have happened silently, on a book meant to be held for years.
+
+use stock_market_ai::services::accumulator;
+
+#[test]
+fn broker_only_drift_in_an_ordinary_symbol_is_still_corrected() {
+    // The behaviour the guard has to spare the accumulator from WITHOUT
+    // switching it off for everything else: a holding present at the broker and
+    // absent from the simulator is real drift, and must still be sold.
+    let sim = books(&[]);
+    let live = books(&[("NVDA", 12.5)]);
+    let prices = books(&[("NVDA", 700.0)]);
+
+    let (actions, _) = reconcile_plan(&sim, &live, &prices, &HashSet::new());
+
+    assert_eq!(actions.len(), 1, "unowned drift is still corrected");
+    assert_eq!(actions[0]["action"], "sell");
+    assert_eq!(actions[0]["symbol"], "NVDA");
+}
+
+#[test]
+fn the_accumulator_holding_is_never_reconciled_away() {
+    // Identical shape, but in the accumulator's symbol. Unguarded this produced
+    // a SELL, and would have liquidated a book meant to be held for years —
+    // silently, on every reconcile cycle.
+    let sym = stock_market_ai::config::ACCUMULATOR_SYMBOL;
+    let sim = books(&[]);
+    let live = books(&[(sym, 12.5)]);
+    let prices = books(&[(sym, 700.0)]);
+
+    let (actions, deferred) = reconcile_plan(&sim, &live, &prices, &HashSet::new());
+
+    assert!(actions.is_empty(), "the accumulator holding must never be sold: {actions:?}");
+    assert!(deferred.is_empty(), "it is excluded outright, not merely postponed");
+}
+
+#[test]
+fn the_accumulator_symbol_is_recognised_as_protected() {
+    // The guard reconcile actually calls. If this ever returns false for the
+    // configured symbol, the holding above gets sold.
+    assert!(
+        accumulator::owns(stock_market_ai::config::ACCUMULATOR_SYMBOL),
+        "the configured accumulator symbol must be protected from reconcile"
+    );
+    assert!(
+        !accumulator::owns("NVDA"),
+        "an ordinary traded symbol must NOT be protected, or drift stops being corrected"
+    );
+}
+
+#[test]
+fn the_intraday_trader_no_longer_places_real_orders() {
+    // It failed its pre-committed criterion at -$0.2888 over 130 round trips.
+    // The rule said retired, not retuned. The simulator keeps running; the
+    // broker link is off. If someone flips this back on, that is a decision
+    // that should have to be made deliberately.
+    assert!(
+        !stock_market_ai::config::ALPACA_SHADOW_ORDERS,
+        "the intraday trader is retired; re-enabling it needs a new criterion"
+    );
+}

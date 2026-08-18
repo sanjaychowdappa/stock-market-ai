@@ -332,3 +332,8 @@ pub async fn broker_backfill() -> Json<serde_json::Value> {
 pub async fn monitor() -> Json<serde_json::Value> {
     Json(crate::services::change_monitor::run().await)
 }
+
+/// Long-term accumulation book: contributions, shares, value. Buys only.
+pub async fn accumulator() -> Json<serde_json::Value> {
+    Json(crate::services::accumulator::status().await)
+}

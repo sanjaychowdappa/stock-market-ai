@@ -120,12 +120,32 @@ pub const LIVE_KILL_MIN_EXPECTANCY: f64 = 0.0;
 pub const LIVE_KILL_START_DATE: &str = "2026-08-06";
 
 
-/// Mirror every simulated trade as a real order on the Alpaca PAPER account
-/// (fake money, real execution). Purely observational — the internal simulator
-/// stays the source of truth for P&L. This measures how optimistic the
-/// simulator's assumed fills are, which is the last unmeasured gap in the
-/// numbers. Disabled by a hard rail if the endpoint is not paper-api.
-pub const ALPACA_SHADOW_ORDERS: bool = true;
+/// Mirror simulated intraday trades as real orders on the Alpaca PAPER account.
+///
+/// SET FALSE 2026-08-18. The intraday signal trader FAILED its pre-committed
+/// kill criterion: -$0.2888 expectancy per trade over 130 real round trips,
+/// against a $0.00 floor. The rule fixed on 2026-08-06 said retired, not
+/// retuned, and it has now been met twice over.
+///
+/// The simulator keeps running. It costs nothing, the shadow A/B models keep
+/// accumulating data, and the comparison against random_baseline stays live.
+/// It simply stops sending orders to a broker: demoted to a testing model.
+pub const ALPACA_SHADOW_ORDERS: bool = false;
+
+// == LONG-TERM ACCUMULATOR ===============================================
+//
+// The one strategy that tested profitable. $13/day into a broad index, held,
+// never flattened: $15,080 contributed became $22,938 over 1,160 trading days
+// (2022-01-03 -> 2026-08-18), +52.1%.
+//
+// Deliberately has NO stock picker. A 6/12-month momentum screen with a
+// 200-day SMA filter and one name per sector was tested against this and lost
+// from all four start dates, by $784 to $2,848. The screen still runs in
+// shadow, logging what it would have bought, so its value becomes measurable
+// rather than assumed.
+pub const ACCUMULATOR_ENABLED: bool = true;
+pub const ACCUMULATOR_SYMBOL: &str = "SPY";
+pub const ACCUMULATOR_DAILY_USD: f64 = 13.0;
 
 /// No config/parameter changes before this date — clean-data window.
 pub const CONFIG_FREEZE_UNTIL: &str = "2026-07-28";

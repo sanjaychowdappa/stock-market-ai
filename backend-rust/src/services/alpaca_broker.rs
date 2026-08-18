@@ -620,6 +620,15 @@ pub fn reconcile_plan(
     }
     symbols.sort(); // deterministic order, so tests and logs are readable
 
+    // Symbols the accumulator owns are NOT drift and must never be sold.
+    //
+    // reconcile unions the simulator book with LIVE Alpaca positions, so a
+    // long-term holding the simulator knows nothing about reads as want=0,
+    // have=N -- a sell. Without this guard the reconcile loop would liquidate
+    // the entire accumulation every cycle, which is the exact opposite of a
+    // buy-and-never-sell strategy.
+    symbols.retain(|s| !crate::services::accumulator::owns(s));
+
     let mut actions: Vec<Value> = Vec::new();
     let mut deferred: Vec<String> = Vec::new();
     for sym in symbols {

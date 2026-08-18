@@ -116,6 +116,9 @@ impl AppState {
             });
         }
 
+        // ── Long-term accumulator: the one strategy that tested profitable ──
+        crate::services::accumulator::spawn();
+
         // ── Spawn market-regime updater (day-trader risk-on/off filter) ──
         let regime = state.trader.lock().regime_handle();
         tokio::spawn(async move {
