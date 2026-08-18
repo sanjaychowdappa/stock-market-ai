@@ -18,7 +18,7 @@ random_baseline            +$30.26    135   simulated      <-- the bar
 trend_off                   +$9.31    118   simulated
 trend_30min                 +$1.37    109   simulated
 trend_fullday              -$30.64    103   simulated      <-- production rule
-REAL_TRADER                -$32.45     87   alpaca /v2/account
+REAL_TRADER                -$32.45     98   alpaca /v2/account
 ```
 
 All six models run on identical prices with identical accounting. The ordering
