@@ -131,7 +131,7 @@ times because its running total read the last row rather than summing.
 ## Testing
 
 ```
-cargo test          # 26 regression tests
+cargo test          # 28 regression tests
 ```
 
 The rule for the regression suite is that **each test must fail against the old
