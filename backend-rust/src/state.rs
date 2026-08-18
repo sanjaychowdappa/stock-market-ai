@@ -101,6 +101,21 @@ impl AppState {
             });
         }
 
+        // ── Repair fill-log rows the poller had to abandon ──
+        // At the open, Alpaca can take 3-7 minutes to fill; the poller
+        // waits 60s because it holds a per-symbol claim and a longer wait
+        // would block that symbol from trading. So the record is repaired
+        // afterwards from the broker instead of the poller waiting longer.
+        if crate::config::ALPACA_SHADOW_ORDERS {
+            tokio::spawn(async move {
+                tokio::time::sleep(tokio::time::Duration::from_secs(300)).await;
+                loop {
+                    let _ = crate::services::alpaca_broker::backfill_pending_fills().await;
+                    tokio::time::sleep(tokio::time::Duration::from_secs(300)).await;
+                }
+            });
+        }
+
         // ── Spawn market-regime updater (day-trader risk-on/off filter) ──
         let regime = state.trader.lock().regime_handle();
         tokio::spawn(async move {

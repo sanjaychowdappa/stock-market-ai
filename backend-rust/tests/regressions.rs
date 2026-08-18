@@ -522,3 +522,53 @@ fn the_quarantined_era_stays_excluded() {
         "quarantined rows must not count"
     );
 }
+
+// ── FIFO must match chronologically, not in file order (2026-08-18) ────────
+//
+// backfill_pending_fills() recovers fills the order poller had to abandon --
+// at the open Alpaca took 187-402 seconds to fill while the poller waits 60 --
+// and stamps the recovered row with the broker's filled_at. That deliberately
+// breaks append-in-time-order: an older buy lands in the file after newer
+// sells. fifo_stats iterated the file directly, so those sells found no lot
+// and were counted unmatched. The reported unmatched_sells rose from 17 to 22
+// purely from adding buy rows, which is impossible if the matching is correct.
+
+#[test]
+fn a_buy_appended_after_its_sell_still_matches() {
+    // File order is deliberately wrong: the sell is written before the buy it
+    // consumes, exactly as a backfill produces.
+    let log = [
+        fill("NVDA", "sell", 1.0, 110.0, "2026-08-13"),
+        fill("NVDA", "buy", 1.0, 100.0, "2026-08-11"), // recovered later, older
+    ]
+    .join("\n");
+
+    let s = fifo_stats(&log);
+
+    assert_eq!(
+        s["data_quality"]["unmatched_sells"], 0,
+        "the sell has a matching buy once rows are ordered by time"
+    );
+    assert_eq!(s["round_trips"], 1);
+    assert!(
+        (s["real_realized_pnl"].as_f64().unwrap() - 10.0).abs() < 1e-9,
+        "1 share 100 -> 110 is $10, got {:?}", s["real_realized_pnl"]
+    );
+}
+
+#[test]
+fn out_of_order_rows_are_attributed_to_the_closing_day() {
+    // Ordering must not disturb day attribution: P&L belongs to the sell's day.
+    let log = [
+        fill("NVDA", "sell", 1.0, 90.0, "2026-08-13"),
+        fill("NVDA", "buy", 1.0, 100.0, "2026-08-11"),
+    ]
+    .join("\n");
+
+    let s = fifo_stats(&log);
+    let days = s["by_day"].as_array().unwrap();
+
+    assert_eq!(days.len(), 1);
+    assert_eq!(days[0]["date"], "2026-08-13", "realized on the day it closed");
+    assert!(days[0]["real_pnl"].as_f64().unwrap() < 0.0);
+}

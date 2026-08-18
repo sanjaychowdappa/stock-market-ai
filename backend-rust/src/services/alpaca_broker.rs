@@ -754,8 +754,26 @@ pub fn fifo_stats(content: &str) -> Value {
     let mut unmatched_qty = 0.0;
     let mut partial_qty_rows = 0u32;
 
-    for line in content.lines() {
-        let v: Value = match serde_json::from_str(line) { Ok(v) => v, Err(_) => continue };
+    // Match in CHRONOLOGICAL order, not file order.
+    //
+    // FIFO is meaningless unless a buy is seen before the sell that
+    // consumes it. This used to iterate the file directly, which was
+    // safe only while the log was strictly append-in-time-order.
+    // backfill_pending_fills() breaks that invariant deliberately: it
+    // recovers an abandoned fill days later and stamps it with the
+    // broker's filled_at, so an older buy can be appended after newer
+    // sells. Without sorting, those sells find no lot and are counted
+    // as unmatched -- the reconstruction was reporting 22 unmatched
+    // sells that were in fact matched, just out of order on disk.
+    let mut rows: Vec<Value> = content.lines()
+        .filter_map(|l| serde_json::from_str::<Value>(l).ok())
+        .collect();
+    rows.sort_by(|a, b| {
+        a["timestamp"].as_str().unwrap_or("")
+            .cmp(b["timestamp"].as_str().unwrap_or(""))
+    });
+
+    for v in rows {
         if v["outcome"].as_str() != Some("filled") { continue; }
         let sym = v["symbol"].as_str().unwrap_or("").to_string();
         let side = v["side"].as_str().unwrap_or("");
@@ -883,4 +901,107 @@ pub async fn fills_summary() -> Value {
         "total_slippage_cost": (slip_sum * 100.0).round() / 100.0,
         "recent": recent.iter().rev().take(20).collect::<Vec<_>>(),
     })
+}
+
+/// Correct fill-log rows the poller had to abandon, using Alpaca as the truth.
+///
+/// `shadow_order` polls for a terminal status for 60s and then records
+/// `outcome: "pending"`. That is honest — it genuinely does not know — but at
+/// the open the broker can take far longer than the poll window. On
+/// 2026-08-17 five entries were logged pending and every one of them had in
+/// fact filled:
+///
+/// ```text
+///     KO   submitted 09:30:34   filled 09:36:52   377.8s
+///     DIS  submitted 09:30:59   filled 09:37:42   402.3s
+///     TMO  submitted 09:31:00   filled 09:34:15   194.5s
+/// ```
+///
+/// Waiting longer in the poller is not the fix: it holds a per-symbol claim,
+/// so a seven-minute wait would block that symbol from trading for seven
+/// minutes. Instead the poller stays short and this pass repairs the record
+/// afterwards from the broker, which is the same principle used everywhere
+/// else here — our records get corrected against Alpaca, never the reverse.
+///
+/// Append-only and idempotent. `fifo_stats` counts only rows whose outcome is
+/// "filled" and ignores the pending ones, so appending a corrected row records
+/// the fill exactly once; an order whose id already appears as filled is
+/// skipped, so repeated runs cannot double-count.
+pub async fn backfill_pending_fills() -> Value {
+    let (key, secret, base) = match creds() {
+        Some(c) => c,
+        None => return json!({"available": false, "reason": "no paper credentials"}),
+    };
+    let content = tokio::fs::read_to_string(FILL_LOG).await.unwrap_or_default();
+
+    let mut pending: Vec<Value> = Vec::new();
+    let mut already_filled: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for line in content.lines() {
+        let v: Value = match serde_json::from_str(line) { Ok(v) => v, Err(_) => continue };
+        let id = v["order_id"].as_str().unwrap_or("").to_string();
+        if id.is_empty() { continue; }
+        match v["outcome"].as_str() {
+            Some("filled") => { already_filled.insert(id); }
+            Some("pending") => pending.push(v),
+            _ => {}
+        }
+    }
+
+    let client = reqwest::Client::new();
+    let mut repaired = 0usize;
+    let mut still_open = 0usize;
+    for row in pending {
+        let id = row["order_id"].as_str().unwrap_or("").to_string();
+        if id.is_empty() || already_filled.contains(&id) { continue; }
+
+        let resp = client
+            .get(format!("{}/v2/orders/{}", base, id))
+            .header("APCA-API-KEY-ID", &key)
+            .header("APCA-API-SECRET-KEY", &secret)
+            .timeout(std::time::Duration::from_secs(10))
+            .send()
+            .await;
+        let order: Value = match resp {
+            Ok(r) if r.status().is_success() => match r.json().await { Ok(v) => v, Err(_) => continue },
+            _ => continue,
+        };
+        if order["status"].as_str() != Some("filled") { still_open += 1; continue; }
+
+        let price = match order["filled_avg_price"].as_str().and_then(|s| s.parse::<f64>().ok()) {
+            Some(p) if p > 0.0 => p,
+            _ => continue,
+        };
+        let qty = order["filled_qty"].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+        if qty <= 0.0 { continue; }
+
+        let sim_price = row["sim_price"].as_f64().unwrap_or(price);
+        let symbol = row["symbol"].as_str().unwrap_or("").to_string();
+        let side = row["side"].as_str().unwrap_or("").to_string();
+        info!("[BACKFILL] {} {} {:.4} @ ${:.4} — poller timed out, broker says filled", side, symbol, qty, price);
+
+        log_entry(json!({
+            "symbol": symbol,
+            "side": side,
+            "outcome": "filled",
+            "qty_filled": qty,
+            "qty_requested": row["qty"].as_f64().unwrap_or(qty),
+            "actual_price": price,
+            "sim_price": sim_price,
+            "order_id": id,
+            "reason": row["reason"].as_str().unwrap_or("ENTRY"),
+            // Timestamped when the broker filled it, not when we noticed, so
+            // per-day attribution stays correct.
+            "timestamp": order["filled_at"].as_str()
+                .unwrap_or_else(|| row["timestamp"].as_str().unwrap_or("")),
+            "backfilled": true,
+            "note": "poller timed out; recovered from Alpaca order history",
+        }));
+        already_filled.insert(order["id"].as_str().unwrap_or("").to_string());
+        repaired += 1;
+    }
+
+    if repaired > 0 {
+        warn!("[BACKFILL] repaired {} fill-log row(s) the poller had abandoned", repaired);
+    }
+    json!({ "repaired": repaired, "still_open": still_open })
 }

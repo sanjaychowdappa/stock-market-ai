@@ -322,3 +322,8 @@ pub async fn performance(State(_state): State<Arc<AppState>>) -> Json<serde_json
     let comparison = ledger.compare_days();
     Json(comparison)
 }
+
+/// Repair fill-log rows the order poller had to abandon, from Alpaca's history.
+pub async fn broker_backfill() -> Json<serde_json::Value> {
+    Json(crate::services::alpaca_broker::backfill_pending_fills().await)
+}
