@@ -337,3 +337,8 @@ pub async fn monitor() -> Json<serde_json::Value> {
 pub async fn accumulator() -> Json<serde_json::Value> {
     Json(crate::services::accumulator::status().await)
 }
+
+/// Force a contribution attempt now, for verification. Idempotent per day.
+pub async fn accumulator_contribute() -> Json<serde_json::Value> {
+    Json(crate::services::accumulator::contribute().await)
+}

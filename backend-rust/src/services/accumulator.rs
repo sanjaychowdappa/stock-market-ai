@@ -230,16 +230,26 @@ pub fn spawn() {
     if !crate::config::ACCUMULATOR_ENABLED {
         return;
     }
+    info!("[ACCUM] loop spawned — ${:.2}/day into {}, checking every 10 min",
+        crate::config::ACCUMULATOR_DAILY_USD, crate::config::ACCUMULATOR_SYMBOL);
     tokio::spawn(async move {
         // Let the stack settle before the first attempt.
         tokio::time::sleep(std::time::Duration::from_secs(90)).await;
         loop {
-            // Only when the market is actually open; a notional market order
-            // outside hours is rejected rather than queued.
-            let open = crate::services::alpaca_broker::account().await
-                .map(|_| market_open_now())
-                .unwrap_or(false);
-            if open {
+            // Say what was decided and why, every cycle.
+            //
+            // Without this the loop is invisible: a silent log looks identical
+            // whether it is waiting for the open or was never spawned at all.
+            // That ambiguity is exactly how the capital-deployment warning went
+            // unseen for a session — a process whose health cannot be observed
+            // is a process nobody can trust the morning it matters.
+            let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+            if !market_open_now() {
+                info!("[ACCUM] market closed — no contribution this cycle");
+            } else if already_contributed(&today) {
+                info!("[ACCUM] {} already funded — nothing to do", today);
+            } else {
+                info!("[ACCUM] market open and {} unfunded — contributing", today);
                 let _ = contribute().await;
             }
             tokio::time::sleep(std::time::Duration::from_secs(600)).await;
