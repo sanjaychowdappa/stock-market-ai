@@ -108,3 +108,72 @@ Positions are FIFO-matched from the production fill log, restricted to
 2026-08-05 onward because earlier fills predate the partial-fill parse fix and
 carry known-bad quantities. Minute bars come from Alpaca and are cached in
 `.bars_cache/` after the first fetch.
+
+---
+
+## Second result: $13/day long-term accumulation
+
+**Proposal:** put a fixed $13 into the best stocks every day and hold for the
+long term, with Kronos involved in selection.
+
+`py New_ideas\dca.py`
+
+Tested over 1,160 trading days, 2022-01-03 → 2026-08-18, $15,080 contributed.
+
+```
+                             value      profit    return
+MODEL (momentum screen)  20,334.62   +5,254.62     34.8%
+BENCHMARK  all SPY       22,938.39   +7,858.39     52.1%
+                                     edge  -2,603.78
+```
+
+Walk-forward, four different start dates:
+
+```
+start          model         SPY        edge
+2022-01-03 20,334.62   22,938.39   -2,603.78
+2023-01-03 13,930.54   16,778.71   -2,848.17
+2024-01-02  8,913.07   10,920.65   -2,007.58
+2025-01-02  5,467.64    6,251.36     -783.72
+```
+
+**The plan works. The stock picking subtracts from it.**
+
+Both halves matter. Committing $13 a day and holding turns $15,080 into
+$20,335 even with a mediocre screen, and into $22,938 with no screen at all.
+That is a genuinely sound strategy, and it is the first thing tested in this
+repository that makes money in absolute terms.
+
+But the selection layer loses to a plain index fund from every start date
+tested, by $784 to $2,848. The screen is well-constructed — 6- and 12-month
+momentum both positive, price above the 200-day SMA, one name per sector — and
+it still costs money relative to owning everything. The most-picked names (LLY,
+META, NVDA, CAT, NFLX) were reasonable choices; concentrating into them simply
+did worse than not concentrating.
+
+### Where Kronos sits, and why it is not in these numbers
+
+Kronos predicts the NEXT BAR. In `daily_stock_picker` it emits values like
+`TMO: bearish (-0.443%)` — one day ahead. A one-day predictor has close to
+nothing to say about a position intended to be held for years, and it is the
+same model that failed its pre-committed kill criterion at −$0.36 per round
+trip over 123 real round trips.
+
+So in the design it gets a **veto, not a vote**: it may demote an
+already-qualified name, never promote one. And its contribution is deliberately
+absent from the backtest above, because Kronos cannot be replayed historically
+without re-running it over every past day — a number produced that way would
+look like evidence without being any.
+
+The live model instead logs both the stage-1 pick and the post-veto pick every
+day, so what the veto is actually worth becomes measurable after a few months
+rather than assumed now.
+
+### Honest recommendation
+
+Do the $13/day. Put it in a broad index. Run the screen in shadow alongside it,
+logging what it would have bought, and revisit in six months with real
+out-of-sample evidence — including whether the Kronos veto added anything.
+
+That gets you the part that demonstrably works today, and turns the part that
+does not into a measurement instead of a bet.
