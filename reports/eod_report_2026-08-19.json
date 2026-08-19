@@ -1,0 +1,420 @@
+{
+  "data_quality": {
+    "finetune_triggered": true,
+    "snapshots": 24277,
+    "tracker": {
+      "AMD": {
+        "predictions": 23992,
+        "ticks": 23992,
+        "trades": 4
+      },
+      "AMZN": {
+        "predictions": 23996,
+        "ticks": 23996,
+        "trades": 2
+      },
+      "BAC": {
+        "predictions": 23993,
+        "ticks": 23993,
+        "trades": 4
+      },
+      "COP": {
+        "predictions": 23983,
+        "ticks": 23983,
+        "trades": 4
+      },
+      "DIS": {
+        "predictions": 23932,
+        "ticks": 23932,
+        "trades": 0
+      },
+      "EQIX": {
+        "predictions": 23645,
+        "ticks": 23645,
+        "trades": 8
+      },
+      "FCX": {
+        "predictions": 23994,
+        "ticks": 23994,
+        "trades": 4
+      },
+      "GE": {
+        "predictions": 23986,
+        "ticks": 23986,
+        "trades": 6
+      },
+      "KO": {
+        "predictions": 23935,
+        "ticks": 23935,
+        "trades": 4
+      },
+      "TMO": {
+        "predictions": 23967,
+        "ticks": 23967,
+        "trades": 4
+      }
+    }
+  },
+  "portfolio": {
+    "cash": 3000.0,
+    "drawdown_pct": 0.0,
+    "initial_capital": 3000.0,
+    "positions_value": -0.0,
+    "realized_pnl": 178.9906,
+    "target": {
+      "goal": "$500 → $600 challenge",
+      "progress_pct": 0.0,
+      "target_value": 3100.0
+    },
+    "total_pnl": 0.0,
+    "total_pnl_pct": 0.0,
+    "total_value": 3000.0
+  },
+  "positions": [],
+  "recent_trades": [
+    {
+      "action": "SELL",
+      "pnl": 10.8067,
+      "pnl_pct": 1.48,
+      "price": 1074.755,
+      "reason": "EOD_DAILY_SKIM",
+      "shares": 0.68767,
+      "symbol": "EQIX",
+      "time": "19:55:00",
+      "total": 739.08
+    },
+    {
+      "action": "SELL",
+      "pnl": 7.4782,
+      "pnl_pct": 1.01,
+      "price": 90.32,
+      "reason": "EOD_DAILY_SKIM",
+      "shares": 8.30908,
+      "symbol": "KO",
+      "time": "19:55:00",
+      "total": 750.48
+    },
+    {
+      "action": "SELL",
+      "pnl": 9.2384,
+      "pnl_pct": 1.26,
+      "price": 68.695,
+      "reason": "EOD_DAILY_SKIM",
+      "shares": 10.805149,
+      "symbol": "FCX",
+      "time": "19:55:00",
+      "total": 742.26
+    },
+    {
+      "action": "SELL",
+      "pnl": 1.5083,
+      "pnl_pct": 0.39,
+      "price": 612.9,
+      "reason": "EOD_DAILY_SKIM",
+      "shares": 0.625839,
+      "symbol": "TMO",
+      "time": "19:55:00",
+      "total": 383.58
+    },
+    {
+      "action": "SELL",
+      "pnl": -1.3183,
+      "pnl_pct": -0.35,
+      "price": 130.54,
+      "reason": "EOD_DAILY_SKIM",
+      "shares": 2.897369,
+      "symbol": "COP",
+      "time": "19:55:00",
+      "total": 378.22
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 130.995,
+      "reason": "ENTRY(s=0.116,K-,1of7)",
+      "shares": 2.897368762395511,
+      "symbol": "COP",
+      "time": "19:12:38",
+      "total": 379.54
+    },
+    {
+      "action": "SELL",
+      "pnl": -1.491,
+      "pnl_pct": -0.39,
+      "price": 356.37,
+      "reason": "TRAIL_STOP(-0.84% from peak,pnl=-0.39%)",
+      "shares": 1.065019,
+      "symbol": "GE",
+      "time": "19:11:02",
+      "total": 379.54
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 67.84,
+      "reason": "ENTRY(s=0.193,K+,1of7)",
+      "shares": 10.805148892983489,
+      "symbol": "FCX",
+      "time": "18:07:11",
+      "total": 733.02
+    },
+    {
+      "action": "SELL",
+      "pnl": -5.1258,
+      "pnl_pct": -0.69,
+      "price": 464.77,
+      "reason": "TRAIL_STOP(-0.78% from peak,pnl=-0.69%)",
+      "shares": 1.57717,
+      "symbol": "AMD",
+      "time": "18:07:11",
+      "total": 733.02
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 1059.04,
+      "reason": "ENTRY(s=0.331,K~,1of7)",
+      "shares": 0.687670001321952,
+      "symbol": "EQIX",
+      "time": "17:54:50",
+      "total": 728.27
+    },
+    {
+      "action": "SELL",
+      "pnl": -4.732,
+      "pnl_pct": -0.65,
+      "price": 63.1,
+      "reason": "TRAIL_STOP(-0.76% from peak,pnl=-0.65%)",
+      "shares": 11.541522,
+      "symbol": "BAC",
+      "time": "17:54:50",
+      "total": 728.27
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 610.49,
+      "reason": "ENTRY(s=0.094,K~,1of7)",
+      "shares": 0.6258390838015364,
+      "symbol": "TMO",
+      "time": "17:08:38",
+      "total": 382.07
+    },
+    {
+      "action": "SELL",
+      "pnl": 2.8521,
+      "pnl_pct": 0.75,
+      "price": 1054.27,
+      "reason": "TRAIL_STOP(-0.76% from peak,pnl=0.75%)",
+      "shares": 0.362401,
+      "symbol": "EQIX",
+      "time": "17:08:29",
+      "total": 382.07
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 468.02,
+      "reason": "ENTRY(s=0.400,K-,2of7)",
+      "shares": 1.5771703227853513,
+      "symbol": "AMD",
+      "time": "16:54:16",
+      "total": 738.15
+    },
+    {
+      "action": "SELL",
+      "pnl": -4.6227,
+      "pnl_pct": -0.62,
+      "price": 611.57,
+      "reason": "TRAIL_STOP(-0.78% from peak,pnl=-0.62%)",
+      "shares": 1.206971,
+      "symbol": "TMO",
+      "time": "16:38:28",
+      "total": 738.15
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 357.77,
+      "reason": "ENTRY(s=0.373,K-,1of7)",
+      "shares": 1.0650191727087235,
+      "symbol": "GE",
+      "time": "16:35:23",
+      "total": 381.03
+    },
+    {
+      "action": "SELL",
+      "pnl": -0.499,
+      "pnl_pct": -0.13,
+      "price": 465.82,
+      "reason": "TRAIL_STOP(-0.76% from peak,pnl=-0.13%)",
+      "shares": 0.817981,
+      "symbol": "AMD",
+      "time": "16:30:32",
+      "total": 381.03
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 1046.4,
+      "reason": "ENTRY(s=0.638,K+,3of7)",
+      "shares": 0.3624013860235092,
+      "symbol": "EQIX",
+      "time": "15:54:02",
+      "total": 379.22
+    },
+    {
+      "action": "SELL",
+      "pnl": 3.5371,
+      "pnl_pct": 0.94,
+      "price": 131.335,
+      "reason": "TRAIL_STOP(-0.78% from peak,pnl=0.94%)",
+      "shares": 2.887401,
+      "symbol": "COP",
+      "time": "15:47:04",
+      "total": 379.22
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 89.42,
+      "reason": "ENTRY(s=0.117,K+,1of7)",
+      "shares": 8.309079704764034,
+      "symbol": "KO",
+      "time": "15:45:56",
+      "total": 743.0
+    }
+  ],
+  "report": {
+    "date": "2026-08-19",
+    "generated_at": "2026-08-19T20:10:00.703070980+00:00",
+    "market_session": {
+      "close": "16:00 ET",
+      "open": "09:30 ET",
+      "status": "closed"
+    },
+    "type": "end_of_day"
+  },
+  "symbols": [
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 466.23,
+      "position_pnl": 0.0,
+      "signal_strength": 0.12839275880620404,
+      "symbol": "AMD"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 613.76,
+      "position_pnl": 0.0,
+      "signal_strength": -0.06598870560567774,
+      "symbol": "TMO"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 356.23,
+      "position_pnl": 0.0,
+      "signal_strength": 0.09489508450036913,
+      "symbol": "GE"
+    },
+    {
+      "direction": "bearish",
+      "in_position": false,
+      "last_price": 63.18,
+      "position_pnl": 0.0,
+      "signal_strength": -0.11860485773029233,
+      "symbol": "BAC"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 130.585,
+      "position_pnl": 0.0,
+      "signal_strength": 0.10312123399339275,
+      "symbol": "COP"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 69.08,
+      "position_pnl": 0.0,
+      "signal_strength": 0.31239100253250446,
+      "symbol": "FCX"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 265.795,
+      "position_pnl": 0.0,
+      "signal_strength": 0.19738474150639645,
+      "symbol": "AMZN"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 90.36,
+      "position_pnl": 0.0,
+      "signal_strength": -0.030006757130524433,
+      "symbol": "KO"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 1076.865,
+      "position_pnl": 0.0,
+      "signal_strength": 0.2359711884132779,
+      "symbol": "EQIX"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 106.92,
+      "position_pnl": 0.0,
+      "signal_strength": 0.175594813785059,
+      "symbol": "DIS"
+    }
+  ],
+  "trading_stats": {
+    "avg_hold_seconds": 5577,
+    "open_positions": 0,
+    "total_trades": 184,
+    "uptime_seconds": 24286,
+    "win_rate": 42.93,
+    "winning_trades": 79
+  },
+  "value_history": [
+    3000.0,
+    2990.015584965,
+    2984.088300585,
+    2979.416494985,
+    2973.353782985,
+    2979.9350657450004,
+    2983.3986530650004,
+    2980.8400655650003,
+    2975.9804911650003,
+    2979.5175573900005,
+    2979.0185889800005,
+    2974.3958900500006,
+    2977.2479859200007,
+    2972.5159619000005,
+    2967.3901594000004,
+    2965.8991328,
+    2964.580829905,
+    2966.089101895,
+    2975.32750429,
+    2982.8056762899996,
+    2993.6124103399998,
+    3000.0
+  ]
+}

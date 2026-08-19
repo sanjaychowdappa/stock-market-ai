@@ -23,8 +23,13 @@ use tokio::sync::broadcast;
 
 /// Does this ledger row kind represent capital actually banked?
 ///
-/// Rows that merely observe the day — the broker's own figure, diagnostics —
-/// must answer false, or they get added to the running total a second time.
+/// Rows that merely observe the day must answer false, or they get added to the
+/// running total a second time. Three kinds are deliberately excluded:
+///
+///   `broker`          the broker's own figure for a day already banked
+///   `skim_simulated`  a day the simulator traded but no order reached a broker,
+///                     written since the intraday trader was retired. Counting
+///                     it would put hypothetical losses in a real total.
 pub fn is_banking_kind(kind: &str) -> bool {
     matches!(kind, "skim" | "carryover")
 }
@@ -1014,9 +1019,29 @@ impl PaperTrader {
                 warn!("[DAILY_SKIM] {} — {} order(s) did not fill today; banked figure is \
                        simulator cash and will diverge from the broker", et_date, unfilled);
             }
-            Self::bank_day(&et_date, "skim", day_pnl, json!({
+            // A day the trader did not actually trade is NOT banked capital.
+            //
+            // Since the intraday trader was retired on 2026-08-18 the simulator
+            // keeps trading while no order reaches a broker, so this figure has
+            // become purely hypothetical. On 2026-08-19 it read -$6.39 while the
+            // account moved -$0.03, and unfilled_today was 0 — the diagnostic
+            // built for that gap could not explain it, because the cause is now
+            // different and intended.
+            //
+            // Left as "skim" those numbers would keep joining the running total
+            // and would read as real P&L to anyone opening the file. That is the
+            // same failure that let a scoreboard row labelled REAL report +$185.71
+            // against a -$32.45 account. The kind changes instead, which
+            // is_banking_kind already excludes, so the cumulative stops counting
+            // them without touching the summing logic itself.
+            let kind = if ALPACA_SHADOW_ORDERS { "skim" } else { "skim_simulated" };
+            Self::bank_day(&et_date, kind, day_pnl, json!({
                 "unfilled_today": unfilled,
-                "basis": "simulator cash",
+                "basis": if ALPACA_SHADOW_ORDERS {
+                    "simulator cash, mirrored to a live broker"
+                } else {
+                    "SIMULATION ONLY — the trader is retired and placed no orders"
+                },
             }));
             // The broker's own number for the same day, recorded as a separate
             // observation row. It deliberately does NOT carry a `day_pnl` key,

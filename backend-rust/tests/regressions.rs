@@ -770,3 +770,37 @@ fn the_intraday_trader_no_longer_places_real_orders() {
         "the intraday trader is retired; re-enabling it needs a new criterion"
     );
 }
+
+// ── A simulated day is not banked capital (2026-08-19) ────────────────────
+//
+// With the trader retired the simulator keeps trading while no order reaches a
+// broker, so its daily figure became hypothetical. On 2026-08-19 the skim row
+// read -$6.39 against an account that moved -$0.03, with unfilled_today = 0 —
+// the diagnostic built for that gap could not explain it, because the cause was
+// now different and intended.
+//
+// Left under "skim" those numbers keep joining the running total and read as
+// real P&L to anyone opening the file. That is the same failure that let a
+// scoreboard row labelled REAL report +$185.71 against a -$32.45 account.
+
+#[test]
+fn a_simulated_day_does_not_join_the_banked_total() {
+    let rows = vec![
+        row(r#"{"date":"2026-08-18","kind":"skim","day_pnl":-0.33}"#),
+        row(r#"{"date":"2026-08-19","kind":"skim_simulated","day_pnl":-6.39}"#),
+    ];
+
+    assert!(
+        (ledger_sum(&rows) - (-0.33)).abs() < 1e-9,
+        "a day the trader did not actually trade must not count, got {}",
+        ledger_sum(&rows)
+    );
+    assert!(
+        !is_banking_kind("skim_simulated"),
+        "simulated days are observations, not banked capital"
+    );
+    assert!(
+        is_banking_kind("skim"),
+        "genuinely traded days must still count, or the ledger stops working"
+    );
+}
