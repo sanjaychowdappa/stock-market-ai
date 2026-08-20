@@ -111,13 +111,39 @@ pub const LIVE_KILL_ENABLED: bool = true;
 pub const LIVE_KILL_TRADES: u32 = 100;
 pub const LIVE_KILL_DAYS: i64 = 20;
 
+// ── TRIAL 2, opened 2026-08-20 ───────────────────────────────────────────
+//
+// Trial 1 FAILED: -$0.2888 per trade over 130 real round trips. Intraday
+// trading was resumed on 2026-08-20 by explicit decision, so a NEW window
+// opens here rather than the old verdict being quietly reused.
+//
+// Two things have to be true for the new number to mean anything.
+//
+// FIRST, it must measure only the new run. The criterion reads the account's
+// all-time net and all-time filled sells, so without a baseline it would keep
+// reporting trial 1's failure forever and never say anything about trial 2.
+// These are the readings at the moment trading resumed.
+//
+// SECOND, it must exclude the accumulator. The account now also holds a
+// long-term SPY position being fed $13 a day, and its gains and losses are in
+// the same equity curve. Left in, the intraday trader would be credited or
+// blamed for SPY's drift — small today at $26 invested, but it compounds every
+// session. The criterion subtracts the accumulator's profit before judging.
+//
+// The threshold is NOT relaxed. Expectancy must be above zero, same as trial 1.
+// Resuming a failed strategy on an easier test would be moving the goalposts,
+// which is the exact thing the pre-commitment exists to prevent.
+pub const LIVE_KILL_BASELINE_NET: f64 = -37.85;
+pub const LIVE_KILL_BASELINE_TRIPS: u32 = 130;
+
 /// Expectancy per real round trip below which the trader is retired.
 /// Zero, not a negative tolerance: a system that loses money on average has
 /// no case for continuing, whatever its win rate looks like.
 pub const LIVE_KILL_MIN_EXPECTANCY: f64 = 0.0;
 
 /// The date the criterion was fixed. Trading days are counted from here.
-pub const LIVE_KILL_START_DATE: &str = "2026-08-06";
+/// Reset to 2026-08-20 when trial 2 opened; trial 1 ran from 2026-08-06.
+pub const LIVE_KILL_START_DATE: &str = "2026-08-20";
 
 
 /// Mirror simulated intraday trades as real orders on the Alpaca PAPER account.
@@ -130,7 +156,16 @@ pub const LIVE_KILL_START_DATE: &str = "2026-08-06";
 /// The simulator keeps running. It costs nothing, the shadow A/B models keep
 /// accumulating data, and the comparison against random_baseline stays live.
 /// It simply stops sending orders to a broker: demoted to a testing model.
-pub const ALPACA_SHADOW_ORDERS: bool = false;
+///
+/// SET TRUE AGAIN 2026-08-20 by explicit decision. Intraday trading resumes
+/// under a NEW pre-committed window (see LIVE_KILL_BASELINE_NET above) rather
+/// than under trial 1's verdict. The threshold is unchanged: expectancy above
+/// zero, or retired again.
+///
+/// Turning this on re-arms three guards that were dormant while it was false:
+/// damage control, the reconcile in-flight guard, and the accumulator-symbol
+/// exclusion that stops reconcile liquidating the long-term SPY holding.
+pub const ALPACA_SHADOW_ORDERS: bool = true;
 
 // == LONG-TERM ACCUMULATOR ===============================================
 //

@@ -760,15 +760,33 @@ fn the_accumulator_symbol_is_recognised_as_protected() {
 }
 
 #[test]
-fn the_intraday_trader_no_longer_places_real_orders() {
-    // It failed its pre-committed criterion at -$0.2888 over 130 round trips.
-    // The rule said retired, not retuned. The simulator keeps running; the
-    // broker link is off. If someone flips this back on, that is a decision
-    // that should have to be made deliberately.
+fn resuming_intraday_requires_a_fresh_trial_window() {
+    // Trial 1 failed at -$0.2888 over 130 round trips. Intraday trading was
+    // resumed on 2026-08-20 by explicit decision, which is allowed — but only
+    // against a NEW window. Reusing the old one would either report trial 1's
+    // failure forever or, worse, let trial 1's losses be averaged away by
+    // trial 2's trades until the number looked acceptable.
+    use stock_market_ai::config::*;
+
+    if ALPACA_SHADOW_ORDERS {
+        assert!(
+            LIVE_KILL_BASELINE_TRIPS > 0,
+            "trading is live, so the criterion needs a baseline or it measures history"
+        );
+        assert_eq!(
+            LIVE_KILL_START_DATE, "2026-08-20",
+            "the trial window must start when trading resumed, not when trial 1 did"
+        );
+    }
+
+    // The threshold itself may never be relaxed to make a resumed strategy
+    // pass. Loosening this is moving the goalposts, which is the precise thing
+    // the pre-commitment exists to prevent.
     assert!(
-        !stock_market_ai::config::ALPACA_SHADOW_ORDERS,
-        "the intraday trader is retired; re-enabling it needs a new criterion"
+        LIVE_KILL_MIN_EXPECTANCY >= 0.0,
+        "a system that loses money on average has no case for continuing"
     );
+    assert_eq!(LIVE_KILL_TRADES, 100, "trial 2 uses the same trade count as trial 1");
 }
 
 // ── A simulated day is not banked capital (2026-08-19) ────────────────────

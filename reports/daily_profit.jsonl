@@ -22,3 +22,5 @@
 {"basis":"alpaca /v2/account","broker_day_pnl":-4.89,"date":"2026-08-18","kind":"broker","timestamp":"2026-08-18T19:55:02.052679557+00:00"}
 {"basis":"SIMULATION ONLY - the trader is retired and placed no orders","relabelled":"2026-08-19 was written before the kind split; the trader placed no orders that day","capital":3000.0,"cumulative_pnl":-50.67,"date":"2026-08-19","day_pnl":-6.39,"kind":"skim_simulated","timestamp":"2026-08-19T19:55:00.812399718+00:00","unfilled_today":0}
 {"basis":"alpaca /v2/account","broker_day_pnl":-0.03,"date":"2026-08-19","kind":"broker","timestamp":"2026-08-19T19:55:01.398911926+00:00"}
+{"basis":"simulator cash, mirrored to a live broker","capital":3000.0,"cumulative_pnl":-55.78,"date":"2026-08-20","day_pnl":-11.5,"kind":"skim","timestamp":"2026-08-20T19:55:00.824517886+00:00","unfilled_today":2}
+{"basis":"alpaca /v2/account","broker_day_pnl":-16.81,"date":"2026-08-20","kind":"broker","timestamp":"2026-08-20T19:55:01.320123501+00:00"}

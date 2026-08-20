@@ -1,0 +1,70 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-08-20
+  Generated:  2026-08-20T20:10:00.507865348+00:00
+  Uptime:     6h 8m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $167.50
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     196
+  Winning Trades:   82
+  Win Rate:         41.8%
+  Avg Hold Time:    2164s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $469.39     bullish     0.336    —
+  MRK      $149.18     neutral     -0.039   —
+  RTX      $212.59     bullish     0.221    —
+  BAC      $61.91      bearish     -0.416   —
+  AMZN     $260.05     bearish     -0.424   —
+  FCX      $71.22      bullish     0.141    —
+  KO       $90.54      bearish     -0.410   —
+  COP      $134.91     bearish     -0.318   —
+  EQIX     $1082.32    bullish     0.194    —
+  DIS      $107.36     bullish     0.288    —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  16:21:16  SELL   RTX      $216.03    $595.43  $-1.5022   REGIME_EXIT(risk-off,pnl=-0.25%)
+  16:01:39  SELL   FCX      $69.65     $440.74  $-1.4554   REGIME_EXIT(risk-off,pnl=-0.33%)
+  16:01:25  SELL   DIS      $107.34    $747.34  $-2.0191   REGIME_EXIT(risk-off,pnl=-0.27%)
+  16:01:18  SELL   AMZN     $261.25    $600.74  $-0.0875   REGIME_EXIT(risk-off,pnl=-0.01%)
+  16:01:18  SELL   MRK      $151.64    $604.92  $4.0291    REGIME_EXIT(risk-off,pnl=0.67%)
+  15:51:18  BUY    RTX      $216.57    $596.94  $0.0000    ENTRY(s=0.640,K+,3of7)
+  15:36:04  SELL   BAC      $62.76     $596.94  $-3.7095   TRAIL_STOP(-0.75% from peak,pnl=-0.62%)
+  15:31:39  BUY    FCX      $69.88     $442.19  $0.0000    ENTRY(s=0.148,K~,2of7)
+  15:31:26  BUY    DIS      $107.60    $749.15  $0.0000    ENTRY(s=0.090,K+,1of7)
+  15:31:18  SELL   AMD      $464.20    $596.71  $-4.1649   TRAIL_STOP(-0.93% from peak,pnl=-0.69%)
+  15:31:17  SELL   RTX      $217.48    $595.71  $-5.2591   TRAIL_STOP(-0.87% from peak,pnl=-0.88%)
+  15:01:18  BUY    AMZN     $261.25    $600.75  $0.0000    ENTRY(s=0.080,K-,1of7)
+  15:01:18  BUY    AMD      $467.34    $600.75  $0.0000    ENTRY(s=0.144,K~,1of7)
+  15:01:18  BUY    MRK      $150.59    $600.75  $0.0000    ENTRY(s=0.156,K~,1of7)
+  15:01:18  BUY    BAC      $63.16     $600.75  $0.0000    ENTRY(s=0.418,K~,2of7)
+  15:01:18  BUY    RTX      $219.32    $600.75  $0.0000    ENTRY(s=0.621,K+,3of7)
+  14:02:23  SELL   RTX      $218.09    $747.58  $-2.5194   REGIME_EXIT(risk-off,pnl=-0.34%)
+  14:01:37  SELL   AMZN     $262.72    $750.46  $0.4570    REGIME_EXIT(risk-off,pnl=0.06%)
+  14:01:33  SELL   BAC      $62.90     $749.07  $-1.2505   REGIME_EXIT(risk-off,pnl=-0.17%)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

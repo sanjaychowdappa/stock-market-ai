@@ -213,8 +213,25 @@ async fn check_live_kill_criterion() -> Finding {
     // strategy on 11 unmatched sells and 16 suspect rows. Reconstructing from
     // our own records is precisely the mistake this project keeps repeating.
     let eq = crate::services::alpaca_broker::equity_pnl().await;
-    let net = eq["net_pnl"].as_f64().unwrap_or(0.0);
-    let trades = crate::services::alpaca_broker::round_trips_from_broker().await;
+    let account_net = eq["net_pnl"].as_f64().unwrap_or(0.0);
+    let all_trips = crate::services::alpaca_broker::round_trips_from_broker().await;
+
+    // Measure THIS trial, not the account's whole history.
+    //
+    // Both readings are account-wide and all-time. Without the baseline the
+    // criterion would keep reporting trial 1's failure forever and never say
+    // anything about trial 2.
+    //
+    // The accumulator is subtracted for the same reason: it holds a long-term
+    // SPY position fed $13 a day, in the same equity curve, and it is not the
+    // intraday trader's doing. Leaving it in would credit or blame the trader
+    // for SPY's drift — small now, compounding every session. It never sells,
+    // so it adds no round trips and only the P&L needs removing.
+    let acc = crate::services::accumulator::status().await;
+    let acc_profit = acc["profit"].as_f64().unwrap_or(0.0);
+
+    let net = account_net - LIVE_KILL_BASELINE_NET - acc_profit;
+    let trades = all_trips.saturating_sub(LIVE_KILL_BASELINE_TRIPS);
     let exp = if trades > 0 { net / trades as f64 } else { 0.0 };
 
     let days = chrono::NaiveDate::parse_from_str(LIVE_KILL_START_DATE, "%Y-%m-%d")
