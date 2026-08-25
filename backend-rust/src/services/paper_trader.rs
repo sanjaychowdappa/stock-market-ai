@@ -1,4 +1,4 @@
-//! Pattern-driven momentum trader — $100 → $150 challenge.
+//! Pattern-driven momentum trader â€” $100 â†’ $150 challenge.
 //!
 //! Strategy v3: Kronos sets daily bias, patterns drive trade timing.
 //!
@@ -86,7 +86,7 @@ struct PersistedState {
     day_start_value: f64,
     #[serde(default)]
     did_daily_skim: bool,
-    /// Highest day P&L (%) reached today — drives the profit-lock ratchet.
+    /// Highest day P&L (%) reached today â€” drives the profit-lock ratchet.
     #[serde(default)]
     day_peak_pnl_pct: f64,
     /// True once the floor has been breached and the book flattened.
@@ -136,11 +136,11 @@ pub struct PaperTrader {
     last_veto_check: Instant,
     last_save: Instant,
     /// Market-regime flag: true = broad market risk-on (QQQ above its 50-day
-    /// average). When false, the signal trader stops opening new longs — its
+    /// average). When false, the signal trader stops opening new longs â€” its
     /// biggest failure mode was buying into down/choppy markets. Updated by a
     /// background task in state.rs.
     market_risk_on: Arc<AtomicBool>,
-    /// Portfolio value at the start of the trading day — the denominator for
+    /// Portfolio value at the start of the trading day â€” the denominator for
     /// every day-P&L calculation, including the damage-control floor.
     day_start_value: f64,
     /// ET date of the session currently in progress; a change triggers NEW_DAY.
@@ -148,7 +148,7 @@ pub struct PaperTrader {
     /// True once today's 3:55pm profit-skim + reset has run, so it happens
     /// exactly once per day and no further trading occurs afterwards.
     did_daily_skim: bool,
-    // ── Damage control ──────────────────────────────────────────────
+    // â”€â”€ Damage control â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     /// Highest day P&L (%) seen today; drives the profit-lock ratchet.
     day_peak_pnl_pct: f64,
     /// Set when the floor is breached and the book flattened.
@@ -160,7 +160,7 @@ pub struct PaperTrader {
     recovery_trades: u32,
     recovery_pnl: f64,
     /// Book value at the moment of the halt. Recovery is judged against this,
-    /// not against closed trades — a held book still expresses whether the
+    /// not against closed trades â€” a held book still expresses whether the
     /// model's decisions are working, and requiring closures deadlocked the
     /// gate when the simulator bought its slots and held them all session.
     halt_baseline_value: f64,
@@ -169,12 +169,12 @@ pub struct PaperTrader {
     /// resume lands with day P&L still under the floor and re-halts on the very
     /// next tick, consuming the day's only allowance for nothing.
     floor_baseline: f64,
-    /// When the current halt started. NOT persisted — after a restart the
+    /// When the current halt started. NOT persisted â€” after a restart the
     /// elapsed clock is meaningless, and `damage_halted` keeps the book shut
     /// until a fresh timestamp is set, so a restart can never shorten a halt.
     halted_at: Option<Instant>,
     /// Market intraday momentum (Gao, Han, Li & Zhou 2018): each symbol's
-    /// 9:30 open price and its first-half-hour (9:30–10:00 ET) return %.
+    /// 9:30 open price and its first-half-hour (9:30â€“10:00 ET) return %.
     /// The first-half-hour return predicts the last-half-hour return, so we
     /// tilt late-day long entries by it. Empty until 10:00 each day.
     day_open_price: HashMap<String, f64>,
@@ -193,7 +193,7 @@ struct VetoEntry {
 }
 
 /// Shadow trader: runs a second model with different layer weights on the same
-/// market data. Doesn't execute real trades — just tracks what it *would* do
+/// market data. Doesn't execute real trades â€” just tracks what it *would* do
 /// and logs results to prediction_accuracy.jsonl with model_id for A/B comparison.
 struct ShadowTrader {
     model_id: String,
@@ -206,20 +206,92 @@ struct ShadowTrader {
     cooldowns: HashMap<String, Instant>,
     /// Layer weights: [kronos, kalman, pattern, cvd, vp, gex, cot]
     weights: [f64; 7],
-    /// Random-entry baseline: ignores all signals, enters by coin flip.
-    /// If the signal models can't beat this trader, the layers have no edge.
-    is_random: bool,
-    /// Max-exposure model: always fully invested — enters any free slot
-    /// immediately (no signals, no coin flip, no cooldown). Tests the
-    /// hypothesis the weekly data keeps pointing at: time-in-market with
-    /// the swing exit ladder is the driver, and every entry gate hurts.
-    is_always_in: bool,
     /// Recent trade log, kept for the dashboard.
     trades: VecDeque<Trade>,
     /// Date this model started trading.
     started_date: String,
     /// Trend filter mode for A/B testing: "fullday", "short", or "off".
     trend_mode: String,
+
+    /// Which specification rule this book implements, if any.
+    ///
+    /// Replaces the trend A/B arms (2026-08-25). Those had answered their
+    /// question â€” more filtering was monotonically worse across 135+ trades
+    /// each â€” so the slots now carry the five-rule spec instead:
+    ///
+    ///   "r1_kronos_sectors"  Kronos picks across sectors
+    ///   "r2_max_forecast"    everything into the strongest forecast
+    ///   "r3_profit_only"     below the floor, hold only what is in profit
+    ///   "r4_legacy"          only names with a profitable track record
+    ///   "r5_concentrate"     all into the leader when it beats the rest
+    ///
+    /// Every shadow book now carries one; a book with an empty rule cannot
+    /// enter at all.
+    rule: String,
+    /// Per-symbol realised P&L for this book, used by r4_legacy to decide
+    /// which names have earned the right to be funded again.
+    legacy_pnl: HashMap<String, f64>,
+    /// Closed trades per symbol, so "legacy" needs a track record and not a
+    /// single lucky fill.
+    legacy_trades: HashMap<String, u32>,
+}
+
+/// Layer weights every rule book scores with: the LIVE production weights,
+/// [kronos, kalman, pattern, cvd, vp, gex, cot].
+///
+/// These must not be zeros. The five-rule books shipped with `[0.0; 7]` on
+/// 2026-08-25, which made `weighted_score` identically 0.0 and left r3 and r5
+/// â€” both gated on `weighted_score > MIN_BUY_SIGNAL` â€” unable to open a
+/// position at all. Their empty trade counts looked like "the setup has not
+/// occurred yet" and were really "the setup cannot occur".
+pub const RULE_WEIGHTS: [f64; 7] = [0.24, 0.12, 0.06, 0.06, 0.52, 0.0, 0.0];
+
+/// Everything a rule needs in order to decide whether to open a position.
+pub struct RuleEntry {
+    /// Kronos next-bar bias for this symbol.
+    pub kronos_score: f64,
+    /// RULE_WEIGHTS applied to the layer scores.
+    pub weighted_score: f64,
+    /// Book value is under its starting capital (the spec's $3,000 floor).
+    pub below_floor: bool,
+    /// This symbol has 2+ closed trades on this book with positive cumulative P&L.
+    pub is_legacy: bool,
+    /// The book currently holds nothing.
+    pub holds_nothing: bool,
+}
+
+/// The five-rule entry decision, kept pure so it can be tested without a
+/// market feed, a broker, or a running trader.
+pub fn rule_entry_allowed(rule: &str, e: &RuleEntry) -> bool {
+    match rule {
+        // RULE 1 â€” Kronos picks across sectors. The universe already holds at
+        // most one name per sector, so funding every name Kronos calls bullish
+        // is the sector spread.
+        "r1_kronos_sectors" => e.kronos_score > 0.1,
+
+        // RULE 2 â€” everything into the strongest forecast. Holds one position
+        // at a time and only opens on a high-conviction Kronos reading, so the
+        // whole book rides one name.
+        "r2_max_forecast" => e.holds_nothing && e.kronos_score > 0.4,
+
+        // RULE 3 â€” normal entries while solvent, nothing new once the book is
+        // under the floor.
+        "r3_profit_only" => !e.below_floor && e.weighted_score > MIN_BUY_SIGNAL,
+
+        // RULE 4 â€” only names with a profitable track record. A name with no
+        // history cannot qualify, so this book seeds itself from whatever the
+        // other rules have already proven.
+        "r4_legacy" => e.is_legacy && e.kronos_score > 0.0,
+
+        // RULE 5 â€” enter normally; the concentration happens on the exit side,
+        // where a runaway leader absorbs the others.
+        "r5_concentrate" => e.weighted_score > MIN_BUY_SIGNAL,
+
+        // A book with no rule cannot enter. There is no generic
+        // signal-weighted fallback any more â€” every book states which rule it
+        // is testing or it does nothing.
+        _ => false,
+    }
 }
 
 impl ShadowTrader {
@@ -234,11 +306,58 @@ impl ShadowTrader {
             daily_trades: 0,
             cooldowns: HashMap::new(),
             weights,
-            is_random: false,
-            is_always_in: false,
             trades: VecDeque::with_capacity(60),
             started_date: chrono::Local::now().format("%Y-%m-%d").to_string(),
             trend_mode: trend_mode.to_string(),
+            rule: String::new(),
+            legacy_pnl: HashMap::new(),
+            legacy_trades: HashMap::new(),
+        }
+    }
+
+    /// A book implementing one rule from the specification. Scores with
+    /// [`RULE_WEIGHTS`] â€” see there for why they must not be zeros.
+    fn new_rule(model_id: &str, rule: &str) -> Self {
+        let mut s = Self::new(model_id, RULE_WEIGHTS, "off");
+        s.rule = rule.to_string();
+        s
+    }
+
+    /// Has this name earned funding under r4_legacy?
+    ///
+    /// Requires a positive cumulative result over at least two closed trades,
+    /// so one lucky fill does not qualify a name forever.
+    fn is_legacy(&self, symbol: &str) -> bool {
+        self.legacy_trades.get(symbol).copied().unwrap_or(0) >= 2
+            && self.legacy_pnl.get(symbol).copied().unwrap_or(0.0) > 0.0
+    }
+
+    /// Unrealised profit of one held position.
+    fn position_profit(&self, symbol: &str) -> f64 {
+        self.positions.get(symbol).map(|p| p.unrealized_pnl()).unwrap_or(0.0)
+    }
+
+    /// r5: does one name's profit exceed everything else combined?
+    /// Returns the leader's symbol when it does.
+    fn runaway_leader(&self) -> Option<String> {
+        if self.positions.len() < 2 {
+            return None;
+        }
+        let mut best: Option<(String, f64)> = None;
+        let mut total = 0.0;
+        for (sym, p) in &self.positions {
+            let pnl = p.unrealized_pnl();
+            total += pnl;
+            if best.as_ref().map(|(_, b)| pnl > *b).unwrap_or(true) {
+                best = Some((sym.clone(), pnl));
+            }
+        }
+        let (sym, pnl) = best?;
+        // Leader must be profitable AND beat the sum of the others.
+        if pnl > 0.0 && pnl > (total - pnl) {
+            Some(sym)
+        } else {
+            None
         }
     }
 
@@ -247,25 +366,12 @@ impl ShadowTrader {
         self.trades.push_back(t);
     }
 
-    fn new_random(model_id: &str) -> Self {
-        let mut s = Self::new(model_id, [0.0; 7], "off");
-        s.is_random = true;
-        s
-    }
-
-    fn new_always_in(model_id: &str) -> Self {
-        let mut s = Self::new(model_id, [0.0; 7], "off");
-        s.is_always_in = true;
-        s
-    }
-
-
     fn total_value(&self) -> f64 {
         self.cash + self.positions.values().map(|p| p.market_value()).sum::<f64>()
     }
 }
 
-/// Tracks how many times each layer blocked an entry — for efficiency analysis.
+/// Tracks how many times each layer blocked an entry â€” for efficiency analysis.
 #[derive(Default, Clone)]
 struct LayerBlockCounters {
     kronos_bias: u32,
@@ -321,7 +427,7 @@ struct MarketSnapshot {
     session_high: f64,
     session_low: f64,
     // Trend regime filter: price relative to its intraday average.
-    // Don't fight the trend — long-only should not buy into downtrends.
+    // Don't fight the trend â€” long-only should not buy into downtrends.
     uptrend: bool,        // full-day average reference
     uptrend_short: bool,  // 30-min average reference (for A/B test)
     atr_pct: f64,         // Average True Range as % of price (for ATR exits)
@@ -347,22 +453,22 @@ impl PaperTrader {
                         "take_profit_pct": TAKE_PROFIT_PCT,
                         "hard_stop_pct": HARD_STOP_PCT,
                         // Must be the width actually applied, not the old
-                        // TRAILING_STOP_PCT — this record is what the
+                        // TRAILING_STOP_PCT â€” this record is what the
                         // experiment log uses to describe the run.
                         "trailing_stop_pct": TRAIL_STOP_FIXED_PCT,
                     },
-                    "experiment": "trend-filter A/B/C — identical weights, only trend gate differs",
+                    "experiment": "five-rule specification â€” identical live weights, one rule per book, no baseline",
                     "shadow_models": [
-                        {"id": "trend_fullday", "trend": "fullday",
-                         "description": "Live weights + full-day trend filter (current production rule)"},
-                        {"id": "trend_30min", "trend": "short",
-                         "description": "Live weights + 30-min trend filter — catches reversals faster"},
-                        {"id": "trend_off", "trend": "off",
-                         "description": "Live weights, NO trend filter — tests whether the filter helps at all"},
-                        {"id": "random_baseline", "trend": "off",
-                         "description": "Null hypothesis: random coin-flip entries — the bar every model must beat"},
-                        {"id": "always_in_max_exposure", "trend": "off",
-                         "description": "Max exposure: always fully invested, no entry gates — tests whether time-in-market is the real driver"},
+                        {"id": "r1_kronos_sectors", "rule": "r1",
+                         "description": "Kronos picks, spread across sectors"},
+                        {"id": "r2_max_forecast", "rule": "r2",
+                         "description": "Whole book into the single strongest Kronos forecast"},
+                        {"id": "r3_profit_only", "rule": "r3",
+                         "description": "Below $3,000 keep only what is in profit, fund nothing new"},
+                        {"id": "r4_legacy", "rule": "r4",
+                         "description": "Only names with a profitable track record (2+ closed wins)"},
+                        {"id": "r5_concentrate", "rule": "r5",
+                         "description": "When one name beats the rest combined, sell the rest into it"},
                     ]
                 });
                 let mut line = serde_json::to_string(&marker).unwrap_or_default();
@@ -407,20 +513,31 @@ impl PaperTrader {
             day_open_price: HashMap::new(),
             first_hh_return: HashMap::new(),
             shadow_traders: {
-                // TREND-FILTER A/B/C: all use the live production weights,
-                // differing ONLY in the trend gate, so end-of-week expectancy
-                // isolates the effect of the trend filter.
-                let live_w = [0.24, 0.12, 0.06, 0.06, 0.52, 0.0, 0.0];
+                // THE FIVE-RULE SPECIFICATION, replacing the trend A/B arms
+                // (2026-08-25).
+                //
+                // The trend arms had answered their question: across 135+ trades
+                // each, more filtering was monotonically worse. Keeping three
+                // books to re-establish that was spending slots on a settled
+                // result, so they now carry the spec instead.
+                //
+                // All of these price against the SAME live Alpaca ticks the real
+                // trader fills on, so their P&L is directly comparable to the
+                // real book rather than to a separate simulation.
+                //
+                // random_baseline was removed on the owner's instruction. It had
+                // been the reference every previous idea was measured against, so
+                // note what that costs: these five books can now only be ranked
+                // against each other and against REAL_TRADER. A winner among them
+                // is the least bad rule, which is not the same claim as a rule
+                // that beats not choosing. The historical bar it set is in
+                // git history and in New_ideas/README.md if it is needed again.
                 vec![
-                    ShadowTrader::new("trend_fullday", live_w, "fullday"),
-                    ShadowTrader::new("trend_30min", live_w, "short"),
-                    ShadowTrader::new("trend_off", live_w, "off"),
-                    // Null hypothesis: random entries, no filter.
-                    ShadowTrader::new_random("random_baseline"),
-                    // Max-exposure hypothesis: always fully invested, exits
-                    // do all the risk work. If this beats random, exposure is
-                    // the driver and entry timing is irrelevant.
-                    ShadowTrader::new_always_in("always_in_max_exposure"),
+                    ShadowTrader::new_rule("r1_kronos_sectors", "r1_kronos_sectors"),
+                    ShadowTrader::new_rule("r2_max_forecast", "r2_max_forecast"),
+                    ShadowTrader::new_rule("r3_profit_only", "r3_profit_only"),
+                    ShadowTrader::new_rule("r4_legacy", "r4_legacy"),
+                    ShadowTrader::new_rule("r5_concentrate", "r5_concentrate"),
                 ]
             },
         };
@@ -458,7 +575,7 @@ impl PaperTrader {
             info!("[STATE_RESTORE] resumed: cash ${:.2}, {} open positions, realized ${:.2}",
                 trader.cash, trader.positions.len(), trader.realized_pnl);
         } else {
-            info!("[STATE_RESTORE] no saved state — fresh start at ${:.2}", INITIAL_CASH);
+            info!("[STATE_RESTORE] no saved state â€” fresh start at ${:.2}", INITIAL_CASH);
         }
 
         trader
@@ -515,7 +632,7 @@ impl PaperTrader {
         // A sequence guard was tried and is not sufficient: it can stop a stale
         // write from STARTING, but not from FINISHING last, because the write
         // itself is awaited after the check. The file is ~7KB, so a blocking
-        // write costs microseconds — far less than the cost of another race.
+        // write costs microseconds â€” far less than the cost of another race.
         if let Ok(json_str) = serde_json::to_string(&state) {
             if let Err(e) = std::fs::write(STATE_FILE, json_str) {
                 error!("[STATE] save failed: {}", e);
@@ -525,7 +642,7 @@ impl PaperTrader {
 
     /// Persist state SYNCHRONOUSLY. Used at critical moments (the daily skim /
     /// capital reset) where a fire-and-forget async write can be lost if the
-    /// process is killed immediately after — which is exactly how a completed
+    /// process is killed immediately after â€” which is exactly how a completed
     /// skim once failed to reach disk and let profit compound into the next day.
     fn save_state_sync(&self) {
         let shadows: Vec<PersistedShadow> = self.shadow_traders.iter().map(|s| PersistedShadow {
@@ -564,7 +681,7 @@ impl PaperTrader {
         }
     }
 
-    /// Running total of BANKED day P&L from the ledger — the authoritative
+    /// Running total of BANKED day P&L from the ledger â€” the authoritative
     /// "how much has this system actually made" figure. Deliberately NOT the
     /// trader's lifetime realized_pnl, which counts every trade ever and does
     /// not reconcile with the sum of banked days.
@@ -573,17 +690,17 @@ impl PaperTrader {
         // `cumulative_pnl`, which is only correct if every row was appended in
         // order by a single writer. Two writers (the NEW_DAY carryover recovery
         // and the 3:55pm skim) append independently, and both writes used to be
-        // fire-and-forget, so "last row" could be stale or out of order — which
+        // fire-and-forget, so "last row" could be stale or out of order â€” which
         // is how $72.28 came to be banked twice. A sum cannot drift that way.
         // Rows explicitly marked `reliable: false` are excluded. The rows written
         // before 2026-08-04 double-counted the same dollars (see the quarantine
-        // note in the ledger itself) and cannot be reconstructed — guessing which
+        // note in the ledger itself) and cannot be reconstructed â€” guessing which
         // of them were genuine would just be a different fabricated number. They
         // stay in the file for audit; they do not count toward any total.
         //
         // The kind filter is a guard, not decoration. This used to sum any row
         // carrying a `day_pnl` field, so ANY new row type would silently join
-        // the total — which is precisely how the same dollars got banked more
+        // the total â€” which is precisely how the same dollars got banked more
         // than once before. Only the kinds that represent banked capital count;
         // everything else in this file is annotation.
         ledger_sum(&Self::ledger_rows())
@@ -619,7 +736,7 @@ impl PaperTrader {
     ///
     /// Both callers previously did their own `tokio::spawn` append with no
     /// idempotency, so a single date could receive a carryover-recovery row in
-    /// the morning AND a skim row at 3:55pm — which is exactly the duplication
+    /// the morning AND a skim row at 3:55pm â€” which is exactly the duplication
     /// that made three dates in this ledger double-count. `kind` distinguishes
     /// the two legitimate entry types so a genuine carryover and a genuine skim
     /// on the same day still both record, but neither can ever record twice.
@@ -628,7 +745,7 @@ impl PaperTrader {
             v["date"].as_str() == Some(date) && v["kind"].as_str() == Some(kind)
         });
         if already {
-            warn!("[LEDGER] refusing duplicate {} row for {} — already banked", kind, date);
+            warn!("[LEDGER] refusing duplicate {} row for {} â€” already banked", kind, date);
             return;
         }
         // Only banking rows get `day_pnl` / `cumulative_pnl` at all. An
@@ -686,7 +803,7 @@ impl PaperTrader {
             .unwrap_or(false)
     }
 
-    /// Check if US stock market is open (9:30 AM – 4:00 PM ET, Mon–Fri).
+    /// Check if US stock market is open (9:30 AM â€“ 4:00 PM ET, Monâ€“Fri).
     fn is_market_open() -> bool {
         let utc_now = chrono::Utc::now();
         let month = utc_now.month();
@@ -777,7 +894,7 @@ impl PaperTrader {
         let trend = (pred_30s - price) / price;
         let kronos_direction = (pred_60s - price) / price * 100.0;
 
-        // CVD (Cumulative Volume Delta) — buy vs sell pressure
+        // CVD (Cumulative Volume Delta) â€” buy vs sell pressure
         let cvd = &data["cvd"];
         let cvd_signal = cvd["signal"].as_f64().unwrap_or(0.0);
         let cvd_buy_sell_ratio = cvd["buy_sell_ratio"].as_f64().unwrap_or(1.0);
@@ -795,7 +912,7 @@ impl PaperTrader {
         // This smooths out the 8-second oscillations into a stable daily view
         if kronos_active {
             let prev_ema = *self.kronos_bias_ema.get(symbol).unwrap_or(&0.0);
-            let alpha = 0.05; // Very slow EMA — takes ~20 readings to shift
+            let alpha = 0.05; // Very slow EMA â€” takes ~20 readings to shift
             let new_ema = alpha * kronos_direction + (1.0 - alpha) * prev_ema;
             self.kronos_bias_ema.insert(symbol.to_string(), new_ema);
             self.kronos_daily_bias.insert(symbol.to_string(), new_ema);
@@ -887,10 +1004,10 @@ impl PaperTrader {
             let prev_date = self.last_trading_date.clone();
             self.last_trading_date = et_date.clone();
 
-            // ── ENFORCE THE FIXED-CAPITAL INVARIANT ──────────────────────
+            // â”€â”€ ENFORCE THE FIXED-CAPITAL INVARIANT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // Every day must begin with exactly INITIAL_CASH. The 3:55pm skim
             // normally guarantees that, but it only fires if the machine is
-            // running then — and its state write can be lost on shutdown. When
+            // running then â€” and its state write can be lost on shutdown. When
             // that happens, yesterday's positions and profit silently carry
             // over and compound into today's position sizing, which this model
             // explicitly must not do. So re-assert the invariant here.
@@ -905,7 +1022,7 @@ impl PaperTrader {
                 //
                 // The previous version banked it unconditionally, "attributing to
                 // today" whenever the prior day was already in the ledger. That
-                // re-banked money the 3:55pm skim had already recorded — and the
+                // re-banked money the 3:55pm skim had already recorded â€” and the
                 // ledger proves it: 07-31 skim banked $72.28, then 08-03 banked
                 // $72.28 again as a carryover; 08-03 skim banked $37.14, then
                 // 08-04 banked $37.14 again. Three occurrences, same dollars twice.
@@ -917,25 +1034,25 @@ impl PaperTrader {
                 if recovered.abs() > 0.01 {
                     let missed_day = !prev_date.is_empty() && !Self::ledger_has_date(&prev_date);
                     if missed_day {
-                        info!("[CAPITAL_RECOVERY] {} skim was missed — banking ${:.2} late", prev_date, recovered);
+                        info!("[CAPITAL_RECOVERY] {} skim was missed â€” banking ${:.2} late", prev_date, recovered);
                         Self::bank_day(&prev_date, "carryover", recovered, json!({
                             "recovered_late": true,
                             "note": "late banking for a day whose 3:55pm skim never ran",
                         }));
                     } else {
-                        warn!("[CARRYOVER_IGNORED] ${:.2} drift into {} — {} is already banked, \
+                        warn!("[CARRYOVER_IGNORED] ${:.2} drift into {} â€” {} is already banked, \
                                so this is a state artifact, not new profit. Resetting without banking.",
                             recovered, et_date, prev_date);
                     }
                 }
-                info!("[CAPITAL_RESET] carried ${:.2} into {} — resetting to ${:.0}",
+                info!("[CAPITAL_RESET] carried ${:.2} into {} â€” resetting to ${:.0}",
                     carried, et_date, INITIAL_CASH);
                 self.cash = INITIAL_CASH;
             }
 
             self.day_start_value = INITIAL_CASH;
             self.did_daily_skim = false;
-            // Damage control is a per-day construct — a halt must not carry into
+            // Damage control is a per-day construct â€” a halt must not carry into
             // tomorrow, and the peak must restart from flat.
             self.day_peak_pnl_pct = 0.0;
             self.damage_halted = false;
@@ -951,17 +1068,17 @@ impl PaperTrader {
             for shadow in &mut self.shadow_traders { shadow.daily_trades = 0; }
             self.day_open_price.clear();
             self.first_hh_return.clear();
-            info!("[NEW_DAY] {} — capital reset to ${:.2}", et_date, self.day_start_value);
+            info!("[NEW_DAY] {} â€” capital reset to ${:.2}", et_date, self.day_start_value);
             self.save_state_sync();
         }
 
         // Market intraday momentum capture (Gao et al. 2018): record the 9:30
         // open price, then lock in the first-half-hour return at 10:00 ET.
         // If the system starts after 10:00 the window is missed and the signal
-        // simply stays inactive for the day — no fabricated data.
+        // simply stays inactive for the day â€” no fabricated data.
         if self.market_open && price > 0.0 {
-            // Only capture the open *inside* the 9:30–10:00 window. A start
-            // after 10:00 leaves day_open_price unset → signal stays inactive,
+            // Only capture the open *inside* the 9:30â€“10:00 window. A start
+            // after 10:00 leaves day_open_price unset â†’ signal stays inactive,
             // instead of grabbing a late price and fabricating a 0.000% return.
             if et_mins >= 9 * 60 + 30 && et_mins < 10 * 60 && !self.day_open_price.contains_key(symbol) {
                 self.day_open_price.insert(symbol.to_string(), price);
@@ -971,14 +1088,14 @@ impl PaperTrader {
                     if open > 0.0 {
                         let hh = (price - open) / open * 100.0;
                         self.first_hh_return.insert(symbol.to_string(), hh);
-                        info!("[INTRADAY_MOM] {} first-half-hour return {:.3}% (open ${:.2} → ${:.2})",
+                        info!("[INTRADAY_MOM] {} first-half-hour return {:.3}% (open ${:.2} â†’ ${:.2})",
                             symbol, hh, open, price);
                     }
                 }
             }
         }
 
-        // ── DAILY PROFIT SKIM ──────────────────────────────────────
+        // â”€â”€ DAILY PROFIT SKIM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // At 3:55pm ET: flatten everything, bank the day's P&L to the profit
         // ledger, and reset working capital to the fixed budget. Runs once/day.
         if eod_liquidation && !self.did_daily_skim {
@@ -1002,9 +1119,9 @@ impl PaperTrader {
             let day_pnl = self.cash - INITIAL_CASH;
             // True running total of BANKED days. Previously this stored
             // self.realized_pnl (lifetime P&L of every trade), which does not
-            // reconcile with the sum of day_pnl — the ledger read $174.11 when
+            // reconcile with the sum of day_pnl â€” the ledger read $174.11 when
             // the banked days summed to $128.60.
-            info!("[DAILY_SKIM] {} — day P&L ${:.2} banked | cumulative ${:.2} | reset to ${:.0}",
+            info!("[DAILY_SKIM] {} â€” day P&L ${:.2} banked | cumulative ${:.2} | reset to ${:.0}",
                 et_date, day_pnl, Self::ledger_cumulative() + day_pnl, INITIAL_CASH);
             // This figure is the SIMULATOR's cash, and the simulator books a
             // trade whether or not Alpaca filled it. On 2026-08-10, 16 of 25
@@ -1016,7 +1133,7 @@ impl PaperTrader {
             // So the row carries the count that explains its own reliability.
             let unfilled = Self::unfilled_count_today(&et_date);
             if unfilled > 0 {
-                warn!("[DAILY_SKIM] {} — {} order(s) did not fill today; banked figure is \
+                warn!("[DAILY_SKIM] {} â€” {} order(s) did not fill today; banked figure is \
                        simulator cash and will diverge from the broker", et_date, unfilled);
             }
             // A day the trader did not actually trade is NOT banked capital.
@@ -1024,7 +1141,7 @@ impl PaperTrader {
             // Since the intraday trader was retired on 2026-08-18 the simulator
             // keeps trading while no order reaches a broker, so this figure has
             // become purely hypothetical. On 2026-08-19 it read -$6.39 while the
-            // account moved -$0.03, and unfilled_today was 0 — the diagnostic
+            // account moved -$0.03, and unfilled_today was 0 â€” the diagnostic
             // built for that gap could not explain it, because the cause is now
             // different and intended.
             //
@@ -1040,7 +1157,7 @@ impl PaperTrader {
                 "basis": if ALPACA_SHADOW_ORDERS {
                     "simulator cash, mirrored to a live broker"
                 } else {
-                    "SIMULATION ONLY — the trader is retired and placed no orders"
+                    "SIMULATION ONLY â€” the trader is retired and placed no orders"
                 },
             }));
             // The broker's own number for the same day, recorded as a separate
@@ -1050,7 +1167,7 @@ impl PaperTrader {
             //
             // Timing matters: today_pnl is equity minus Alpaca's last_equity,
             // and Alpaca rolls last_equity forward to the session's close once
-            // the day is over — after which the figure reads 0.00. The skim
+            // the day is over â€” after which the figure reads 0.00. The skim
             // fires at 15:55 ET, before the 16:00 close, so it reads the real
             // number. Moving the skim later would silently start banking zeros.
             let date_for_broker = et_date.clone();
@@ -1080,7 +1197,7 @@ impl PaperTrader {
 
         // The -4% circuit breaker that used to live here is removed. Damage
         // control now stops real orders at -1%, which is strictly tighter, so
-        // the breaker could never fire first on real money — but it COULD fire
+        // the breaker could never fire first on real money â€” but it COULD fire
         // on the simulator, which keeps trading below the floor to earn its way
         // back. It would then block find_best_entry(), the recovery gate would
         // never accumulate a trade, and Alpaca could never re-engage. A dead
@@ -1089,10 +1206,10 @@ impl PaperTrader {
             (self.total_value() - self.day_start_value) / self.day_start_value * 100.0
         } else { 0.0 };
 
-        // ── DAMAGE CONTROL ──────────────────────────────────────────
+        // â”€â”€ DAMAGE CONTROL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // A hard floor plus a ratchet that lifts it once the day is up, so a
         // winning day cannot round-trip into a losing one. This bounds the loss;
-        // it cannot eliminate it — a stop fills below its trigger and every exit
+        // it cannot eliminate it â€” a stop fills below its trigger and every exit
         // pays a round trip.
         if DAMAGE_CONTROL_ENABLED {
             if day_pnl_pct > self.day_peak_pnl_pct {
@@ -1124,7 +1241,7 @@ impl PaperTrader {
                 self.halt_baseline_value = self.total_value();
                 let syms: Vec<String> = self.positions.keys().cloned().collect();
                 for s in &syms { self.sell(s, "DAMAGE_CONTROL_FLATTEN"); }
-                warn!("[DAMAGE_CONTROL] Day P&L {:.2}% breached the {:.2}% floor{} — \
+                warn!("[DAMAGE_CONTROL] Day P&L {:.2}% breached the {:.2}% floor{} â€” \
                        flattened {} position(s). REAL ORDERS HALTED; simulator keeps \
                        trading to earn its way back. Capital ${:.2}.",
                     day_pnl_pct, floor,
@@ -1133,7 +1250,7 @@ impl PaperTrader {
                     syms.len(), self.total_value());
                 self.save_state_sync();
                 // Deliberately NOT returning. The halt stops REAL orders, not
-                // decisions — the simulator has to keep trading or there is no
+                // decisions â€” the simulator has to keep trading or there is no
                 // evidence on which to decide whether to re-engage.
             }
 
@@ -1145,7 +1262,7 @@ impl PaperTrader {
             // holds them to the 3:55pm skim, so nothing closes and the counter
             // never moved. On 2026-08-05 it sat at 0/3 from 13:01 onward and
             // real money was sidelined for the entire session with no path back
-            // in — the day was spent regardless of what the market did. A held
+            // in â€” the day was spent regardless of what the market did. A held
             // book still expresses whether the decisions are working, so equity
             // change is the honest measure and cannot stall.
             if self.damage_halted && RECOVERY_GATE_ENABLED {
@@ -1154,12 +1271,12 @@ impl PaperTrader {
                     .unwrap_or(false);
                 // A halt carried over from before this field existed loads the
                 // baseline as 0.0, which would make `evidence` the entire book
-                // value (~$2958) rather than the change since the halt — the
+                // value (~$2958) rather than the change since the halt â€” the
                 // gate would read as wildly passed. Adopt the current book as
                 // the baseline so the measurement starts from zero.
                 if self.halt_baseline_value <= 0.0 {
                     self.halt_baseline_value = self.total_value();
-                    warn!("[DAMAGE_CONTROL] halt baseline was unset (halt predates the field) — \
+                    warn!("[DAMAGE_CONTROL] halt baseline was unset (halt predates the field) â€” \
                            adopting current book ${:.2}; recovery measured from here",
                         self.halt_baseline_value);
                 }
@@ -1184,7 +1301,7 @@ impl PaperTrader {
                     // the floor and re-halts immediately, spending the day's
                     // only allowance on nothing.
                     self.floor_baseline = self.total_value();
-                    info!("[DAMAGE_CONTROL] RECOVERY GATE PASSED — book up ${:.2} since the halt, \
+                    info!("[DAMAGE_CONTROL] RECOVERY GATE PASSED â€” book up ${:.2} since the halt, \
                            net of ${:.2} modeled cost. Alpaca re-engaging ({}/{}); floor re-based \
                            to ${:.2}. Day P&L {:.2}%.",
                         evidence, cost, self.resumes_today, MAX_RESUMES_PER_DAY,
@@ -1197,19 +1314,20 @@ impl PaperTrader {
         // Don't open new positions in last 10 minutes
         if et_mins >= 15 * 60 + 50 { return; }
         // THE SIGNAL TRADER IS LIVE. It opens positions on every qualifying
-        // tick and places the real Alpaca orders — it is not a leftover.
+        // tick and places the real Alpaca orders â€” it is not a leftover.
         //
         // This comment previously read "Signal trader retired (lost to random)
-        // — it no longer opens new positions", which was false while
+        // â€” it no longer opens new positions", which was false while
         // SIGNAL_TRADER_ENABLED stayed true. exp1 is the model that was
         // retired; the two were conflated here. Anyone auditing this file would
         // have concluded the thing responsible for every real order was dormant
-        // — and it is the source of the -$44.82 on the broker account.
+        // â€” and it is the source of the -$44.82 on the broker account.
         //
-        // Its shadow books do say it should probably follow exp1: over the same
+        // Its shadow books did say it should probably follow exp1: over the same
         // period always_in_max_exposure returned +$67.60 and random_baseline
-        // +$29.00, both beating every signal-driven variant. That decision
-        // belongs to the kill criterion fixed on 2026-08-06, not to a comment.
+        // +$29.00, both beating every signal-driven variant. Those two books
+        // were retired on 2026-08-25. That decision belongs to the kill
+        // criterion fixed on 2026-08-06, not to a comment.
         if SIGNAL_TRADER_ENABLED {
             self.find_best_entry();
         }
@@ -1220,7 +1338,7 @@ impl PaperTrader {
             self.last_veto_check = Instant::now();
         }
 
-        // ── Adopt REAL Alpaca fill prices ────────────────────────────
+        // â”€â”€ Adopt REAL Alpaca fill prices â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // The simulator books a trade at the last observed tick price, which is
         // optimistic. When the mirrored order actually fills, restate the
         // position (or the realized cash) at the true execution price so the two
@@ -1259,7 +1377,7 @@ impl PaperTrader {
 
     fn manage_position(&mut self, symbol: &str) {
         // Partial profit booking: sell half at the ATR-scaled partial level,
-        // let the rest run behind the trailing stop — this captures winners
+        // let the rest run behind the trailing stop â€” this captures winners
         // that the full take-profit rarely reaches.
         let book_partial = !MAX_EXPOSURE_MODE && self.positions.get(symbol).map_or(false, |pos| {
             let atr = pos.entry_atr_pct.max(ATR_PCT_FLOOR);
@@ -1297,7 +1415,7 @@ impl PaperTrader {
 
                 // Minimum hold time gate: most exits require MIN_HOLD_SECS
                 // to prevent micro-flips that generate fees without capturing moves.
-                // Only HARD_STOP bypasses this — capital protection is always immediate.
+                // Only HARD_STOP bypasses this â€” capital protection is always immediate.
                 let held_long_enough = pos.hold_seconds >= MIN_HOLD_SECS;
 
                 // === ATR-SCALED EXIT THRESHOLDS ===
@@ -1307,7 +1425,7 @@ impl PaperTrader {
                 let atr = pos.entry_atr_pct.max(ATR_PCT_FLOOR);
                 // Clamp narrowed from (1.0, 5.0) to (1.0, 2.0) on 2026-08-24.
                 //
-                // The hard stop is the ungated backstop — it is the only exit
+                // The hard stop is the ungated backstop â€” it is the only exit
                 // that may fire inside MIN_HOLD_SECS. At a 5% ceiling it was
                 // scaling out to roughly -3% on a volatile name, so AMD's -2.47%
                 // threaded between a trailing stop that was not yet permitted to
@@ -1326,7 +1444,7 @@ impl PaperTrader {
                 // TRAIL_STOP_FIXED_PCT for the evidence and the replay.
                 let trail_lvl = crate::config::trail_stop_pct(pos.entry_atr_pct);
 
-                // === EXIT LOGIC — VP-ANCHORED (fixed based on accuracy data) ===
+                // === EXIT LOGIC â€” VP-ANCHORED (fixed based on accuracy data) ===
                 // VP is 72.6% accurate. Kalman/Pattern fire false bearish constantly.
                 // Require VP confirmation for bearish exits, not just noisy layers.
 
@@ -1340,38 +1458,38 @@ impl PaperTrader {
                 let regime_off = REGIME_FILTER_ENABLED && !self.market_risk_on.load(Ordering::Relaxed);
 
                 // === ATR-SCALED EXIT LADDER ===
-                // 1. HARD STOP — protect capital, IMMEDIATE (ATR-scaled)
+                // 1. HARD STOP â€” protect capital, IMMEDIATE (ATR-scaled)
                 if pnl_pct <= hard_stop_lvl {
                     Some(format!("HARD_STOP({:.2}%,atr={:.2}%)", pnl_pct, atr))
                 }
-                // 1b. REGIME EXIT — the broad market turned risk-off. In an
+                // 1b. REGIME EXIT â€” the broad market turned risk-off. In an
                 // aggressive/max-exposure posture, retreat to cash promptly
                 // rather than ride a falling market down to the stops.
                 else if regime_off && held_long_enough {
                     Some(format!("REGIME_EXIT(risk-off,pnl={:.2}%)", pnl_pct))
                 }
-                // 2. VP-CONFIRMED BEARISH — disabled in max-exposure mode (hold
+                // 2. VP-CONFIRMED BEARISH â€” disabled in max-exposure mode (hold
                 // through noise; only the hard stop / trailing / regime bail).
                 else if !MAX_EXPOSURE_MODE && vp_bearish && strong_bearish >= 2 && held_long_enough && pnl_pct < -0.5 {
                     Some(format!("BEARISH_EXIT({}signals,vp_confirmed,pnl={:.2}%)", strong_bearish, pnl_pct))
                 }
-                // 3. TAKE PROFIT — disabled in max-exposure mode so winners run
+                // 3. TAKE PROFIT â€” disabled in max-exposure mode so winners run
                 // (they are protected by the trailing stop instead of capped).
                 else if !MAX_EXPOSURE_MODE && held_long_enough && pnl_pct >= take_profit_lvl {
                     Some(format!("TAKE_PROFIT({:.2}%,tgt={:.2}%)", pnl_pct, take_profit_lvl))
                 }
-                // 4. VP RESISTANCE — disabled in max-exposure mode.
+                // 4. VP RESISTANCE â€” disabled in max-exposure mode.
                 else if !MAX_EXPOSURE_MODE && at_resistance && pnl_pct > 1.0 && held_long_enough {
                     Some(format!("VP_PROFIT_LOCK(pnl={:.2}%)", pnl_pct))
                 }
-                // 5. TRAILING STOP — protect gains from peak (ATR-scaled). In
+                // 5. TRAILING STOP â€” protect gains from peak (ATR-scaled). In
                 // max-exposure mode it also fires while in profit, so a winner
                 // that reverses is locked in (then the cash redeploys instantly).
                 else if drawdown <= -trail_lvl && held_long_enough
                     && (pnl_pct < 0.0 || partial_taken || MAX_EXPOSURE_MODE) {
                     Some(format!("TRAIL_STOP({:.2}% from peak,pnl={:.2}%)", drawdown, pnl_pct))
                 }
-                // 6. FLAT EXIT — max-hold backstop (~1 trading week)
+                // 6. FLAT EXIT â€” max-hold backstop (~1 trading week)
                 else if pos.hold_seconds >= FLAT_EXIT_SECS {
                     Some(format!("FLAT_EXIT({}s,{:.2}%)", pos.hold_seconds, pnl_pct))
                 }
@@ -1422,7 +1540,7 @@ impl PaperTrader {
         (qty, px)
     }
 
-    /// (cash, invested) — used by the agentic_test supervisor.
+    /// (cash, invested) â€” used by the agentic_test supervisor.
     pub fn portfolio_snapshot(&self) -> (f64, f64) {
         (self.cash, self.positions.values().map(|p| p.market_value()).sum())
     }
@@ -1438,7 +1556,7 @@ impl PaperTrader {
     }
 
     /// A/B experiment summary: the real trader plus every shadow model,
-    /// with value, trades, win rate, and realized P&L — for /api/experiments.
+    /// with value, trades, win rate, and realized P&L â€” for /api/experiments.
     pub fn experiments_json(&self) -> serde_json::Value {
         let mut models: Vec<serde_json::Value> = Vec::new();
         models.push(json!({
@@ -1455,12 +1573,18 @@ impl PaperTrader {
             "realized_pnl": (self.realized_pnl * 100.0).round() / 100.0,
         }));
         for s in &self.shadow_traders {
-            let desc = if s.is_random {
-                "Random coin-flip entries — the null-hypothesis bar to beat"
-            } else if s.is_always_in {
-                "Always fully invested, no entry gates"
-            } else {
-                "Signal-weighted entries with trend-filter variant"
+            let desc = match s.rule.as_str() {
+                "r1_kronos_sectors" =>
+                    "RULE 1 â€” Kronos picks, spread across sectors",
+                "r2_max_forecast" =>
+                    "RULE 2 â€” whole book into the single strongest Kronos forecast",
+                "r3_profit_only" =>
+                    "RULE 3 â€” below $3,000 keep only what is in profit, fund nothing new",
+                "r4_legacy" =>
+                    "RULE 4 â€” only names with a profitable track record (2+ closed wins)",
+                "r5_concentrate" =>
+                    "RULE 5 â€” when one name beats the rest combined, sell the rest into it",
+                _ => "No rule assigned â€” this book cannot enter",
             };
             models.push(json!({
                 "model_id": s.model_id,
@@ -1490,18 +1614,18 @@ impl PaperTrader {
         // The cap now applies in max-exposure mode too. It was written as
         // `!MAX_EXPOSURE_MODE && ...`, and MAX_EXPOSURE_MODE is true, so the
         // condition was always false and the cap never once applied. That is how
-        // 2026-08-05 ran 25 orders — 11 of them GOOGL — against a stated limit of
+        // 2026-08-05 ran 25 orders â€” 11 of them GOOGL â€” against a stated limit of
         // 5. Max exposure needs enough headroom to fill every slot and re-enter
         // legitimately, so the limit lives in MAX_DAILY_ENTRIES rather than
         // disabling the check.
-        // While halted, no real order is placed, so the cap does not apply — it
+        // While halted, no real order is placed, so the cap does not apply â€” it
         // exists to stop churn at the broker, and the simulator needs to keep
         // trading to produce the evidence the recovery gate reads. The cooldown
         // still applies, so the spiral pattern cannot pollute that evidence.
         let cap = if MAX_EXPOSURE_MODE { MAX_DAILY_ENTRIES } else { MAX_DAILY_TRADES };
         if !self.damage_halted && self.daily_trades >= cap {
             if self.daily_trades == cap {
-                info!("[TRADE_CAP] {} entries today — no further entries (cap {})",
+                info!("[TRADE_CAP] {} entries today â€” no further entries (cap {})",
                     self.daily_trades, cap);
             }
             return;
@@ -1527,7 +1651,7 @@ impl PaperTrader {
             if self.positions.contains_key(sym) { continue; }
 
             // Re-entry cooldown. This used to be skipped entirely under
-            // MAX_EXPOSURE_MODE so a freed slot could refill instantly — but
+            // MAX_EXPOSURE_MODE so a freed slot could refill instantly â€” but
             // "instantly" meant the same tick, at the same price, in the symbol
             // that had just stopped out. On 2026-08-05 GOOGL was re-bought after
             // every stop while it fell 6.1%, losing $35.20 over four round
@@ -1544,7 +1668,7 @@ impl PaperTrader {
                 if cd.elapsed().as_secs() < cooldown_secs { continue; }
             }
 
-            // ══ AGENT-BASED SCORING ══
+            // â•â• AGENT-BASED SCORING â•â•
             let kronos_bias = *self.kronos_daily_bias.get(sym).unwrap_or(&0.0);
 
             // Skip symbols Kronos daily ranking flags bearish (bias < -0.03%)
@@ -1552,7 +1676,7 @@ impl PaperTrader {
                 continue;
             }
 
-            // ── AGENT 1: Kronos Transformer (always hardcoded — it IS the ML model) ──
+            // â”€â”€ AGENT 1: Kronos Transformer (always hardcoded â€” it IS the ML model) â”€â”€
             let kronos_score = if !data.kronos_active {
                 0.0
             } else if kronos_bias > 0.10 {
@@ -1585,9 +1709,9 @@ impl PaperTrader {
                 score = ml.meta_score * 0.75 + kronos_score * 0.25;
                 scoring_source = "ML";
             } else {
-                // ══ FIXED SCORING — based on Jun 11 accuracy analysis ══
+                // â•â• FIXED SCORING â€” based on Jun 11 accuracy analysis â•â•
 
-                // ── Kalman: require SUSTAINED momentum, not single-tick noise ──
+                // â”€â”€ Kalman: require SUSTAINED momentum, not single-tick noise â”€â”€
                 // Old: direction alone gave 0.5. Now: need strong trend + building momentum.
                 let kalman_sustained = data.kalman_trend_strength > 1.5
                     && data.kalman_momentum_building
@@ -1602,7 +1726,7 @@ impl PaperTrader {
                     0.0 // Neutral unless momentum is clearly sustained
                 };
 
-                // ── Pattern: require strong, consistent signals across history ──
+                // â”€â”€ Pattern: require strong, consistent signals across history â”€â”€
                 // Old: multiplied raw signal by 3x, catching noise. Now: need majority agreement.
                 let hist_consensus = self.signal_history.get(sym).map_or(0.0, |hist| {
                     if hist.len() < 5 { return 0.0; }
@@ -1622,10 +1746,10 @@ impl PaperTrader {
                 } else if raw_pattern < -0.1 && hist_consensus < 0.0 {
                     (raw_pattern * 2.0).max(-0.6)
                 } else {
-                    0.0 // Conflicting or weak — don't trust
+                    0.0 // Conflicting or weak â€” don't trust
                 };
 
-                // ── CVD: use momentum slope, not cumulative ratio ──
+                // â”€â”€ CVD: use momentum slope, not cumulative ratio â”€â”€
                 // Old: buy_sell_ratio drifts bullish over time. Now: require clear momentum shift.
                 let cvd_strong_buy = data.cvd_signal > 0.5 && data.cvd_buy_sell_ratio > 1.3;
                 let cvd_strong_sell = data.cvd_signal < -0.3 && data.cvd_buy_sell_ratio < 0.7;
@@ -1633,24 +1757,24 @@ impl PaperTrader {
                     else if cvd_strong_sell { -0.5 }
                     else { 0.0 }; // Neutral unless signal is extreme
 
-                // ── Volume Profile: proven 72.6% accurate — trust it fully ──
+                // â”€â”€ Volume Profile: proven 72.6% accurate â€” trust it fully â”€â”€
                 vp_score = if data.vp_position == "above_value" && data.vp_signal < -0.2 { -0.8 }
                     else if data.vp_position == "below_value" && data.vp_signal > 0.1 { 0.7 }
                     else if data.vp_position == "at_poc" { 0.3 }
                     else { data.vp_signal.max(-1.0).min(1.0) * 0.4 };
 
-                // ── GEX ──
+                // â”€â”€ GEX â”€â”€
                 gex_score = if data.gex_regime == "short_gamma" { 0.4 }
                     else if data.gex_regime == "long_gamma" { -0.3 }
                     else { 0.0 };
 
-                // ── COT ── (weekly data, rarely useful intraday)
+                // â”€â”€ COT â”€â”€ (weekly data, rarely useful intraday)
                 cot_score = 0.0;
 
-                // ── Weighted sum — dead layers removed (Jun 22 live diagnosis) ──
+                // â”€â”€ Weighted sum â€” dead layers removed (Jun 22 live diagnosis) â”€â”€
                 // GEX returns null and COT returns 0 on every symbol, so their
                 // 15% weight only diluted scores. Zeroed and proportionally
-                // rescaled the live layers (×1/0.85), preserving relative balance:
+                // rescaled the live layers (Ã—1/0.85), preserving relative balance:
                 // VP 52%, Kronos 24%, Kalman 12%, Pattern 6%, CVD 6%, GEX 0%, COT 0%
                 let agent_weights: [f64; 7] = [0.24, 0.12, 0.06, 0.06, 0.52, 0.0, 0.0];
                 let agent_scores_arr = [kronos_score, kalman_score, pattern_score, cvd_score, vp_score, gex_score, cot_score];
@@ -1683,44 +1807,44 @@ impl PaperTrader {
                 kronos_bias,
             );
 
-            // ── HARD VETO 0: don't fight the trend (regime filter) ──
+            // â”€â”€ HARD VETO 0: don't fight the trend (regime filter) â”€â”€
             // Long-only must not buy into downtrends. Skipped in max-exposure
-            // mode — the market-wide regime filter already confirms it's risk-on,
+            // mode â€” the market-wide regime filter already confirms it's risk-on,
             // and intraday dips are acceptable when the goal is full deployment.
             if !MAX_EXPOSURE_MODE && !data.uptrend {
                 if self.layer_blocks.consensus % 50 == 0 {
-                    info!("[TREND_VETO] {} — price ${:.2} below intraday avg, standing aside (downtrend)", sym, data.price);
+                    info!("[TREND_VETO] {} â€” price ${:.2} below intraday avg, standing aside (downtrend)", sym, data.price);
                 }
                 self.layer_blocks.consensus += 1;
                 vetoes.push((sym.clone(), data.price, score, "TREND_VETO"));
                 continue;
             }
 
-            // ── HARD VETO 1: Kronos must not be bearish ──
+            // â”€â”€ HARD VETO 1: Kronos must not be bearish â”€â”€
             if kronos_score < -0.1 {
-                info!("[KRONOS_VETO] {} — kronos={:.2} bearish, refusing entry: {}", sym, kronos_score, agent_report);
+                info!("[KRONOS_VETO] {} â€” kronos={:.2} bearish, refusing entry: {}", sym, kronos_score, agent_report);
                 self.layer_blocks.kronos_bias += 1;
                 vetoes.push((sym.clone(), data.price, score, "KRONOS_VETO"));
                 continue;
             }
 
-            // ── HARD VETO 2: majority bearish ──
+            // â”€â”€ HARD VETO 2: majority bearish â”€â”€
             if bearish_agents.len() >= 4 {
-                info!("[VETOED] {} — {}/7 agents bearish: {}", sym, bearish_agents.len(), agent_report);
+                info!("[VETOED] {} â€” {}/7 agents bearish: {}", sym, bearish_agents.len(), agent_report);
                 self.layer_blocks.consensus += 1;
                 vetoes.push((sym.clone(), data.price, score, "CONSENSUS_VETO"));
                 continue;
             }
 
-            // ── HARD VETO 3: VP strongly against (proven 72.6% accurate) ──
+            // â”€â”€ HARD VETO 3: VP strongly against (proven 72.6% accurate) â”€â”€
             if vp_score < -0.5 {
-                info!("[VP_VETO] {} — vp={:.2} overbought: {}", sym, vp_score, agent_report);
+                info!("[VP_VETO] {} â€” vp={:.2} overbought: {}", sym, vp_score, agent_report);
                 self.layer_blocks.consensus += 1;
                 vetoes.push((sym.clone(), data.price, score, "VP_VETO"));
                 continue;
             }
 
-            // ── MARKET INTRADAY MOMENTUM TILT (Gao et al. 2018) ──
+            // â”€â”€ MARKET INTRADAY MOMENTUM TILT (Gao et al. 2018) â”€â”€
             // Late-day return follows the morning return. Long-only, so a
             // positive first-half-hour is a tailwind and a negative one is a
             // headwind we lean against. Only active after 2:30pm ET, and only
@@ -1734,11 +1858,11 @@ impl PaperTrader {
             } else { 0.0 };
             let score = score + mom_tilt;
 
-            // ── MINIMUM SCORE THRESHOLD ── (skipped in max-exposure mode so
-            // weak-but-not-vetoed names still fill slots — deploy the cash)
+            // â”€â”€ MINIMUM SCORE THRESHOLD â”€â”€ (skipped in max-exposure mode so
+            // weak-but-not-vetoed names still fill slots â€” deploy the cash)
             if !MAX_EXPOSURE_MODE && score <= MIN_BUY_SIGNAL {
                 if self.layer_blocks.score_too_low % 50 == 0 {
-                    info!("[WEAK] {} — {} mom_tilt={:.2} (need > {:.2})", sym, agent_report, mom_tilt, MIN_BUY_SIGNAL);
+                    info!("[WEAK] {} â€” {} mom_tilt={:.2} (need > {:.2})", sym, agent_report, mom_tilt, MIN_BUY_SIGNAL);
                 }
                 self.layer_blocks.score_too_low += 1;
                 continue;
@@ -1777,7 +1901,7 @@ impl PaperTrader {
 
         // Only candidates the model actually rates positively. Previously the
         // top N were taken regardless of score, so every free slot was filled
-        // whatever the signals said — which is why the book looked identical
+        // whatever the signals said â€” which is why the book looked identical
         // day after day and why entries were logged at 0.000 and -0.048.
         let qualified: Vec<_> = candidates.iter()
             .filter(|(_, score, _, _, _)| crate::config::qualifies_for_entry(*score))
@@ -1786,7 +1910,7 @@ impl PaperTrader {
 
         if qualified.is_empty() && !candidates.is_empty() {
             let best = candidates[0].1;
-            info!("[NO_ENTRY] {} candidate(s), best score {:.3} < {:.2} floor — holding cash",
+            info!("[NO_ENTRY] {} candidate(s), best score {:.3} < {:.2} floor â€” holding cash",
                 candidates.len(), best, MIN_ENTRY_SCORE);
             return;
         }
@@ -1810,7 +1934,7 @@ impl PaperTrader {
             // Conviction tiers (>=0.40 full, >=0.25 three-quarter, else half)
             // were tried on 2026-08-06 and are removed: this model's scores span
             // roughly -0.06 to +0.16, so NOTHING ever reached 0.25. Every entry
-            // that day priced at 50% — a flat haircut wearing the label of an
+            // that day priced at 50% â€” a flat haircut wearing the label of an
             // adaptive mechanism, and the reason only $1,350 of $3,000 was at
             // work. Rescaling the tiers to the observed range would just be
             // fitting numbers to two days of data on a strategy with no
@@ -1936,6 +2060,27 @@ impl PaperTrader {
         let pred_next_min = data.kronos_direction;
 
         for shadow in &mut self.shadow_traders {
+            // Rule-specific exit conditions, computed before the borrow below.
+            //
+            // r3: the spec's stop loss. Once the book is under the floor it keeps
+            // whatever is still in profit and drops the rest â€” unlike the real
+            // trader's damage control, which flattens everything and so discards
+            // winners along with losers.
+            //
+            // r5: once one name's profit exceeds all the others combined, the
+            // others are sold so the capital can follow the leader.
+            let r3_drop_loser = shadow.rule == "r3_profit_only"
+                && shadow.total_value() < INITIAL_CASH
+                && shadow.position_profit(symbol) <= 0.0;
+            let r5_absorb = if shadow.rule == "r5_concentrate" {
+                match shadow.runaway_leader() {
+                    Some(leader) => leader != symbol && shadow.positions.contains_key(symbol),
+                    None => false,
+                }
+            } else {
+                false
+            };
+
             // Update existing positions
             if let Some(pos) = shadow.positions.get_mut(symbol) {
                 pos.update(price);
@@ -1947,7 +2092,11 @@ impl PaperTrader {
                     vp_score < -0.5, cvd_bearish, at_resistance]
                     .iter().filter(|&&b| b).count();
 
-                let exit_reason = if pnl_pct <= HARD_STOP_PCT {
+                let exit_reason = if r3_drop_loser {
+                    Some(format!("RULE3_BELOW_FLOOR(dropping loser, pnl={:.2}%)", pnl_pct))
+                } else if r5_absorb {
+                    Some(format!("RULE5_ABSORBED(leader beats the rest, pnl={:.2}%)", pnl_pct))
+                } else if pnl_pct <= HARD_STOP_PCT {
                     Some("HARD_STOP".to_string())
                 } else if bearish_count >= 2 && pnl_pct < 0.0 {
                     Some(format!("BEARISH_EXIT({}signals,pnl={:.2}%)", bearish_count, pnl_pct))
@@ -1970,6 +2119,11 @@ impl PaperTrader {
                     shadow.cash += pos.market_value() - cost;
                     shadow.realized_pnl += pnl;
                     if pnl > 0.0 { shadow.winning_trades += 1; }
+                    // Per-symbol track record, which is what r4_legacy reads to
+                    // decide whether a name has earned funding again. Recorded on
+                    // every book so the histories stay comparable.
+                    *shadow.legacy_pnl.entry(symbol.to_string()).or_insert(0.0) += pnl;
+                    *shadow.legacy_trades.entry(symbol.to_string()).or_insert(0) += 1;
                     let sell_rec = Trade {
                         symbol: symbol.to_string(), action: "SELL".into(),
                         shares: pos.shares, price: pos.current_price,
@@ -2021,13 +2175,8 @@ impl PaperTrader {
             if shadow.positions.contains_key(symbol) { continue; }
             if shadow.positions.len() >= MAX_CONCURRENT_POSITIONS { continue; }
             if shadow.daily_trades >= MAX_DAILY_TRADES { continue; }
-            // Cooldowns: always_in = none (maximum time-in-market by design);
-            // every other shadow book uses the standard cooldown.
-            let cd_secs = if shadow.is_always_in { 0 } else { TRADE_COOLDOWN_SECS };
-            if cd_secs > 0 {
-                if let Some(cd) = shadow.cooldowns.get(symbol) {
-                    if cd.elapsed().as_secs() < cd_secs { continue; }
-                }
+            if let Some(cd) = shadow.cooldowns.get(symbol) {
+                if cd.elapsed().as_secs() < TRADE_COOLDOWN_SECS { continue; }
             }
 
             let weighted_score: f64 = shadow.weights.iter()
@@ -2035,33 +2184,34 @@ impl PaperTrader {
                 .map(|(w, s)| w * s)
                 .sum();
 
-            // Trend gate per this shadow's mode — the only thing that differs
-            // between the trend_fullday / trend_30min / trend_off models.
-            let trend_ok = match shadow.trend_mode.as_str() {
-                "fullday" => data.uptrend,
-                "short" => data.uptrend_short,
-                _ => true, // "off"
-            };
+            // r3: the spec's stop loss. Below the floor this book stops opening
+            // anything new; the exit side separately keeps whatever is in profit
+            // and drops the rest, which is the part that differs from the real
+            // trader's all-or-nothing halt.
+            let below_floor = shadow.total_value() < INITIAL_CASH;
 
-            // Random baseline ignores every signal: ~0.1% chance per tick,
-            // which lands near the real trader's daily trade count once
-            // cooldowns and position limits apply. Always-in enters any free
-            // slot immediately — maximum time-in-market by construction.
-            let should_enter = if shadow.is_random {
-                rand::random::<f64>() < 0.001
-            } else if shadow.is_always_in {
-                true
-            } else {
-                weighted_score > MIN_BUY_SIGNAL && kronos_score >= -0.1 && trend_ok
-            };
+            let should_enter = rule_entry_allowed(&shadow.rule, &RuleEntry {
+                kronos_score,
+                weighted_score,
+                below_floor,
+                is_legacy: shadow.is_legacy(symbol),
+                holds_nothing: shadow.positions.is_empty(),
+            });
 
             if should_enter {
                 let shadow_open = MAX_CONCURRENT_POSITIONS.saturating_sub(shadow.positions.len());
-                let per_slot = (shadow.cash / shadow_open as f64).min(shadow.total_value() * MAX_POSITION_PCT);
-                let shadow_conf = if shadow.is_always_in { 1.0 } // full slot
-                    else if weighted_score >= 0.40 { 1.0 }
-                    else if weighted_score >= 0.25 { 0.75 }
-                    else { 0.50 };
+                // r2 puts the WHOLE book into one name, so it ignores both the
+                // per-slot split and the per-position cap. That is the rule as
+                // specified: everything into the best forecast.
+                let per_slot = if shadow.rule == "r2_max_forecast" {
+                    shadow.cash
+                } else {
+                    (shadow.cash / shadow_open as f64).min(shadow.total_value() * MAX_POSITION_PCT)
+                };
+                // Every book carries a rule, and a rule that says "enter" means
+                // enter at full size â€” the confidence ladder was part of the
+                // signal-weighted path that no longer exists.
+                let shadow_conf = 1.0;
                 let alloc = (per_slot * shadow_conf).min(shadow.cash);
                 let shares = alloc / price;
                 if shares * price >= 1.0 {
@@ -2138,10 +2288,10 @@ impl PaperTrader {
 
         self.cash += sold_value;
         self.realized_pnl += sold_pnl;
-        // Not counted as a winning trade — the final close decides that.
+        // Not counted as a winning trade â€” the final close decides that.
 
         info!(
-            "PAPER: PARTIAL SELL {:.4} {} @ ${:.2} PnL: ${:.4} ({:.3}%) — half booked, runner trails",
+            "PAPER: PARTIAL SELL {:.4} {} @ ${:.2} PnL: ${:.4} ({:.3}%) â€” half booked, runner trails",
             sold_shares, symbol, price, sold_pnl, pnl_pct
         );
 
@@ -2177,7 +2327,7 @@ impl PaperTrader {
 
         let pnl_tag = if pnl >= 0.0 { "WIN" } else { "LOSS" };
         info!(
-            "PAPER: SELL {:.4} {} @ ${:.2} PnL: ${:.4} ({:.3}%) [{}] held {}s — {}",
+            "PAPER: SELL {:.4} {} @ ${:.2} PnL: ${:.4} ({:.3}%) [{}] held {}s â€” {}",
             pos.shares, symbol, pos.current_price, pnl, pnl_pct,
             pnl_tag, pos.hold_seconds, reason
         );
@@ -2185,7 +2335,7 @@ impl PaperTrader {
         // Recovery evidence. Charge the modeled round-trip cost before counting
         // it: the simulator books no spread and no slippage, so an uncosted
         // total would measure its optimism rather than the model's recovery.
-        // The flatten that caused the halt is excluded — it is the damage, not
+        // The flatten that caused the halt is excluded â€” it is the damage, not
         // evidence of recovery.
         if self.damage_halted && reason != "DAMAGE_CONTROL_FLATTEN" {
             let cost = value * SHADOW_COST_PCT / 100.0;
@@ -2326,7 +2476,7 @@ impl PaperTrader {
         self.cooldowns.insert(symbol.to_string(), Instant::now());
 
         // Mirror the exit to Alpaca. The DAMAGE_CONTROL_FLATTEN itself must go
-        // through even though it sets the halt — that exit is how real money
+        // through even though it sets the halt â€” that exit is how real money
         // leaves the market. Only trades opened after the halt are suppressed,
         // and those have no Alpaca position to close anyway.
         let mirror_exit = ALPACA_SHADOW_ORDERS
@@ -2371,7 +2521,7 @@ impl PaperTrader {
         for (veto, current_price, change_pct) in &missed {
             info!(
                 "MISSED_OPPORTUNITY: {} vetoed by {} at ${:.2} (score={:.3}), \
-                 now ${:.2} (+{:.2}%) — would have profited",
+                 now ${:.2} (+{:.2}%) â€” would have profited",
                 veto.symbol, veto.veto_reason, veto.price_at_veto,
                 veto.score, current_price, change_pct
             );

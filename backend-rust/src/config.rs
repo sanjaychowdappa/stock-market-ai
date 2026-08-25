@@ -159,9 +159,11 @@ pub const LIVE_KILL_START_DATE: &str = "2026-08-24";
 /// against a $0.00 floor. The rule fixed on 2026-08-06 said retired, not
 /// retuned, and it has now been met twice over.
 ///
-/// The simulator keeps running. It costs nothing, the shadow A/B models keep
-/// accumulating data, and the comparison against random_baseline stays live.
-/// It simply stops sending orders to a broker: demoted to a testing model.
+/// The simulator keeps running. It costs nothing and the shadow books keep
+/// accumulating data. It simply stops sending orders to a broker: demoted to a
+/// testing model. (The random_baseline book those shadows were measured against
+/// was removed on 2026-08-25; the five rule books are now compared to each
+/// other and to REAL_TRADER only.)
 ///
 /// SET TRUE AGAIN 2026-08-20 by explicit decision. Intraday trading resumes
 /// under a NEW pre-committed window (see LIVE_KILL_BASELINE_NET above) rather

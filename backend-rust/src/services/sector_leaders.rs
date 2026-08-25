@@ -16,8 +16,9 @@
 //!
 //! WHY MOMENTUM AND NOT THE LIVE TRADER'S SIGNALS
 //! Those signals have no demonstrated edge: exp1 lost to a random baseline over
-//! 327 trades, and across this week's shadow books always_in_max_exposure
+//! 327 trades, and across the 2026-08 shadow books always_in_max_exposure
 //! (+$67.60) and random_baseline (+$29.00) beat every signal-driven variant.
+//! (Both of those books were retired on 2026-08-25; the result stands.)
 //! Applying them to 500 names instead of 5 would change which stocks get picked,
 //! not whether the picking has skill. Cross-sectional momentum is the one
 //! anomaly here with decades of out-of-sample support, so it is what this uses.

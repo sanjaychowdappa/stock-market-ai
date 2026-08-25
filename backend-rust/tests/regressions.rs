@@ -826,3 +826,129 @@ fn a_simulated_day_does_not_join_the_banked_total() {
         "genuinely traded days must still count, or the ledger stops working"
     );
 }
+
+// ── BUG: the five rule books scored with all-zero weights ───────────────
+//
+// `new_rule` built every rule book with `[0.0; 7]`, copied from the random
+// and always-in constructors where zero weights are correct because those
+// books ignore signals entirely. The rule books do not ignore signals: r3 and
+// r5 both gate on `weighted_score > MIN_BUY_SIGNAL`, and a zero weight vector
+// makes `weighted_score` identically 0.0 no matter what the layers say.
+//
+// So two of the five rules could never open a position. On the board this
+// showed as `r3_profit_only 0 trades` and `r5_concentrate 0 trades`, which
+// reads as "the setup has not come up yet" and was really "the setup cannot
+// come up". A rule that cannot fire is not evidence about the rule.
+
+use stock_market_ai::services::paper_trader::{rule_entry_allowed, RuleEntry, RULE_WEIGHTS};
+use stock_market_ai::config::MIN_BUY_SIGNAL;
+
+/// A layer-score vector a real bullish tick would produce.
+fn bullish_layers() -> [f64; 7] {
+    [0.5, 0.4, 0.3, 0.3, 0.5, 0.0, 0.0]
+}
+
+fn weighted(scores: [f64; 7]) -> f64 {
+    RULE_WEIGHTS.iter().zip(scores.iter()).map(|(w, s)| w * s).sum()
+}
+
+fn entry(weighted_score: f64, kronos_score: f64) -> RuleEntry {
+    RuleEntry {
+        kronos_score,
+        weighted_score,
+        below_floor: false,
+        is_legacy: false,
+        holds_nothing: true,
+    }
+}
+
+#[test]
+fn the_rule_books_do_not_score_with_zero_weights() {
+    assert!(
+        RULE_WEIGHTS.iter().any(|w| *w != 0.0),
+        "all-zero weights make weighted_score identically 0.0, which silently \
+         disables every rule gated on it"
+    );
+}
+
+#[test]
+fn a_bullish_tick_clears_the_buy_threshold() {
+    let w = weighted(bullish_layers());
+    assert!(
+        w > MIN_BUY_SIGNAL,
+        "an ordinary bullish tick scored {w}, at or below the {MIN_BUY_SIGNAL} \
+         entry threshold — with these weights no signal-gated rule can ever fire"
+    );
+}
+
+#[test]
+fn rule_3_can_open_a_position_while_solvent() {
+    let w = weighted(bullish_layers());
+    assert!(
+        rule_entry_allowed("r3_profit_only", &entry(w, 0.5)),
+        "r3 must fund normally above the floor; with zero weights it never did"
+    );
+}
+
+#[test]
+fn rule_5_can_open_a_position() {
+    let w = weighted(bullish_layers());
+    assert!(
+        rule_entry_allowed("r5_concentrate", &entry(w, 0.5)),
+        "r5 enters normally and concentrates on the exit side — it cannot \
+         concentrate into positions it was never able to open"
+    );
+}
+
+#[test]
+fn rule_3_stops_funding_below_the_floor() {
+    let w = weighted(bullish_layers());
+    let mut e = entry(w, 0.5);
+    e.below_floor = true;
+    assert!(
+        !rule_entry_allowed("r3_profit_only", &e),
+        "the spec's stop loss: under $3,000 this book opens nothing new"
+    );
+}
+
+#[test]
+fn rule_4_will_not_fund_a_name_with_no_track_record() {
+    assert!(
+        !rule_entry_allowed("r4_legacy", &entry(1.0, 0.9)),
+        "r4 funds legacy names only, however strong the signal looks"
+    );
+    let mut e = entry(1.0, 0.9);
+    e.is_legacy = true;
+    assert!(
+        rule_entry_allowed("r4_legacy", &e),
+        "a name with a profitable track record must be fundable, or r4 is inert"
+    );
+}
+
+#[test]
+fn rule_2_holds_one_name_at_a_time() {
+    let mut e = entry(1.0, 0.9);
+    e.holds_nothing = false;
+    assert!(
+        !rule_entry_allowed("r2_max_forecast", &e),
+        "r2 puts the WHOLE book into one forecast — a second position breaks it"
+    );
+}
+
+// ── The random baseline was removed on the owner's instruction ──────────
+//
+// Every book must now declare a rule. The old code fell through to a generic
+// signal-weighted entry for any book without one, which meant a typo in a
+// rule name produced a book that traded on a rule nobody had specified.
+
+#[test]
+fn a_book_with_no_rule_cannot_trade() {
+    assert!(
+        !rule_entry_allowed("", &entry(1.0, 1.0)),
+        "an unnamed book must be inert, not silently signal-weighted"
+    );
+    assert!(
+        !rule_entry_allowed("r6_typo", &entry(1.0, 1.0)),
+        "a misspelled rule must be inert, not silently signal-weighted"
+    );
+}
