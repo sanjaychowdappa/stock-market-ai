@@ -177,3 +177,96 @@ out-of-sample evidence — including whether the Kronos veto added anything.
 
 That gets you the part that demonstrably works today, and turns the part that
 does not into a measurement instead of a bet.
+
+---
+
+## Third result: the five-rule specification
+
+**Proposal:** (1) Kronos picks multiple S&P names across sectors daily;
+(2) forecast them and put everything into the one predicted to profit most;
+(3) stop loss at $3,000, but keep funding names still in profit even when the
+book is under it; (4) log daily picks and treat repeatedly profitable names as
+"legacy stocks" to invest in more often; (5) if one stock's profit exceeds all
+others combined, move everything into it.
+
+`py New_ideas\rules.py` · `py New_ideas\validate_rules.py` · `py New_ideas\degenerate.py`
+
+Rules 1 and 2 are **not scored**. They need a Kronos forecast, and Kronos cannot
+be replayed historically without re-running it over every past bar. A number
+produced any other way would look like evidence without being any.
+
+Rules 3, 4 and 5 are pure allocation logic over 142 real positions across 13
+sessions, so they replay exactly. All three fail.
+
+### Rule 3 — keep funding winners below the floor
+
+```
+                  first version    corrected
+floor $3,000           +$125.35      -$18.39
+floor $2,990            +$90.79       +$3.10
+floor $2,970            +$10.16       +$4.10
+```
+
+Conceptually the best idea in the spec: today's damage control halts the entire
+book, discarding winners with losers, and this keeps the winners funded.
+
+The first version was **look-ahead biased** — it selected positions whose FINAL
+P&L was positive, which at the moment the floor breaks is unknowable. Marking
+positions at the breach instant instead reverses the result. A position in
+profit right then usually gives it back; the same mean reversion that defeats
+pyramiding defeats this.
+
+### Rule 4 — legacy stocks
+
+```
+actual P&L of all 142 trades      -$63.69
+DEGENERATE: skip every entry      +$63.69   <- the bar to beat
+RULE 4 legacy (1 prior win)       +$38.77   -$24.91 vs not trading
+RULE 4 legacy (2 prior wins)      +$34.55   -$29.13
+RULE 4 legacy (3 prior wins)      +$38.65   -$25.04
+```
+
+It skips 95–110 of 142 entries, so in a negative-expectancy system it scores
+well for a trivial reason. Compared against skipping *everything*, it is $25–29
+**worse**: the "legacy" screen actively selects the wrong survivors.
+
+An earlier fold reported +$69.35 for this. That was also wrong — the per-day
+grouping reset each symbol's history every morning, so "legacy" meant nothing.
+
+### Rule 5 — concentrate into the leader
+
+```
+checked  30 min   +$79.62   but 74% of it from one day (2026-08-17)
+checked  60 min   +$71.56   44% from one day
+checked 120 min    -$3.98   sign flips
+```
+
+Structurally better than the pyramid tested earlier: it *reallocates* from
+losers into the leader rather than adding exposure, which is why it does not
+collapse the same way. But a rule whose sign depends on checking at 60 versus
+120 minutes is not a rule yet.
+
+### What all five have in common
+
+Every rule is a variation on *select better* — better stocks, better timing,
+better concentration, better memory. The shadow board answers that directly, and
+the ordering is monotonic in how much selection is applied:
+
+```
+random_baseline    +$30.30    0 rules
+always_in          +$26.95    1 rule
+trend_off           +$1.45
+trend_30min         -$0.71
+trend_fullday      -$31.83
+REAL_TRADER        -$67.03   13 gates
+```
+
+Nothing tested in this repository has beaten *not choosing*. The one strategy
+that makes money — $13/day into an index — works because it does not choose.
+
+### Two errors caught here, both mine
+
+The look-ahead in Rule 3 and the history reset in Rule 4's fold. Both inflated
+results in the flattering direction, and both were caught by checks that exist
+because this has happened before. Worth recording: the harness is not protection
+against other people's mistakes, it is protection against your own.
