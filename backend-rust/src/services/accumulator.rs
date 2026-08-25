@@ -186,6 +186,74 @@ pub async fn contribute() -> Value {
     json!({"pending": true, "order_id": order_id, "date": today})
 }
 
+/// Invest a specific amount immediately, outside the daily schedule.
+///
+/// The scheduled contribution is idempotent per day on purpose — the loop wakes
+/// every ten minutes and the process restarts often, so without that a single
+/// day could be funded many times over by accident. But a deliberate top-up is
+/// not an accident, so it takes the amount explicitly and records itself as a
+/// separate `top_up` row rather than pretending to be the day's contribution.
+///
+/// Still buys only. There is no sell path in this module.
+pub async fn top_up(usd: f64) -> Value {
+    if !crate::config::ACCUMULATOR_ENABLED {
+        return json!({"skipped": "disabled"});
+    }
+    if !(usd > 0.0) {
+        return json!({"error": "amount must be positive"});
+    }
+    let symbol = crate::config::ACCUMULATOR_SYMBOL;
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+
+    let order = match buy_notional(symbol, usd).await {
+        Some(o) => o,
+        None => return json!({"error": "order not placed", "usd": usd}),
+    };
+    let order_id = order["id"].as_str().unwrap_or("").to_string();
+
+    let (key, secret, base) = (
+        std::env::var("APCA_API_KEY_ID").unwrap_or_default(),
+        std::env::var("APCA_API_SECRET_KEY").unwrap_or_default(),
+        std::env::var("APCA_API_BASE_URL")
+            .unwrap_or_else(|_| "https://paper-api.alpaca.markets".to_string()),
+    );
+    let client = reqwest::Client::new();
+    for _ in 0..60 {
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        let o = client
+            .get(format!("{}/v2/orders/{}", base, order_id))
+            .header("APCA-API-KEY-ID", &key)
+            .header("APCA-API-SECRET-KEY", &secret)
+            .timeout(std::time::Duration::from_secs(10))
+            .send()
+            .await;
+        let o: Value = match o {
+            Ok(r) if r.status().is_success() => match r.json().await { Ok(v) => v, Err(_) => continue },
+            _ => continue,
+        };
+        if o["status"].as_str() != Some("filled") {
+            continue;
+        }
+        let px = o["filled_avg_price"].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+        let qty = o["filled_qty"].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+        info!("[ACCUM] TOP-UP ${:.2} -> {:.6} {} @ ${:.2}", usd, qty, symbol, px);
+        let row = json!({
+            "date": today, "symbol": symbol, "usd": usd,
+            "shares": qty, "price": px, "outcome": "filled",
+            "order_id": order_id, "kind": "top_up",
+            "timestamp": chrono::Local::now().to_rfc3339(),
+        });
+        append(row.clone());
+        return row;
+    }
+    append(json!({
+        "date": today, "symbol": symbol, "usd": usd, "outcome": "pending",
+        "order_id": order_id, "kind": "top_up",
+        "timestamp": chrono::Local::now().to_rfc3339(),
+    }));
+    json!({"pending": true, "order_id": order_id, "usd": usd})
+}
+
 /// Current state of the accumulation, priced at the broker.
 pub async fn status() -> Value {
     let filled: Vec<Value> = rows().into_iter()

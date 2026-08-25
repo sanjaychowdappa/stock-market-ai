@@ -1337,7 +1337,7 @@ impl PaperTrader {
                     cvd_bearish,     // CVD: sellers dominating
                 ].iter().filter(|&&b| b).count();
 
-                let regime_off = !self.market_risk_on.load(Ordering::Relaxed);
+                let regime_off = REGIME_FILTER_ENABLED && !self.market_risk_on.load(Ordering::Relaxed);
 
                 // === ATR-SCALED EXIT LADDER ===
                 // 1. HARD STOP — protect capital, IMMEDIATE (ATR-scaled)
@@ -1510,7 +1510,7 @@ impl PaperTrader {
         // Market-regime filter: don't open new longs when the broad market is
         // risk-off (QQQ below its 50-day average). This is the single most
         // evidence-backed fix for a long-only intraday system.
-        if !self.market_risk_on.load(Ordering::Relaxed) { return; }
+        if REGIME_FILTER_ENABLED && !self.market_risk_on.load(Ordering::Relaxed) { return; }
 
         if self.cash < 2.0 { return; }
 

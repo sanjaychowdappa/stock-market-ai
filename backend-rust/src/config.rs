@@ -184,9 +184,40 @@ pub const ALPACA_SHADOW_ORDERS: bool = true;
 // from all four start dates, by $784 to $2,848. The screen still runs in
 // shadow, logging what it would have bought, so its value becomes measurable
 // rather than assumed.
+/// Block new long entries while QQQ is below its 50-day average.
+///
+/// SET FALSE 2026-08-25 on request: the filter was the only thing stopping
+/// the simulator from buying, and it had been risk-off for several sessions.
+///
+/// Worth recording what it was doing, because it is the one guard with a
+/// measured positive contribution. Over 2026-08-19..25, QQQ fell six sessions
+/// running. The three days the trader participated cost $28.40; the two it
+/// sat out cost $0.07. Turning it off means trading a falling market with a
+/// long-only system, which is what those three days looked like.
+///
+/// The damage-control floor at -0.30% is now the only thing standing between
+/// the book and a bad day.
+pub const REGIME_FILTER_ENABLED: bool = false;
+
 pub const ACCUMULATOR_ENABLED: bool = true;
 pub const ACCUMULATOR_SYMBOL: &str = "SPY";
-pub const ACCUMULATOR_DAILY_USD: f64 = 13.0;
+/// Daily contribution.
+///
+/// RAISED FROM 13 TO 500 ON 2026-08-25 at the user's instruction to remove the
+/// limit on the daily rate. $13/day was the figure in the original brief and was
+/// never revisited; at that size the book was still under $70 after five
+/// sessions and invisible on the dashboard.
+///
+/// There is no true "no limit" for a DAILY schedule: contributing everything
+/// happens once and then there is nothing left to contribute, which is
+/// lump-sum investing rather than dollar-cost averaging. $500/day is the
+/// largest rate that still behaves like a schedule -- roughly 198 trading days
+/// of runway against the account's cash, so the pattern is observable for the
+/// better part of a year before the question of topping up arises.
+///
+/// The backtest returns scale linearly with this number, so +52.1% over 4.6
+/// years is unchanged by the size. What changes is only how visible it is.
+pub const ACCUMULATOR_DAILY_USD: f64 = 500.0;
 
 /// No config/parameter changes before this date — clean-data window.
 pub const CONFIG_FREEZE_UNTIL: &str = "2026-07-28";

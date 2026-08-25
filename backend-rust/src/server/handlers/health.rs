@@ -342,3 +342,12 @@ pub async fn accumulator() -> Json<serde_json::Value> {
 pub async fn accumulator_contribute() -> Json<serde_json::Value> {
     Json(crate::services::accumulator::contribute().await)
 }
+
+/// Invest a specific amount into the accumulator right now.
+/// `GET /api/accumulator/topup?usd=250`
+pub async fn accumulator_topup(
+    axum::extract::Query(q): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Json<serde_json::Value> {
+    let usd = q.get("usd").and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+    Json(crate::services::accumulator::top_up(usd).await)
+}
