@@ -1305,7 +1305,20 @@ impl PaperTrader {
                 // then clamped to a sane band. A calm name exits tight; a wild
                 // one gets room to breathe instead of a one-size-fits-all stop.
                 let atr = pos.entry_atr_pct.max(ATR_PCT_FLOOR);
-                let hard_stop_lvl = -(HARD_STOP_ATR_MULT * atr).clamp(1.0, 5.0);
+                // Clamp narrowed from (1.0, 5.0) to (1.0, 2.0) on 2026-08-24.
+                //
+                // The hard stop is the ungated backstop — it is the only exit
+                // that may fire inside MIN_HOLD_SECS. At a 5% ceiling it was
+                // scaling out to roughly -3% on a volatile name, so AMD's -2.47%
+                // threaded between a trailing stop that was not yet permitted to
+                // act and a hard stop set wider than the move.
+                //
+                // A 2% ceiling also keeps it coherent with the book floor: at
+                // -0.30% of a $3,000 book the whole day halts at -$9, so a
+                // single ~$750 position must not be allowed to lose $22 on its
+                // own. A backstop wider than the floor it is meant to protect
+                // cannot do its job.
+                let hard_stop_lvl = -(HARD_STOP_ATR_MULT * atr).clamp(1.0, 2.0);
                 let take_profit_lvl = (TAKE_PROFIT_ATR_MULT * atr).clamp(2.0, 8.0);
                 // Trail is deliberately NOT ATR-scaled: entry_atr_pct is a
                 // 1-minute reading frozen at entry, so scaling by it set stop

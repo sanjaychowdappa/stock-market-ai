@@ -1,0 +1,179 @@
+{
+  "data_quality": {
+    "finetune_triggered": true,
+    "snapshots": 19437,
+    "tracker": {
+      "AMD": {
+        "predictions": 19409,
+        "ticks": 19409,
+        "trades": 0
+      },
+      "AMZN": {
+        "predictions": 19432,
+        "ticks": 19432,
+        "trades": 0
+      },
+      "BAC": {
+        "predictions": 19414,
+        "ticks": 19414,
+        "trades": 0
+      },
+      "COP": {
+        "predictions": 19426,
+        "ticks": 19426,
+        "trades": 0
+      },
+      "DIS": {
+        "predictions": 19374,
+        "ticks": 19374,
+        "trades": 0
+      },
+      "EQIX": {
+        "predictions": 19232,
+        "ticks": 19232,
+        "trades": 0
+      },
+      "FCX": {
+        "predictions": 19420,
+        "ticks": 19420,
+        "trades": 0
+      },
+      "KO": {
+        "predictions": 19393,
+        "ticks": 19393,
+        "trades": 0
+      },
+      "MRK": {
+        "predictions": 19425,
+        "ticks": 19425,
+        "trades": 0
+      },
+      "UNP": {
+        "predictions": 19260,
+        "ticks": 19260,
+        "trades": 0
+      }
+    }
+  },
+  "portfolio": {
+    "cash": 3000.0,
+    "drawdown_pct": 0.0,
+    "initial_capital": 3000.0,
+    "positions_value": -0.0,
+    "realized_pnl": 157.7523,
+    "target": {
+      "goal": "$500 → $600 challenge",
+      "progress_pct": 0.0,
+      "target_value": 3100.0
+    },
+    "total_pnl": 0.0,
+    "total_pnl_pct": 0.0,
+    "total_value": 3000.0
+  },
+  "positions": [],
+  "recent_trades": [],
+  "report": {
+    "date": "2026-08-24",
+    "generated_at": "2026-08-24T20:10:00.664946563+00:00",
+    "market_session": {
+      "close": "16:00 ET",
+      "open": "09:30 ET",
+      "status": "closed"
+    },
+    "type": "end_of_day"
+  },
+  "symbols": [
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 456.79,
+      "position_pnl": 0.0,
+      "signal_strength": -0.0068168361417826825,
+      "symbol": "AMD"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 150.705,
+      "position_pnl": 0.0,
+      "signal_strength": 0.291533214015367,
+      "symbol": "MRK"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 77.82,
+      "position_pnl": 0.0,
+      "signal_strength": 0.009293061274358416,
+      "symbol": "FCX"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 133.37,
+      "position_pnl": 0.0,
+      "signal_strength": -0.01099446936185641,
+      "symbol": "COP"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 91.965,
+      "position_pnl": 0.0,
+      "signal_strength": 0.43372004999215313,
+      "symbol": "KO"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 62.335,
+      "position_pnl": 0.0,
+      "signal_strength": -0.005203539327414974,
+      "symbol": "BAC"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 309.825,
+      "position_pnl": 0.0,
+      "signal_strength": 0.3521432659404603,
+      "symbol": "UNP"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 261.88,
+      "position_pnl": 0.0,
+      "signal_strength": -0.010227418951916794,
+      "symbol": "AMZN"
+    },
+    {
+      "direction": "bearish",
+      "in_position": false,
+      "last_price": 110.57,
+      "position_pnl": 0.0,
+      "signal_strength": -0.1788468053448555,
+      "symbol": "DIS"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 1055.435,
+      "position_pnl": 0.0,
+      "signal_strength": 0.41011747341184523,
+      "symbol": "EQIX"
+    }
+  ],
+  "trading_stats": {
+    "avg_hold_seconds": 0,
+    "open_positions": 0,
+    "total_trades": 209,
+    "uptime_seconds": 19446,
+    "win_rate": 42.58,
+    "winning_trades": 89
+  },
+  "value_history": [
+    3000.0,
+    3000.0
+  ]
+}

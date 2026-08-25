@@ -133,8 +133,13 @@ pub const LIVE_KILL_DAYS: i64 = 20;
 // The threshold is NOT relaxed. Expectancy must be above zero, same as trial 1.
 // Resuming a failed strategy on an easier test would be moving the goalposts,
 // which is the exact thing the pre-commitment exists to prevent.
-pub const LIVE_KILL_BASELINE_NET: f64 = -37.85;
-pub const LIVE_KILL_BASELINE_TRIPS: u32 = 130;
+// TRIAL 2 RESET 2026-08-24. The damage-control floor, profit lock, minimum
+// hold and hard-stop clamp all changed, and the rule is explicit that a
+// mid-trial parameter change resets the count: the data before a change
+// describes a different system. Trial 2 had reached 9 of 100 round trips, so
+// this was the cheap moment to do it.
+pub const LIVE_KILL_BASELINE_NET: f64 = -66.98;
+pub const LIVE_KILL_BASELINE_TRIPS: u32 = 152;
 
 /// Expectancy per real round trip below which the trader is retired.
 /// Zero, not a negative tolerance: a system that loses money on average has
@@ -142,8 +147,9 @@ pub const LIVE_KILL_BASELINE_TRIPS: u32 = 130;
 pub const LIVE_KILL_MIN_EXPECTANCY: f64 = 0.0;
 
 /// The date the criterion was fixed. Trading days are counted from here.
-/// Reset to 2026-08-20 when trial 2 opened; trial 1 ran from 2026-08-06.
-pub const LIVE_KILL_START_DATE: &str = "2026-08-20";
+/// Reset to 2026-08-24 when the damage-control parameters changed; trial 2
+/// first opened 2026-08-20, trial 1 ran from 2026-08-06.
+pub const LIVE_KILL_START_DATE: &str = "2026-08-24";
 
 
 /// Mirror simulated intraday trades as real orders on the Alpaca PAPER account.
@@ -354,16 +360,36 @@ pub const MAX_DAILY_ENTRIES: u32 = 60;
 // before any position had a chance to work.
 pub const DAMAGE_CONTROL_ENABLED: bool = true;
 
+// TIGHTENED 2026-08-24. The previous settings were protection in name only.
+//
+// The brief was "either zero profit or some profit". What was built was a
+// -1.0% floor (-$30) and a ratchet that armed at +1.0% (+$30). Measured against
+// thirteen real sessions, the P&L never went near either:
+//
+//   -$36.44  <- the ONLY day the floor would ever have fired
+//   -$19.19  -$17.91  -$16.80  -$11.39  -$10.66  -$10.17  -$7.34
+//   -$4.89   -$0.40   -$0.03   +$0.17   +$13.56  +$20.62
+//
+// The floor sat below almost every loss actually taken, and the ratchet needed
+// +$30 on days that peaked around +$13, so it essentially never armed. Two
+// mechanisms both parked outside the range where the results live. That is
+// worse than no protection, because it looks like protection.
+//
+// These now sit inside that range. The cost is honest and worth stating: at
+// -0.30% roughly half of past sessions would have halted, ending the trading
+// day early. That is the trade for wanting losses near zero — you stop often.
+
 /// Day P&L (% of the day's starting capital) at which everything is flattened
-/// and new entries stop. -1.0% of $3000 = -$30, i.e. a floor at $2970.
-pub const CAPITAL_FLOOR_PCT: f64 = -1.0;
+/// and new entries stop. -0.30% of $3000 = -$9.
+pub const CAPITAL_FLOOR_PCT: f64 = -0.30;
 
 /// Once the day's peak P&L reaches this, the floor starts ratcheting upward.
-pub const PROFIT_LOCK_TRIGGER_PCT: f64 = 1.0;
+/// +0.30% = +$9, a level days actually reach; +1.0% was not.
+pub const PROFIT_LOCK_TRIGGER_PCT: f64 = 0.30;
 
-/// Most of the peak that may be given back once the lock is armed. With a 1.0%
-/// trigger and 0.5% giveback, a day that reaches +1.2% cannot close below +0.7%.
-pub const PROFIT_LOCK_GIVEBACK_PCT: f64 = 0.5;
+/// Most of the peak that may be given back once the lock is armed. With a 0.30%
+/// trigger and 0.15% giveback, a day reaching +0.4% cannot close below +0.25%.
+pub const PROFIT_LOCK_GIVEBACK_PCT: f64 = 0.15;
 
 // HALT_RESUME_SECS removed: it belonged to the timed-resume design that the
 // recovery gate replaced. Re-engagement is now decided by closed trades and
@@ -440,9 +466,24 @@ pub fn qualifies_for_entry(score: f64) -> bool {
     score >= MIN_ENTRY_SCORE
 }
 
-/// Hold at least ~30 min of market time before any non-stop exit, so
-/// intraday noise doesn't shake us out of a multi-day thesis.
-pub const MIN_HOLD_SECS: u64 = 1800;
+/// Minimum hold before the trailing stop is allowed to act.
+///
+/// CUT FROM 1800 TO 300 ON 2026-08-24. At 30 minutes this gate left a position
+/// with no trailing stop for its entire first half hour, and the hard stop is
+/// ATR-scaled wide enough to miss the same move. AMD on 2026-08-24 fell through
+/// the gap:
+///
+///   09:35:47  filled at $460.30
+///   10:00:07  TRAIL_STOP fires at -2.72% from peak, -$10.64
+///
+/// It ran to nearly four times the 0.75% trail threshold, and the stop fired
+/// within seconds of the gate opening — the logic was never wrong, it was
+/// forbidden to act. That single position was 55% of the day's loss.
+///
+/// The gate still exists because stopping out on the first minute of noise is
+/// its own failure mode. Five minutes keeps that protection while cutting the
+/// unprotected window by a factor of six.
+pub const MIN_HOLD_SECS: u64 = 300;
 
 
 /// Micro-candle buffer capacity (10 minutes of 1-second candles)

@@ -24,3 +24,7 @@
 {"basis":"alpaca /v2/account","broker_day_pnl":-0.03,"date":"2026-08-19","kind":"broker","timestamp":"2026-08-19T19:55:01.398911926+00:00"}
 {"basis":"simulator cash, mirrored to a live broker","capital":3000.0,"cumulative_pnl":-55.78,"date":"2026-08-20","day_pnl":-11.5,"kind":"skim","timestamp":"2026-08-20T19:55:00.824517886+00:00","unfilled_today":2}
 {"basis":"alpaca /v2/account","broker_day_pnl":-16.81,"date":"2026-08-20","kind":"broker","timestamp":"2026-08-20T19:55:01.320123501+00:00"}
+{"basis":"simulator cash, mirrored to a live broker","capital":3000.0,"cumulative_pnl":-48.49,"date":"2026-08-21","day_pnl":7.29,"kind":"skim","timestamp":"2026-08-21T19:55:00.537825439+00:00","unfilled_today":0}
+{"basis":"alpaca /v2/account","broker_day_pnl":7.6,"date":"2026-08-21","kind":"broker","timestamp":"2026-08-21T19:55:01.068541992+00:00"}
+{"basis":"simulator cash, mirrored to a live broker","capital":3000.0,"cumulative_pnl":-65.52,"date":"2026-08-24","day_pnl":-17.03,"kind":"skim","timestamp":"2026-08-24T19:55:00.360759732+00:00","unfilled_today":4}
+{"basis":"alpaca /v2/account","broker_day_pnl":-19.19,"date":"2026-08-24","kind":"broker","timestamp":"2026-08-24T19:55:00.779029953+00:00"}

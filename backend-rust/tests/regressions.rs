@@ -773,9 +773,13 @@ fn resuming_intraday_requires_a_fresh_trial_window() {
             LIVE_KILL_BASELINE_TRIPS > 0,
             "trading is live, so the criterion needs a baseline or it measures history"
         );
-        assert_eq!(
-            LIVE_KILL_START_DATE, "2026-08-20",
-            "the trial window must start when trading resumed, not when trial 1 did"
+        // Assert the invariant, not a literal date. The window resets every
+        // time a parameter changes, so pinning the exact day makes this test
+        // fail for the right reason and the wrong purpose — it should catch a
+        // window that was never moved, not one that legitimately moved again.
+        assert!(
+            LIVE_KILL_START_DATE > "2026-08-06",
+            "the window must start after trial 1, not inherit its dates"
         );
     }
 

@@ -1,0 +1,63 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-08-21
+  Generated:  2026-08-21T20:10:01.066599203+00:00
+  Uptime:     6h 42m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $174.78
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     202
+  Winning Trades:   87
+  Win Rate:         43.1%
+  Avg Hold Time:    2934s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $473.20     bearish     -0.157   —
+  TMO      $629.32     bullish     0.353    —
+  COP      $134.92     neutral     -0.029   —
+  FCX      $76.62      neutral     0.002    —
+  BAC      $61.70      bearish     -0.106   —
+  KO       $91.10      bearish     -0.341   —
+  UNP      $308.20     bullish     0.389    —
+  AMZN     $258.49     bullish     0.353    —
+  EQIX     $1065.61    bullish     0.148    —
+  DIS      $107.77     bearish     -0.166   —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   UNP      $307.81    $754.30  $3.2224    EOD_DAILY_SKIM
+  19:55:00  SELL   BAC      $61.73     $750.90  $-0.1825   EOD_DAILY_SKIM
+  19:27:32  BUY    BAC      $61.73     $750.96  $0.0000    ENTRY(s=0.100,K+,1of7)
+  19:27:26  BUY    UNP      $306.50    $751.06  $0.0000    ENTRY(s=0.099,K~,1of7)
+  17:27:23  SELL   AMZN     $259.22    $750.55  $0.5212    REGIME_EXIT(risk-off,pnl=0.07%)
+  17:27:23  SELL   KO       $90.89     $752.54  $2.4424    REGIME_EXIT(risk-off,pnl=0.33%)
+  17:27:23  SELL   COP      $135.08    $750.61  $0.5001    REGIME_EXIT(risk-off,pnl=0.07%)
+  17:27:23  SELL   TMO      $626.57    $751.82  $1.4999    REGIME_EXIT(risk-off,pnl=0.20%)
+  16:27:56  BUY    TMO      $624.86    $749.77  $0.0000    ENTRY(s=0.070,K-,1of7)
+  16:27:28  BUY    AMZN     $259.02    $749.97  $0.0000    ENTRY(s=0.076,K-,1of7)
+  16:27:24  BUY    KO       $90.58     $749.97  $0.0000    ENTRY(s=0.065,K-,0of7)
+  16:27:22  BUY    COP      $134.97    $750.00  $0.0000    ENTRY(s=0.164,K-,1of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

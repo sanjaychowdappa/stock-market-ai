@@ -1,0 +1,58 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-08-24 16:10   |   Report date: 2026-08-24   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-08-24) ===
+  Trades:       7   (W 2 / L 5)
+  Win rate:     28.6%
+  Gross P/L:    $-15.4286
+  Avg win:      $5.4094    Avg loss: $-5.2495
+  Expectancy:   $-2.2041/trade gross  ->  ~$-2.3166/trade after est. fees
+  Per symbol:
+    BAC     1 trades  W1   $10.5674
+    COP     1 trades  W1   $0.2513
+    TMO     1 trades  W0   $-0.7287
+    RTX     1 trades  W0   $-1.7165
+    EQIX    1 trades  W0   $-2.032
+    FCX     1 trades  W0   $-3.2175
+    AMD     1 trades  W0   $-18.5525
+  Exit reasons:
+    REGIME_EXIT        4
+    TRAIL_STOP         3
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       62   (W 24 / L 38)
+  Win rate:     38.7%
+  Gross P/L:    $-24.1102
+  Avg win:      $4.1733    Avg loss: $-3.2703
+  Expectancy:   $-0.3889/trade gross  ->  ~$-0.5014/trade after est. fees
+  Per symbol:
+    KO      3 trades  W3   $16.5018
+    MRK     1 trades  W1   $4.0291
+    DIS     4 trades  W2   $3.547
+    BAC     8 trades  W2   $3.4174
+    UNP     1 trades  W1   $3.2224
+    COP     4 trades  W3   $2.9702
+    AMZN    6 trades  W4   $2.1702
+    EQIX    7 trades  W2   $1.9232
+    RTX     6 trades  W1   $-1.6278
+    TMO     5 trades  W2   $-3.072
+    FCX     7 trades  W2   $-4.475
+    GE      3 trades  W0   $-12.4133
+    AMD     7 trades  W1   $-40.3032
+  Exit reasons:
+    TRAIL_STOP         35
+    REGIME_EXIT        16
+    EOD_DAILY_SKIM     11
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $-0.3889/trade  (62 trades)
+  random_baseline          expectancy $-0.0534/trade  (43 trades)  <-- the bar to beat
+  always_in_max_exposure   expectancy $-0.7134/trade  (44 trades)
+  trend_fullday            expectancy $-0.0638/trade  (28 trades)
+  trend_30min              expectancy $-0.2488/trade  (37 trades)
+  trend_off                expectancy $-0.3443/trade  (38 trades)
+  VERDICT: real does NOT beat random - no demonstrated edge yet
+
+LIVE: portfolio $3000.0  (P/L $0.0)  running=True
