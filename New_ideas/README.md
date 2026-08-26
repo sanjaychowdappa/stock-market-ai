@@ -270,3 +270,83 @@ The look-ahead in Rule 3 and the history reset in Rule 4's fold. Both inflated
 results in the flattering direction, and both were caught by checks that exist
 because this has happened before. Worth recording: the harness is not protection
 against other people's mistakes, it is protection against your own.
+
+---
+
+## Fourth result: the profit lock does not do what it was built to do
+
+**Question asked:** how much of a winning day should the profit lock let you
+give back — 0.15% (losses near zero, days end on small dips) or 0.50%
+(winners run, bigger losses)?
+
+`py New_ideas\giveback.py`
+
+The floor and the ratchet act on the **intraday equity path**, not on the
+closing number, so answering from `daily_profit.jsonl` would answer a
+different question. This reconstructs the path minute by minute from 146 real
+closed positions and real minute bars across 14 sessions, then replays the
+actual `DAMAGE_CONTROL` rule over it.
+
+```
+setting                                   total  worst fold  best day  worst day  halts
+A  current       trig 0.30 / gb 0.15     -35.04      -42.18      7.15     -11.93     12
+B  proposed      trig 0.50 / gb 0.15     -36.61      -51.43     14.82     -11.93     10
+C  wide giveback trig 0.30 / gb 0.50     -46.34      -53.28      6.95     -11.93     10
+D  lock off                              -51.70      -71.58     19.88     -11.93      9
+E  no floor either (raw)                 -76.87      -96.75     19.88     -36.83      0
+```
+
+**Answer: 0.15%, which is where it already is.** It has both the best total
+and the best leave-one-out fold. But the ranking is the least interesting
+thing in the table.
+
+### The worst day is identical in every configuration
+
+`-11.93` appears in all four locked rows. **The profit lock contributes
+nothing to loss prevention.** All of it comes from `CAPITAL_FLOOR_PCT`, which
+takes the worst day from `-$36.83` to `-$11.93` and the total from `-$76.87`
+to `-$51.70`. That is the mechanism that works.
+
+The lock's only measurable effect is on winning days, where it cuts the best
+session from `$19.88` to `$7.15`. Its apparent contribution to total P&L comes
+from halting 12 of 14 days — and in a negative-expectancy system, halting is
+always "better". That is the exposure artifact this directory exists to catch.
+
+### The setting that looked structurally right fails the fold check
+
+B raises the trigger so the lock arms only on a genuinely good day, keeping
+`$14.82` of upside instead of `$7.15` for one extra halt. That is the shape
+you want. It is also fitted to two sessions: B beats A on 2 days, loses on 3,
+and its worst leave-one-out fold is `-$51.43` against A's `-$42.18`. Rejected
+on the repo's own rule, and worth stating plainly — B was the answer until the
+fold check ran.
+
+### The number that actually decides this
+
+At the current settings, across 14 sessions:
+
+```
+winning days   7          average win    $4.80
+losing days    7          average loss  -$9.81
+
+win rate needed to break even   67.1%
+win rate achieved               50.0%
+```
+
+**The payoff is asymmetric in the wrong direction.** The floor caps losses at
+about $10 and the lock caps wins at about $7, so the system must be right two
+times in three merely to break even, and it is right one time in two. No
+setting of the giveback dial changes that; both mechanisms are downstream of
+it.
+
+Tuning either one is optimising the brakes on a car with negative horsepower.
+The giveback stays at 0.15% because it is the best-supported value, not
+because moving it would have mattered.
+
+### Caveats
+
+The replay treats a halt as ending the day. Production allows one resume
+through the recovery gate, so real halted days could finish above or below
+these numbers — this is a bound, not a prediction. And every session here was
+traded by the signal stack that the five rule books replaced on 2026-08-25, so
+these are parameters fitted to a strategy that no longer runs.

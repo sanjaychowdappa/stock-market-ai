@@ -422,6 +422,25 @@ pub const PROFIT_LOCK_TRIGGER_PCT: f64 = 0.30;
 
 /// Most of the peak that may be given back once the lock is armed. With a 0.30%
 /// trigger and 0.15% giveback, a day reaching +0.4% cannot close below +0.25%.
+///
+/// CHOSEN ON EVIDENCE, 2026-08-25. Replayed against the intraday equity path
+/// rebuilt from 146 real closed positions over 14 sessions
+/// (`New_ideas/giveback.py`). 0.15% has both the best total (-$35.04) and the
+/// best leave-one-out fold (-$42.18) of every width tried; 0.50% scores
+/// -$46.34 / -$53.28. A wider trigger (0.50%) preserved far more upside — best
+/// day $14.82 against $7.15 — and was the intended answer until the fold check
+/// showed its edge living in two sessions.
+///
+/// WHAT THAT REPLAY ALSO SHOWED, which matters more than the width: the worst
+/// day is -$11.93 under EVERY setting of this constant. The profit lock
+/// contributes nothing to loss prevention — CAPITAL_FLOOR_PCT does all of it.
+/// The lock's only measurable effect is truncating winning days, and its
+/// apparent P&L benefit comes from halting 12 of 14 sessions, which is the
+/// exposure artifact rather than a property of the parameter.
+///
+/// Underneath both: the floor caps losses near $10 and the lock caps wins near
+/// $7, so the book needs a 67% win rate to break even and has 50%. Neither
+/// constant can fix a payoff that is asymmetric in the wrong direction.
 pub const PROFIT_LOCK_GIVEBACK_PCT: f64 = 0.15;
 
 // HALT_RESUME_SECS removed: it belonged to the timed-resume design that the
