@@ -360,3 +360,95 @@ prediction. And all 14 sessions were traded by the signal stack that the five
 rule books replaced on 2026-08-25, so these are parameters fitted to a
 strategy that no longer runs — the plateau is the reason to expect them to
 transfer, not a guarantee that they will.
+
+---
+
+## Fifth result: the low win rate is manufactured, and it is not the problem
+
+**Question asked:** why is the win rate so low — 19% on 2026-08-26, 33% across
+the window?
+
+`py New_ideas\winrate.py`
+
+159 real closed positions, 2026-08-05 → 08-26, scored by the reason each was
+closed.
+
+```
+exit reason               n  wins   win%     total   avg win  avg loss
+TRAIL_STOP               74    17    23%   -114.42      1.35     -2.41
+HARD_STOP                 8     0     0%    -32.62      0.00     -4.08
+RECONCILE                 5     0     0%    -24.90      0.00     -4.98
+DAMAGE_CONTROL           15     7    47%      3.88      2.43     -1.64
+REGIME_EXIT              16     6    38%      4.02      2.63     -1.17
+EOD_DAILY_SKIM           41    23    56%     83.71      4.80     -1.49
+ALL                     159    53    33%
+```
+
+**47% of all exits are stop-outs, and a stop-out is a loss by construction.**
+The trail stop fires precisely on positions that turned down, so 23% is the
+mechanism working, not failing. Positions that survive to the closing skim win
+56% of the time.
+
+### Every exit is worth money except one
+
+The same positions, held to the close instead of being exited:
+
+```
+exit reason               n    ACTUAL  HELD to close   the exit was worth
+DAMAGE_CONTROL           15      3.88         -31.39               +35.27
+TRAIL_STOP               74   -114.42        -145.69               +31.27
+REGIME_EXIT              16      4.02         -20.16               +24.18
+EOD_DAILY_SKIM           41     83.71          63.44               +20.26
+HARD_STOP                 8    -32.62         -41.23                +8.61
+RECONCILE                 5    -24.90         -14.18               -10.72
+```
+
+Raising the win rate is trivial — remove the stops — and it costs about $109.
+**Win rate is the wrong number to optimise here.** Expectancy is the number,
+and the stops improve it while lowering the win rate.
+
+`RECONCILE` is the exception and deserves attention: five positions, zero wins,
+2.4-minute median hold, −$24.90 where holding would have lost $14.18. That is
+bookkeeping churn losing real money, not a trading decision.
+
+### Where the losses actually come from
+
+```
+                                     total    win%
+signalled entries + full exit ladder  -80.33   33.3%
+same names, same days, bought at the
+  open and held to the close         -431.41   38.4%
+```
+
+The signalled entries beat buying the same names at the open on **10 of 15
+days**, by $351 in total. Note this compares entry *and* exit machinery against
+buy-and-hold-the-session, so it is a verdict on the system as a whole, not on
+timing alone.
+
+The reason both lose is upstream of all of it:
+
+```
+cumulative intraday move, 15 sessions
+  traded universe   -3.65%
+  SPY               -2.58%
+  selection cost    -1.07%
+```
+
+**The tape fell and the book is long-only.** The universe dropped 3.65% across
+these sessions, underperforming SPY by 1.07%. A long-only intraday system in a
+falling market loses; the machinery clawed back $351 of a $431 hole and still
+finished down $80.
+
+So the honest decomposition of the loss is: market direction first, stock
+selection second, and the exit ladder actually working against both.
+
+### One table in this file is biased — deliberately left in
+
+`winrate.py` also re-runs alternative trail widths over the positions the
+0.75% trail closed. That subset is *selected by the rule being varied*: every
+position in it hit a 0.75% drawdown from peak. Testing 0.50% on that set asks
+whether a tighter stop would have done better on trades already known to have
+fallen far enough to trigger the looser one, which it will, for free. The table
+prints because deleting it invites someone to reconstruct it later; it should
+not be read as evidence about trail width. The unbiased version of that
+question is in `lab.py`, over all positions, with the fold check.
