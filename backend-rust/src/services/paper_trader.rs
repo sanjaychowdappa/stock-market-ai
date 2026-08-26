@@ -1465,7 +1465,10 @@ impl PaperTrader {
                     cvd_bearish,     // CVD: sellers dominating
                 ].iter().filter(|&&b| b).count();
 
-                let regime_off = REGIME_FILTER_ENABLED && !self.market_risk_on.load(Ordering::Relaxed);
+                // REGIME_EXIT_ENABLED, not REGIME_FILTER_ENABLED: closing a
+                // position into a risk-off tape and refusing to open one are
+                // different decisions with different costs.
+                let regime_off = REGIME_EXIT_ENABLED && !self.market_risk_on.load(Ordering::Relaxed);
 
                 // === ATR-SCALED EXIT LADDER ===
                 // 1. HARD STOP â€” protect capital, IMMEDIATE (ATR-scaled)

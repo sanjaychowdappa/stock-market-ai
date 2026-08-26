@@ -201,6 +201,25 @@ pub const ALPACA_SHADOW_ORDERS: bool = true;
 /// the book and a bad day.
 pub const REGIME_FILTER_ENABLED: bool = false;
 
+/// Exit open positions when the broad market turns risk-off.
+///
+/// SPLIT FROM REGIME_FILTER_ENABLED on 2026-08-26. One flag gated two
+/// different things — whether the regime blocks new ENTRIES, and whether it
+/// closes positions already open. Turning the filter off on 2026-08-25 to stop
+/// it starving the book of trades silently switched off the exit as well, and
+/// nobody intended that.
+///
+/// The exit is worth keeping. Across 159 closed positions the regime exits
+/// returned +$4.02 where the same positions held to the close returned
+/// -$20.16: +$24.18 of value over 16 exits, $1.51 each. Only damage control
+/// scores better per exit ($2.35), and the trailing stop — which fires five
+/// times as often — is worth $0.42.
+///
+/// The two halves have opposite costs, which is why they are now separate
+/// constants. Blocking entries in a risk-off tape means not trading for days
+/// at a time. Exiting into one costs nothing but a round trip.
+pub const REGIME_EXIT_ENABLED: bool = true;
+
 pub const ACCUMULATOR_ENABLED: bool = true;
 pub const ACCUMULATOR_SYMBOL: &str = "SPY";
 /// Daily contribution.
