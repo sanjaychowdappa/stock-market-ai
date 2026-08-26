@@ -952,3 +952,63 @@ fn a_book_with_no_rule_cannot_trade() {
         "a misspelled rule must be inert, not silently signal-weighted"
     );
 }
+
+// ── The profit lock armed too early and strangled winning days ──────────
+//
+// PROFIT_LOCK_TRIGGER_PCT was 0.30% (+$9 on a $3,000 book), which almost any
+// decent morning reached. Once armed with a 0.15% giveback, a $4.50 wiggle
+// halted the session — so across 14 replayed sessions the best day was +$6.95
+// against a worst day of -$11.93. A book that can lose more than it can win
+// needs a 67.6% win rate to break even and had 50%.
+//
+// The replay that found this was itself wrong the first time: it keyed
+// positions by entry day, so the eight positions held overnight were invisible
+// on subsequent sessions and could not move the equity path. With that fixed,
+// the answer inverted — 0.50% went from second-best to best on all 14 folds.
+
+use stock_market_ai::config::{PROFIT_LOCK_TRIGGER_PCT, PROFIT_LOCK_GIVEBACK_PCT,
+                              CAPITAL_FLOOR_PCT};
+
+#[test]
+fn the_profit_lock_trigger_sits_inside_the_robust_plateau() {
+    // 0.45 / 0.50 / 0.55 / 0.60 scored -11.74 / -11.74 / -12.98 / -12.01 over
+    // 14 sessions. Outside it the result degrades sharply: 0.40 is -27.07 and
+    // 0.65 is -42.09. Chosen for being inside the plateau, not for the peak
+    // score — the same reason the trail width is 0.75%.
+    assert!(
+        (0.45..=0.60).contains(&PROFIT_LOCK_TRIGGER_PCT),
+        "the trigger left the 0.45-0.60 plateau (now {PROFIT_LOCK_TRIGGER_PCT}). \
+         At 0.30 the lock armed on any decent morning and capped the best day \
+         at +$6.95 against a -$11.93 worst day; at 0.65 and above it stops \
+         earning its place. If this is a deliberate retune, replay it first \
+         with New_ideas/giveback.py and move this range with the evidence."
+    );
+}
+
+#[test]
+fn the_lock_cannot_arm_before_it_can_give_back() {
+    // A giveback wider than the trigger means the ratcheted floor starts below
+    // the hard floor, so arming the lock would do nothing at all — the max()
+    // in the damage-control block would discard it silently.
+    assert!(
+        PROFIT_LOCK_GIVEBACK_PCT < PROFIT_LOCK_TRIGGER_PCT,
+        "giveback {PROFIT_LOCK_GIVEBACK_PCT} >= trigger {PROFIT_LOCK_TRIGGER_PCT}: \
+         the ratcheted floor would never rise above the hard floor and the lock \
+         would be dead code wearing the name of a safety feature"
+    );
+}
+
+#[test]
+fn the_hard_floor_is_still_what_prevents_losses() {
+    // Worst day was -$11.93 under every trigger/giveback combination tried and
+    // -$36.83 with no floor at all. If this ever inverts, the floor has been
+    // moved outside the range where the losses live — which is exactly the
+    // state it was in before 2026-08-24, when it looked like protection and
+    // was not.
+    assert!(
+        CAPITAL_FLOOR_PCT < 0.0 && CAPITAL_FLOOR_PCT >= -0.50,
+        "the floor at {CAPITAL_FLOOR_PCT}% is outside the range the daily P&L \
+         actually occupies; it did all the loss prevention in the replay and \
+         the profit lock did none"
+    );
+}

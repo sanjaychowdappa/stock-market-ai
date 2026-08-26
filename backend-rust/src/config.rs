@@ -417,30 +417,48 @@ pub const DAMAGE_CONTROL_ENABLED: bool = true;
 pub const CAPITAL_FLOOR_PCT: f64 = -0.30;
 
 /// Once the day's peak P&L reaches this, the floor starts ratcheting upward.
-/// +0.30% = +$9, a level days actually reach; +1.0% was not.
-pub const PROFIT_LOCK_TRIGGER_PCT: f64 = 0.30;
+///
+/// RAISED 0.30% -> 0.50% on 2026-08-25 on replayed evidence. At 0.30% (+$9)
+/// the lock armed on almost any decent morning and then halted the session on
+/// the first ordinary wiggle, so the best day in 14 sessions was +$6.95 while
+/// the worst was -$11.93 — capped upside against uncapped-by-comparison
+/// downside, needing a 67.6% win rate to break even against 50% achieved.
+///
+/// At 0.50% the same 14 sessions score -$11.74 instead of -$35.84, the best
+/// day rises to +$14.82, halts fall from 12 to 10, and the worst day is
+/// unchanged. Break-even drops to 54.7%.
+///
+/// Chosen for robustness rather than for the peak score, the same way the
+/// trail width was. The good region is a PLATEAU, not a spike — 0.45, 0.50,
+/// 0.55 and 0.60 score -11.74, -11.74, -12.98, -12.01 — and 0.50 sits inside
+/// it. Outside the plateau it degrades sharply in both directions (0.40 is
+/// -$27.07, 0.65 is -$42.09), which is what makes this an interior optimum and
+/// not the "less exposure always looks better" artifact.
+///
+/// Verified on leave-one-day-out: 0.50% beats 0.30% on all 14 of 14 folds,
+/// worst fold -$26.56 against -$42.79. See New_ideas/giveback.py.
+pub const PROFIT_LOCK_TRIGGER_PCT: f64 = 0.50;
 
 /// Most of the peak that may be given back once the lock is armed. With a 0.30%
 /// trigger and 0.15% giveback, a day reaching +0.4% cannot close below +0.25%.
 ///
 /// CHOSEN ON EVIDENCE, 2026-08-25. Replayed against the intraday equity path
 /// rebuilt from 146 real closed positions over 14 sessions
-/// (`New_ideas/giveback.py`). 0.15% has both the best total (-$35.04) and the
-/// best leave-one-out fold (-$42.18) of every width tried; 0.50% scores
-/// -$46.34 / -$53.28. A wider trigger (0.50%) preserved far more upside — best
-/// day $14.82 against $7.15 — and was the intended answer until the fold check
-/// showed its edge living in two sessions.
+/// (`New_ideas/giveback.py`). At the 0.50% trigger this width scores -$11.74
+/// against -$20.39 at 0.25% and -$40.16 at 0.50%; tighter is better across the
+/// whole range, and 0.15% is as tight as is sensible before ordinary quote
+/// noise starts closing sessions.
 ///
-/// WHAT THAT REPLAY ALSO SHOWED, which matters more than the width: the worst
-/// day is -$11.93 under EVERY setting of this constant. The profit lock
-/// contributes nothing to loss prevention — CAPITAL_FLOOR_PCT does all of it.
-/// The lock's only measurable effect is truncating winning days, and its
-/// apparent P&L benefit comes from halting 12 of 14 sessions, which is the
-/// exposure artifact rather than a property of the parameter.
+/// The width is the SECOND-order parameter here. PROFIT_LOCK_TRIGGER_PCT is
+/// what decides whether this mechanism helps at all: at the old 0.30% trigger
+/// every width from 0.15% to 0.75% lost money, and the ranking among them was
+/// an exposure artifact rather than a property of the parameter.
 ///
-/// Underneath both: the floor caps losses near $10 and the lock caps wins near
-/// $7, so the book needs a 67% win rate to break even and has 50%. Neither
-/// constant can fix a payoff that is asymmetric in the wrong direction.
+/// WHAT THE REPLAY ALSO SHOWED: the worst day is -$11.93 under every setting
+/// of both constants. The profit lock contributes nothing to LOSS prevention —
+/// CAPITAL_FLOOR_PCT does all of that, taking the worst day from -$36.83 to
+/// -$11.93. What the lock buys, at the right trigger, is keeping winning days
+/// alive: average win $8.16 against $4.71 at the old trigger.
 pub const PROFIT_LOCK_GIVEBACK_PCT: f64 = 0.15;
 
 // HALT_RESUME_SECS removed: it belonged to the timed-resume design that the

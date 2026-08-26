@@ -272,81 +272,91 @@ because this has happened before. Worth recording: the harness is not protection
 against other people's mistakes, it is protection against your own.
 
 ---
-
-## Fourth result: the profit lock does not do what it was built to do
+## Fourth result: the profit lock was armed far too early
 
 **Question asked:** how much of a winning day should the profit lock let you
-give back — 0.15% (losses near zero, days end on small dips) or 0.50%
-(winners run, bigger losses)?
+give back — 0.15% or 0.50%?
 
 `py New_ideas\giveback.py`
 
 The floor and the ratchet act on the **intraday equity path**, not on the
 closing number, so answering from `daily_profit.jsonl` would answer a
 different question. This reconstructs the path minute by minute from 146 real
-closed positions and real minute bars across 14 sessions, then replays the
-actual `DAMAGE_CONTROL` rule over it.
+closed positions across 14 sessions and replays the actual `DAMAGE_CONTROL`
+rule over it.
+
+**The answer turned out not to be about the giveback at all.**
 
 ```
-setting                                   total  worst fold  best day  worst day  halts
-A  current       trig 0.30 / gb 0.15     -35.04      -42.18      7.15     -11.93     12
-B  proposed      trig 0.50 / gb 0.15     -36.61      -51.43     14.82     -11.93     10
-C  wide giveback trig 0.30 / gb 0.50     -46.34      -53.28      6.95     -11.93     10
-D  lock off                              -51.70      -71.58     19.88     -11.93      9
-E  no floor either (raw)                 -76.87      -96.75     19.88     -36.83      0
+setting                                total  worst fold  best day  worst day  halts
+A  current       trig 0.30 / gb 0.15  -35.84      -42.79      6.95     -11.93     12
+B  chosen        trig 0.50 / gb 0.15  -11.74      -26.56     14.82     -11.93     10
+C  wide giveback trig 0.30 / gb 0.50  -40.16      -47.10      6.95     -11.93     10
+D  lock off                           -36.46      -56.34     19.88     -11.93      8
+E  no floor either (raw)              -73.25      -93.13     19.88     -36.83      0
 ```
 
-**Answer: 0.15%, which is where it already is.** It has both the best total
-and the best leave-one-out fold. But the ranking is the least interesting
-thing in the table.
-
-### The worst day is identical in every configuration
-
-`-11.93` appears in all four locked rows. **The profit lock contributes
-nothing to loss prevention.** All of it comes from `CAPITAL_FLOOR_PCT`, which
-takes the worst day from `-$36.83` to `-$11.93` and the total from `-$76.87`
-to `-$51.70`. That is the mechanism that works.
-
-The lock's only measurable effect is on winning days, where it cuts the best
-session from `$19.88` to `$7.15`. Its apparent contribution to total P&L comes
-from halting 12 of 14 days — and in a negative-expectancy system, halting is
-always "better". That is the exposure artifact this directory exists to catch.
-
-### The setting that looked structurally right fails the fold check
-
-B raises the trigger so the lock arms only on a genuinely good day, keeping
-`$14.82` of upside instead of `$7.15` for one extra halt. That is the shape
-you want. It is also fitted to two sessions: B beats A on 2 days, loses on 3,
-and its worst leave-one-out fold is `-$51.43` against A's `-$42.18`. Rejected
-on the repo's own rule, and worth stating plainly — B was the answer until the
-fold check ran.
-
-### The number that actually decides this
-
-At the current settings, across 14 sessions:
+At the 0.30% trigger (+$9 on a $3,000 book) the lock armed on almost any
+decent morning, and a $4.50 wiggle then halted the session. Best day +$6.95
+against a worst day of −$11.93: **capped upside against uncapped-by-comparison
+downside.**
 
 ```
-winning days   7          average win    $4.80
-losing days    7          average loss  -$9.81
-
-win rate needed to break even   67.1%
-win rate achieved               50.0%
+setting              win/loss   avg win   avg loss   break-even   achieved
+trig 0.30 / gb 0.15     7 / 7     $4.71     -$9.83        67.6%      50.0%
+trig 0.50 / gb 0.15     7 / 7     $8.16     -$9.83        54.7%      50.0%
+lock off                6 / 8     $6.95     -$9.77        58.4%      42.9%
 ```
 
-**The payoff is asymmetric in the wrong direction.** The floor caps losses at
-about $10 and the lock caps wins at about $7, so the system must be right two
-times in three merely to break even, and it is right one time in two. No
-setting of the giveback dial changes that; both mechanisms are downstream of
-it.
+Raising the trigger does not touch the losses — average loss is −$9.83 either
+way — it stops truncating the wins. That alone moves break-even from needing
+two rights in three to needing a shade better than a coin flip.
 
-Tuning either one is optimising the brakes on a car with negative horsepower.
-The giveback stays at 0.15% because it is the best-supported value, not
-because moving it would have mattered.
+### Plateau, not a spike
+
+A single standout cell is usually overfitting. This one is not:
+
+```
+trigger   0.30    0.35    0.40    0.45    0.50    0.55    0.60    0.65    0.70
+total   -35.84  -24.31  -27.07  -11.74  -11.74  -12.98  -12.01  -42.09  -43.06
+```
+
+0.45 through 0.60 are one flat region and 0.50 sits inside it; outside, the
+result degrades sharply in **both** directions. That two-sided degradation is
+the degenerate-case check passing — a monotonic "always tighter is better"
+would have meant the replay was measuring exposure. And 0.50% beats 0.30% on
+**all 14 of 14 leave-one-out folds**, worst fold −$26.56 against −$42.79.
+
+### The floor is still the thing that prevents losses
+
+`-11.93` is the worst day in every locked row. `CAPITAL_FLOOR_PCT` does all
+the loss prevention, taking the worst day from −$36.83 to −$11.93. The profit
+lock has never contributed to that and still does not. What it buys, at the
+right trigger, is keeping winning days alive.
+
+### The bug that produced the opposite answer first
+
+The first version of this replay keyed positions by their entry day, so the
+eight positions held overnight were invisible on every later session — their
+marks could not move the equity path, and the floor could neither fire nor be
+avoided because of them.
+
+Cross-checking against the broker's own `by_day` figures is what exposed it:
+the days that disagreed were exactly the days with carry. Five of fourteen.
+
+With that fixed, **the conclusion inverted.** 0.30/0.15 had scored best and
+0.50/0.15 had failed the fold check; corrected, 0.50/0.15 wins on every fold.
+The committed recommendation was already wrong when it was written.
+
+A carried position's basis is now the day's opening mark rather than its entry
+price — using the entry price folds prior sessions' P&L into today's path, and
+the floor is a rule about today.
 
 ### Caveats
 
-The replay treats a halt as ending the day. Production allows one resume
-through the recovery gate, so real halted days could finish above or below
-these numbers — this is a bound, not a prediction. And every session here was
-traded by the signal stack that the five rule books replaced on 2026-08-25, so
-these are parameters fitted to a strategy that no longer runs.
+The replay treats a halt as ending the day; production allows one resume
+through the recovery gate, so halted days are a bound rather than a
+prediction. And all 14 sessions were traded by the signal stack that the five
+rule books replaced on 2026-08-25, so these are parameters fitted to a
+strategy that no longer runs — the plateau is the reason to expect them to
+transfer, not a guarantee that they will.

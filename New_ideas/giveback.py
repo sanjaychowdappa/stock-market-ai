@@ -28,38 +28,62 @@ def px_by_minute(sym, day):
 
 
 def equity_paths(positions):
-    """Per day: [(minute, day_pnl_dollars)] marked to market, minute by minute."""
-    by_day = defaultdict(list)
-    for p in positions:
-        by_day[p["day"]].append(p)
+    """Per day: [(minute, day_pnl_dollars)] marked to market, minute by minute.
 
+    A position contributes to EVERY session it is open in, not just the one it
+    was entered in. The first version of this keyed positions by entry day
+    only, so the eight positions held overnight were invisible on the days
+    after they opened — their marks could not move the equity path, and the
+    floor could neither fire nor be avoided because of them. Cross-checking
+    against the broker's own by_day figures is what exposed it: the days that
+    disagreed were exactly the days with carry.
+
+    A carried position's basis is the day's opening mark, not its entry price.
+    Using the entry price would fold prior sessions' P&L into today's path, and
+    the floor is a rule about today.
+    """
+    days = sorted({p["entry_ts"][:10] for p in positions})
     paths = {}
-    for day, poss in sorted(by_day.items()):
+    for day in days:
+        # Everything open at some point during this session.
+        live = [p for p in positions
+                if p["entry_ts"][:10] <= day <= p["exit_ts"][:10]]
+        if not live:
+            continue
         prices, minutes = {}, set()
-        for sym in {p["sym"] for p in poss}:
+        for sym in {p["sym"] for p in live}:
             prices[sym] = px_by_minute(sym, day)
             minutes |= set(prices[sym])
-        if not minutes:
-            continue
-        # Regular session only — the floor is a trading-day rule.
         mins = sorted(m for m in minutes if "13:30" <= m[11:] <= "20:00")
         if not mins:
             continue
 
+        # Opening mark per symbol: the basis for anything carried in.
+        open_mark = {}
+        for sym, series in prices.items():
+            for m in mins:
+                if m in series:
+                    open_mark[sym] = series[m]
+                    break
+
         path = []
         for m in mins:
             pnl = 0.0
-            for p in poss:
-                entry, exit_ = p["entry_ts"][:16], p["exit_ts"][:16]
-                if m < entry:
+            for p in live:
+                entered_today = p["entry_ts"][:10] == day
+                exits_today = p["exit_ts"][:10] == day
+                basis = p["entry_px"] if entered_today else open_mark.get(p["sym"])
+                if basis is None:
                     continue
-                if m >= exit_:
-                    pnl += p["qty"] * (p["exit_px"] - p["entry_px"])   # realised
+                if entered_today and m < p["entry_ts"][:16]:
+                    continue                                   # not open yet
+                if exits_today and m >= p["exit_ts"][:16]:
+                    pnl += p["qty"] * (p["exit_px"] - basis)   # realised today
                 else:
                     mark = prices[p["sym"]].get(m)
                     if mark is None:
                         continue
-                    pnl += p["qty"] * (mark - p["entry_px"])           # open
+                    pnl += p["qty"] * (mark - basis)           # open
             path.append((m, pnl))
         paths[day] = path
     return paths

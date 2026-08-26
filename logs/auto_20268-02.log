@@ -620,3 +620,13 @@ time="2026-08-25T16:10:01-04:00" level=warning msg="C:\\Users\\sanja\\stock-mark
 [25-08-2026 16:10:15.07] All containers stopped 
 [25-08-2026 16:10:15.07] === SESSION COMPLETE === 
  
+[26-08-2026  9:51:14.69] === AUTO START === 
+[26-08-2026  9:51:15.03] Docker daemon ready after 0 attempts 
+[26-08-2026  9:51:15.03] Starting containers... 
+time="2026-08-26T09:51:15-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-backend-1 Running 
+ Container stock-market-ai-finetune-sidecar-1 Running 
+ Container stock-market-ai-frontend-1 Running 
+[26-08-2026  9:51:15.30] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","MRK","FCX","MA","COP","AMZN","KO","UNP","DIS","EQIX"],"version":"claude_1"} 
+[26-08-2026  9:51:15.32] Auto start complete 
