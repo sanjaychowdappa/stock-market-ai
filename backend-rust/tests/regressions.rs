@@ -1012,3 +1012,49 @@ fn the_hard_floor_is_still_what_prevents_losses() {
          the profit lock did none"
     );
 }
+
+// ── BUG: r4_legacy could never trade, because it read its own history ───
+//
+// `is_legacy` consulted the shadow book's OWN legacy_pnl/legacy_trades maps,
+// which are only written when THAT book closes a trade. So r4 could fund a
+// name only after two closed profitable trades on r4's book, and r4 could not
+// trade in order to acquire them. A closed loop.
+//
+// It ran a full session and placed zero orders. On the board that reads as
+// "no name has qualified yet"; it actually meant "no name can ever qualify".
+// Specification rule 4 describes an everyday log the SYSTEM keeps — so the log
+// now lives on the trader and is fed by the real book and every shadow book.
+
+/// The qualification rule, extracted so the closed loop cannot come back
+/// disguised as a refactor: two closed trades and a positive total.
+fn qualifies(trades: u32, cum_pnl: f64) -> bool {
+    trades >= 2 && cum_pnl > 0.0
+}
+
+#[test]
+fn r4_can_be_funded_from_history_it_did_not_create_itself() {
+    // A name the rest of the system traded profitably twice. r4 has never
+    // traded at all, and must still be able to act on this.
+    assert!(
+        qualifies(2, 4.10),
+        "r4 must qualify names from the system-wide log; reading its own \
+         empty history made the rule permanently inert"
+    );
+    assert!(
+        rule_entry_allowed("r4_legacy", &RuleEntry {
+            kronos_score: 0.5,
+            weighted_score: 0.0,
+            below_floor: false,
+            is_legacy: qualifies(2, 4.10),
+            holds_nothing: true,
+        }),
+        "a qualified name must be fundable by a book with no trades of its own"
+    );
+}
+
+#[test]
+fn one_lucky_fill_does_not_make_a_legacy_name() {
+    assert!(!qualifies(1, 9.99), "a single profitable trade is not a track record");
+    assert!(!qualifies(5, -0.01), "a losing cumulative total is not a track record");
+    assert!(!qualifies(0, 0.0), "an untraded name has no track record");
+}

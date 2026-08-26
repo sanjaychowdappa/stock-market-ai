@@ -105,6 +105,13 @@ struct PersistedState {
     floor_baseline: f64,
     #[serde(default)]
     recovery_pnl: f64,
+    /// The system-wide daily log of what each symbol has actually returned.
+    /// Persisted because r4_legacy is worthless if it forgets every restart:
+    /// a rule about track records needs the track record to outlive the process.
+    #[serde(default)]
+    legacy_pnl: HashMap<String, f64>,
+    #[serde(default)]
+    legacy_trades: HashMap<String, u32>,
     shadows: Vec<PersistedShadow>,
     saved_at: String,
 }
@@ -181,6 +188,18 @@ pub struct PaperTrader {
     first_hh_return: HashMap<String, f64>,
     /// Shadow models for A/B testing different layer weights
     shadow_traders: Vec<ShadowTrader>,
+    /// THE EVERYDAY LOG (specification rule 4): per-symbol closed P&L and trade
+    /// count across the WHOLE system — the real trader and every shadow book.
+    ///
+    /// This lives here, not on ShadowTrader, because r4_legacy reading its own
+    /// private history was a closed loop: it could only fund a name with two
+    /// closed profitable trades on its own book, and it could not trade to
+    /// acquire them. It ran for a full session and placed zero orders, which
+    /// looked from the board like "no name has qualified yet" and was really
+    /// "no name can ever qualify". Rule 4 describes a log the system keeps, not
+    /// a ledger each book keeps privately.
+    legacy_pnl: HashMap<String, f64>,
+    legacy_trades: HashMap<String, u32>,
 }
 
 #[derive(Clone)]
@@ -228,12 +247,6 @@ struct ShadowTrader {
     /// Every shadow book now carries one; a book with an empty rule cannot
     /// enter at all.
     rule: String,
-    /// Per-symbol realised P&L for this book, used by r4_legacy to decide
-    /// which names have earned the right to be funded again.
-    legacy_pnl: HashMap<String, f64>,
-    /// Closed trades per symbol, so "legacy" needs a track record and not a
-    /// single lucky fill.
-    legacy_trades: HashMap<String, u32>,
 }
 
 /// Layer weights every rule book scores with: the LIVE production weights,
@@ -310,8 +323,6 @@ impl ShadowTrader {
             started_date: chrono::Local::now().format("%Y-%m-%d").to_string(),
             trend_mode: trend_mode.to_string(),
             rule: String::new(),
-            legacy_pnl: HashMap::new(),
-            legacy_trades: HashMap::new(),
         }
     }
 
@@ -321,15 +332,6 @@ impl ShadowTrader {
         let mut s = Self::new(model_id, RULE_WEIGHTS, "off");
         s.rule = rule.to_string();
         s
-    }
-
-    /// Has this name earned funding under r4_legacy?
-    ///
-    /// Requires a positive cumulative result over at least two closed trades,
-    /// so one lucky fill does not qualify a name forever.
-    fn is_legacy(&self, symbol: &str) -> bool {
-        self.legacy_trades.get(symbol).copied().unwrap_or(0) >= 2
-            && self.legacy_pnl.get(symbol).copied().unwrap_or(0.0) > 0.0
     }
 
     /// Unrealised profit of one held position.
@@ -512,6 +514,8 @@ impl PaperTrader {
             halted_at: None,
             day_open_price: HashMap::new(),
             first_hh_return: HashMap::new(),
+            legacy_pnl: HashMap::new(),
+            legacy_trades: HashMap::new(),
             shadow_traders: {
                 // THE FIVE-RULE SPECIFICATION, replacing the trend A/B arms
                 // (2026-08-25).
@@ -556,6 +560,8 @@ impl PaperTrader {
             trader.day_start_value = ps.day_start_value;
             trader.did_daily_skim = ps.did_daily_skim;
             trader.day_peak_pnl_pct = ps.day_peak_pnl_pct;
+            trader.legacy_pnl = ps.legacy_pnl;
+            trader.legacy_trades = ps.legacy_trades;
             trader.damage_halted = ps.damage_halted;
             trader.resumes_today = ps.resumes_today;
             trader.recovery_trades = ps.recovery_trades;
@@ -616,6 +622,8 @@ impl PaperTrader {
             halt_baseline_value: self.halt_baseline_value,
             floor_baseline: self.floor_baseline,
             recovery_pnl: self.recovery_pnl,
+            legacy_pnl: self.legacy_pnl.clone(),
+            legacy_trades: self.legacy_trades.clone(),
             shadows,
             saved_at: Local::now().to_rfc3339(),
         };
@@ -671,6 +679,8 @@ impl PaperTrader {
             halt_baseline_value: self.halt_baseline_value,
             floor_baseline: self.floor_baseline,
             recovery_pnl: self.recovery_pnl,
+            legacy_pnl: self.legacy_pnl.clone(),
+            legacy_trades: self.legacy_trades.clone(),
             shadows,
             saved_at: Local::now().to_rfc3339(),
         };
@@ -1990,11 +2000,32 @@ impl PaperTrader {
         }
     }
 
+    /// Has this name earned funding under r4_legacy?
+    ///
+    /// Reads the SYSTEM's everyday log, not any single book's: a positive
+    /// cumulative result over at least two closed trades anywhere in the
+    /// system, so one lucky fill does not qualify a name forever and a book
+    /// that has never traded is not locked out of ever trading.
+    fn is_legacy(&self, symbol: &str) -> bool {
+        self.legacy_trades.get(symbol).copied().unwrap_or(0) >= 2
+            && self.legacy_pnl.get(symbol).copied().unwrap_or(0.0) > 0.0
+    }
+
+    /// Record one closed trade in the everyday log.
+    fn record_legacy(&mut self, symbol: &str, pnl: f64) {
+        *self.legacy_pnl.entry(symbol.to_string()).or_insert(0.0) += pnl;
+        *self.legacy_trades.entry(symbol.to_string()).or_insert(0) += 1;
+    }
+
     fn tick_shadow_traders(&mut self, symbol: &str) {
         let data = match self.market_data.get(symbol) {
             Some(d) => d,
             None => return,
         };
+        // Snapshot before the loop: the shadow books are borrowed mutably by
+        // it, and every book must see the same log for the same tick.
+        let symbol_is_legacy = self.is_legacy(symbol);
+        let mut closed_this_tick: Vec<f64> = Vec::new();
         let price = data.price;
         let kronos_bias = *self.kronos_daily_bias.get(symbol).unwrap_or(&0.0);
 
@@ -2119,11 +2150,9 @@ impl PaperTrader {
                     shadow.cash += pos.market_value() - cost;
                     shadow.realized_pnl += pnl;
                     if pnl > 0.0 { shadow.winning_trades += 1; }
-                    // Per-symbol track record, which is what r4_legacy reads to
-                    // decide whether a name has earned funding again. Recorded on
-                    // every book so the histories stay comparable.
-                    *shadow.legacy_pnl.entry(symbol.to_string()).or_insert(0.0) += pnl;
-                    *shadow.legacy_trades.entry(symbol.to_string()).or_insert(0) += 1;
+                    // Feeds the system-wide everyday log, applied after the
+                    // loop because `self` is borrowed by it.
+                    closed_this_tick.push(pnl);
                     let sell_rec = Trade {
                         symbol: symbol.to_string(), action: "SELL".into(),
                         shares: pos.shares, price: pos.current_price,
@@ -2194,7 +2223,7 @@ impl PaperTrader {
                 kronos_score,
                 weighted_score,
                 below_floor,
-                is_legacy: shadow.is_legacy(symbol),
+                is_legacy: symbol_is_legacy,
                 holds_nothing: shadow.positions.is_empty(),
             });
 
@@ -2267,6 +2296,10 @@ impl PaperTrader {
                 }
             }
         }
+
+        for pnl in closed_this_tick {
+            self.record_legacy(symbol, pnl);
+        }
     }
 
     /// Sell a fraction of the position at market, keep the rest running.
@@ -2324,6 +2357,9 @@ impl PaperTrader {
         self.cash += value;
         self.realized_pnl += pnl;
         if pnl > 0.0 { self.winning_trades += 1; }
+        // The real book's results are the most authoritative entries in the
+        // everyday log — these are positions that were actually held.
+        self.record_legacy(symbol, pnl);
 
         let pnl_tag = if pnl >= 0.0 { "WIN" } else { "LOSS" };
         info!(
