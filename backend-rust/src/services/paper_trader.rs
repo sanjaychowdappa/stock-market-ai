@@ -1553,6 +1553,12 @@ impl PaperTrader {
         (qty, px)
     }
 
+    /// Seconds the simulator has held each open position. Reconcile uses this
+    /// to avoid opening a broker position for something about to be closed.
+    pub fn book_ages(&self) -> HashMap<String, u64> {
+        self.positions.iter().map(|(s, p)| (s.clone(), p.hold_seconds)).collect()
+    }
+
     /// (cash, invested) â€” used by the agentic_test supervisor.
     pub fn portfolio_snapshot(&self) -> (f64, f64) {
         (self.cash, self.positions.values().map(|p| p.market_value()).sum())

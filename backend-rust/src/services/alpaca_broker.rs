@@ -585,12 +585,13 @@ async fn open_order_symbols() -> Option<std::collections::HashSet<String>> {
 pub async fn reconcile(
     sim: std::collections::HashMap<String, f64>,
     prices: std::collections::HashMap<String, f64>,
+    ages: std::collections::HashMap<String, u64>,
 ) -> Value {
     use std::sync::atomic::Ordering as AOrd;
     if RECONCILING.swap(true, AOrd::SeqCst) {
         return json!({"skipped": "a reconcile cycle is already running"});
     }
-    let out = reconcile_inner(sim, prices).await;
+    let out = reconcile_inner(sim, prices, ages).await;
     RECONCILING.store(false, AOrd::SeqCst);
     out
 }
@@ -605,11 +606,16 @@ pub async fn reconcile(
 /// delta computed from them is measuring a snapshot, not a discrepancy.
 ///
 /// Returns (corrections to submit, symbols deferred).
+///
+/// `ages` is how many seconds the simulator has held each position. A gap that
+/// would OPEN a new broker position is left alone until the simulator has held
+/// it for RECONCILE_MIN_AGE_SECS — see that constant for why.
 pub fn reconcile_plan(
     sim: &std::collections::HashMap<String, f64>,
     live: &std::collections::HashMap<String, f64>,
     prices: &std::collections::HashMap<String, f64>,
     busy: &std::collections::HashSet<String>,
+    ages: &std::collections::HashMap<String, u64>,
 ) -> (Vec<Value>, Vec<String>) {
     // Union of both books — a symbol held on only one side still needs fixing.
     let mut symbols: Vec<String> = sim.keys().cloned().collect();
@@ -647,6 +653,19 @@ pub fn reconcile_plan(
             continue;
         }
 
+        // Do not chase a position the simulator just opened and may close
+        // within the cycle. Only OPENING is gated: `have` near zero means the
+        // broker holds nothing, so this order would establish exposure rather
+        // than correct a partial fill. Reducing exposure is never delayed.
+        let opening = delta > 0.0 && have.abs() < 0.0001;
+        if opening {
+            let age = ages.get(&sym).copied().unwrap_or(0);
+            if age < crate::config::RECONCILE_MIN_AGE_SECS {
+                deferred.push(sym);
+                continue;
+            }
+        }
+
         actions.push(json!({
             "symbol": sym,
             "sim_qty": want,
@@ -661,6 +680,7 @@ pub fn reconcile_plan(
 async fn reconcile_inner(
     sim: std::collections::HashMap<String, f64>,
     prices: std::collections::HashMap<String, f64>,
+    ages: std::collections::HashMap<String, u64>,
 ) -> Value {
     // Read working orders BEFORE positions. A symbol mid-fill reports a partial
     // quantity that looks exactly like drift, and correcting it double-sells the
@@ -698,7 +718,7 @@ async fn reconcile_inner(
         busy.insert(s.clone());
     }
 
-    let (actions, deferred) = reconcile_plan(&sim, &live, &prices, &busy);
+    let (actions, deferred) = reconcile_plan(&sim, &live, &prices, &busy, &ages);
 
     for a in &actions {
         let sym = a["symbol"].as_str().unwrap_or_default().to_string();

@@ -193,8 +193,12 @@ pub async fn broker(State(_state): State<Arc<AppState>>) -> Json<serde_json::Val
 
 /// Force an immediate reconcile so Alpaca matches the simulator's book.
 pub async fn broker_sync(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
-    let (qty, px) = { state.trader.lock().book_snapshot() };
-    Json(crate::services::alpaca_broker::reconcile(qty, px).await)
+    let (qty, px, ages) = {
+        let t = state.trader.lock();
+        let (q, p) = t.book_snapshot();
+        (q, p, t.book_ages())
+    };
+    Json(crate::services::alpaca_broker::reconcile(qty, px, ages).await)
 }
 
 /// Damage-control state: the floor, current headroom, and halt status.

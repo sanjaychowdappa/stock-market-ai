@@ -220,6 +220,28 @@ pub const REGIME_FILTER_ENABLED: bool = false;
 /// at a time. Exiting into one costs nothing but a round trip.
 pub const REGIME_EXIT_ENABLED: bool = true;
 
+/// How long the simulator must have held a position before reconcile will
+/// OPEN it at the broker.
+///
+/// Reconcile's job is making Alpaca match the simulator, and it runs every
+/// 120s. Without a minimum age it chases positions the simulator is about to
+/// close: it buys, the simulator exits, the next cycle sells, and the account
+/// pays a full round trip to hold something for two minutes.
+///
+/// That is not hypothetical. Every position ever closed by reconcile lost
+/// money — 5 for 5, -$24.90 total, 2.4-minute median hold, against -$14.18 for
+/// simply leaving them alone. It is the only exit path in the system that
+/// destroys value; every other one is net positive. Examples: GOOGL bought
+/// 2026-08-05 16:00:55 and sold 16:02:57 for -$13.03; AMD bought 2026-08-11
+/// 13:33:58 and sold 13:35:55; AMZN bought 13:34:09 and sold 13:35:58. All
+/// three clusters sit in the first minutes of a session, when the simulator is
+/// opening and closing fastest.
+///
+/// Only OPENING is gated. Reducing exposure the simulator does not have stays
+/// immediate at any age: an unwanted position is a risk, and waiting on it is
+/// how the duplicate-sell bug of 2026-08-12 becomes possible again.
+pub const RECONCILE_MIN_AGE_SECS: u64 = 900;
+
 pub const ACCUMULATOR_ENABLED: bool = true;
 pub const ACCUMULATOR_SYMBOL: &str = "SPY";
 /// Daily contribution.

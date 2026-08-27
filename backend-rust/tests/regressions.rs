@@ -282,6 +282,12 @@ fn the_floor_is_a_floor_not_a_veto() {
 use std::collections::{HashMap, HashSet};
 use stock_market_ai::services::alpaca_broker::reconcile_plan;
 
+/// Ages for a book whose positions have all been held long enough that
+/// RECONCILE_MIN_AGE_SECS is not the thing under test.
+fn settled(sim: &HashMap<String, f64>) -> HashMap<String, u64> {
+    sim.keys().map(|k| (k.clone(), 86_400u64)).collect()
+}
+
 fn books(pairs: &[(&str, f64)]) -> HashMap<String, f64> {
     pairs.iter().map(|(s, q)| (s.to_string(), *q)).collect()
 }
@@ -295,7 +301,7 @@ fn mid_fill_position_is_never_reconciled() {
     let prices = books(&[("KO", 86.70)]);
     let busy: HashSet<String> = ["KO".to_string()].into_iter().collect();
 
-    let (actions, deferred) = reconcile_plan(&sim, &live, &prices, &busy);
+    let (actions, deferred) = reconcile_plan(&sim, &live, &prices, &busy, &settled(&sim));
 
     assert!(
         actions.is_empty(),
@@ -312,7 +318,7 @@ fn the_same_gap_is_corrected_once_the_order_settles() {
     let live = books(&[("KO", 1.716)]);
     let prices = books(&[("KO", 86.70)]);
 
-    let (actions, deferred) = reconcile_plan(&sim, &live, &prices, &HashSet::new());
+    let (actions, deferred) = reconcile_plan(&sim, &live, &prices, &HashSet::new(), &settled(&sim));
 
     assert!(deferred.is_empty());
     assert_eq!(actions.len(), 1, "settled drift must still be corrected");
@@ -330,7 +336,7 @@ fn a_busy_symbol_does_not_block_the_others() {
     let prices = books(&[("KO", 86.70), ("DIS", 103.48), ("RTX", 222.79)]);
     let busy: HashSet<String> = ["KO".to_string()].into_iter().collect();
 
-    let (actions, deferred) = reconcile_plan(&sim, &live, &prices, &busy);
+    let (actions, deferred) = reconcile_plan(&sim, &live, &prices, &busy, &settled(&sim));
 
     assert_eq!(deferred, vec!["KO".to_string()]);
     let syms: Vec<&str> = actions.iter().map(|a| a["symbol"].as_str().unwrap()).collect();
@@ -347,7 +353,7 @@ fn dust_is_still_ignored_when_nothing_is_in_flight() {
     let live = books(&[("KO", 0.001)]);
     let prices = books(&[("KO", 86.70)]);
 
-    let (actions, _) = reconcile_plan(&sim, &live, &prices, &HashSet::new());
+    let (actions, _) = reconcile_plan(&sim, &live, &prices, &HashSet::new(), &settled(&sim));
     assert!(actions.is_empty(), "$0.09 of KO is not worth an order");
 }
 
@@ -722,7 +728,7 @@ fn broker_only_drift_in_an_ordinary_symbol_is_still_corrected() {
     let live = books(&[("NVDA", 12.5)]);
     let prices = books(&[("NVDA", 700.0)]);
 
-    let (actions, _) = reconcile_plan(&sim, &live, &prices, &HashSet::new());
+    let (actions, _) = reconcile_plan(&sim, &live, &prices, &HashSet::new(), &settled(&sim));
 
     assert_eq!(actions.len(), 1, "unowned drift is still corrected");
     assert_eq!(actions[0]["action"], "sell");
@@ -739,7 +745,7 @@ fn the_accumulator_holding_is_never_reconciled_away() {
     let live = books(&[(sym, 12.5)]);
     let prices = books(&[(sym, 700.0)]);
 
-    let (actions, deferred) = reconcile_plan(&sim, &live, &prices, &HashSet::new());
+    let (actions, deferred) = reconcile_plan(&sim, &live, &prices, &HashSet::new(), &settled(&sim));
 
     assert!(actions.is_empty(), "the accumulator holding must never be sold: {actions:?}");
     assert!(deferred.is_empty(), "it is excluded outright, not merely postponed");
@@ -1057,4 +1063,93 @@ fn one_lucky_fill_does_not_make_a_legacy_name() {
     assert!(!qualifies(1, 9.99), "a single profitable trade is not a track record");
     assert!(!qualifies(5, -0.01), "a losing cumulative total is not a track record");
     assert!(!qualifies(0, 0.0), "an untraded name has no track record");
+}
+
+// ── BUG: reconcile chased positions the simulator was about to close ────
+//
+// Reconcile makes Alpaca match the simulator and runs every 120s. With no
+// minimum age it opened broker positions for simulator holdings that were
+// seconds old, and the simulator then exited them before the next cycle — so
+// the account paid a full round trip to hold something for two minutes.
+//
+// Every position ever closed by reconcile lost money: 5 of 5, -$24.90 total,
+// 2.4-minute median hold, against -$14.18 for leaving them alone. It was the
+// only exit path in the system that destroyed value; every other one is net
+// positive. GOOGL was bought 2026-08-05 16:00:55 and sold 16:02:57 for -$13.03.
+
+use stock_market_ai::config::RECONCILE_MIN_AGE_SECS;
+
+#[test]
+fn a_position_the_simulator_just_opened_is_not_chased() {
+    let mut sim = HashMap::new();
+    sim.insert("AMD".to_string(), 1.6);
+    let live: HashMap<String, f64> = HashMap::new();     // broker holds nothing
+    let mut prices = HashMap::new();
+    prices.insert("AMD".to_string(), 465.0);
+    let mut ages = HashMap::new();
+    ages.insert("AMD".to_string(), 30u64);               // 30 seconds old
+
+    let (actions, deferred) =
+        reconcile_plan(&sim, &live, &prices, &HashSet::new(), &ages);
+    assert!(
+        actions.is_empty(),
+        "reconcile opened a broker position for a 30-second-old simulator \
+         holding; every such order it ever placed was closed at a loss within \
+         minutes"
+    );
+    assert_eq!(deferred, vec!["AMD".to_string()],
+        "the symbol must be reported as deferred, not silently dropped");
+}
+
+#[test]
+fn a_position_the_simulator_has_actually_held_is_still_mirrored() {
+    let mut sim = HashMap::new();
+    sim.insert("AMD".to_string(), 1.6);
+    let live: HashMap<String, f64> = HashMap::new();
+    let mut prices = HashMap::new();
+    prices.insert("AMD".to_string(), 465.0);
+    let mut ages = HashMap::new();
+    ages.insert("AMD".to_string(), RECONCILE_MIN_AGE_SECS + 1);
+
+    let (actions, _) = reconcile_plan(&sim, &live, &prices, &HashSet::new(), &ages);
+    assert_eq!(actions.len(), 1,
+        "a genuinely held position must still be mirrored, or the real book \
+         silently stops tracking the simulator");
+    assert_eq!(actions[0]["action"], "buy");
+}
+
+#[test]
+fn unwanted_broker_exposure_is_still_sold_immediately() {
+    // The gate is on OPENING only. An unwanted position is a live risk, and
+    // waiting on it is how the 2026-08-12 duplicate-sell hazard returns.
+    let sim: HashMap<String, f64> = HashMap::new();
+    let mut live = HashMap::new();
+    live.insert("KO".to_string(), 8.0);
+    let mut prices = HashMap::new();
+    prices.insert("KO".to_string(), 90.0);
+
+    let (actions, _) = reconcile_plan(&sim, &live, &prices, &HashSet::new(),
+                                      &HashMap::new());   // no age at all
+    assert_eq!(actions.len(), 1, "exposure the simulator does not want must be \
+        closed regardless of age");
+    assert_eq!(actions[0]["action"], "sell");
+}
+
+#[test]
+fn a_partial_fill_is_topped_up_without_waiting() {
+    // The broker already holds some: this corrects a partial fill rather than
+    // establishing exposure, so the age gate must not apply.
+    let mut sim = HashMap::new();
+    sim.insert("COP".to_string(), 5.6);
+    let mut live = HashMap::new();
+    live.insert("COP".to_string(), 2.0);
+    let mut prices = HashMap::new();
+    prices.insert("COP".to_string(), 131.0);
+    let mut ages = HashMap::new();
+    ages.insert("COP".to_string(), 5u64);
+
+    let (actions, _) = reconcile_plan(&sim, &live, &prices, &HashSet::new(), &ages);
+    assert_eq!(actions.len(), 1,
+        "topping up a partial fill is not opening a position and must not wait");
+    assert_eq!(actions[0]["action"], "buy");
 }

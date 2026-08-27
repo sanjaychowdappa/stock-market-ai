@@ -82,10 +82,10 @@ impl AppState {
                     // at the broker precisely the positions the halt exists to
                     // keep real money out of. The simulator trades on; Alpaca
                     // stays flat until the recovery gate passes.
-                    let (halted, qty, px) = {
+                    let (halted, qty, px, ages) = {
                         let t = st.trader.lock();
                         let (q, p) = t.book_snapshot();
-                        (t.alpaca_halted(), q, p)
+                        (t.alpaca_halted(), q, p, t.book_ages())
                     };
                     if halted {
                         tokio::time::sleep(tokio::time::Duration::from_secs(120)).await;
@@ -94,7 +94,7 @@ impl AppState {
                     let alpaca_has = crate::services::alpaca_broker::positions()
                         .await.map(|p| !p.is_empty()).unwrap_or(false);
                     if !qty.is_empty() || alpaca_has {
-                        let _ = crate::services::alpaca_broker::reconcile(qty, px).await;
+                        let _ = crate::services::alpaca_broker::reconcile(qty, px, ages).await;
                     }
                     tokio::time::sleep(tokio::time::Duration::from_secs(120)).await;
                 }
