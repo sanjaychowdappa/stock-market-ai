@@ -1,0 +1,71 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-08-27
+  Generated:  2026-08-27T20:10:01.392251438+00:00
+  Uptime:     6h 41m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $126.83
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     280
+  Winning Trades:   115
+  Win Rate:         41.1%
+  Avg Hold Time:    2654s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $476.69     bullish     0.428    —
+  FCX      $78.44      neutral     0.076    —
+  MRK      $149.66     bullish     0.249    —
+  COP      $129.52     bullish     0.118    —
+  V        $379.63     neutral     0.022    —
+  UNP      $307.63     bullish     0.182    —
+  AMZN     $256.15     bullish     0.201    —
+  KO       $89.06      bearish     -0.274   —
+  DIS      $107.69     bearish     -0.320   —
+  EQIX     $1076.12    neutral     -0.043   —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   UNP      $307.86    $447.70  $0.3490    EOD_DAILY_SKIM
+  19:55:00  SELL   KO       $89.28     $445.78  $-1.5729   EOD_DAILY_SKIM
+  19:55:00  SELL   AMZN     $256.85    $449.80  $2.4430    EOD_DAILY_SKIM
+  19:55:00  SELL   FCX      $78.48     $741.24  $-4.3447   EOD_DAILY_SKIM
+  19:55:00  SELL   DIS      $107.07    $446.02  $-1.3330   EOD_DAILY_SKIM
+  19:55:00  SELL   AMD      $475.88    $451.26  $3.9116    EOD_DAILY_SKIM
+  18:48:14  BUY    KO       $89.59     $447.35  $0.0000    ENTRY(s=0.059,K~,1of7)
+  18:48:14  BUY    UNP      $307.62    $447.35  $0.0000    ENTRY(s=0.177,K~,1of7)
+  18:48:14  BUY    AMD      $471.75    $447.35  $0.0000    ENTRY(s=0.219,K~,2of7)
+  18:48:14  BUY    AMZN     $255.45    $447.35  $0.0000    ENTRY(s=0.219,K-,2of7)
+  18:48:14  BUY    DIS      $107.39    $447.35  $0.0000    ENTRY(s=0.488,K-,1of7)
+  18:33:12  BUY    FCX      $78.94     $745.59  $0.0000    ENTRY(s=0.069,K-,1of7)
+  18:28:13  SELL   UNP      $307.82    $247.96  $0.2868    DAMAGE_CONTROL_FLATTEN
+  18:28:13  SELL   KO       $89.70     $250.32  $0.3628    DAMAGE_CONTROL_FLATTEN
+  18:28:13  SELL   AMZN     $255.06    $246.26  $-1.3826   DAMAGE_CONTROL_FLATTEN
+  18:28:12  SELL   MRK      $150.93    $249.94  $-0.0828   DAMAGE_CONTROL_FLATTEN
+  18:28:12  SELL   COP      $129.83    $247.69  $-0.0382   DAMAGE_CONTROL_FLATTEN
+  18:28:12  SELL   V        $380.55    $746.96  $-0.2748   DAMAGE_CONTROL_FLATTEN
+  18:28:12  SELL   DIS      $107.41    $249.78  $-0.2093   DAMAGE_CONTROL_FLATTEN
+  18:28:12  SELL   AMD      $469.70    $743.73  $-3.2460   DAMAGE_CONTROL_FLATTEN
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

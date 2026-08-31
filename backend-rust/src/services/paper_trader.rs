@@ -1553,6 +1553,21 @@ impl PaperTrader {
         (qty, px)
     }
 
+    /// Shadow books as (model_id, rule, total_trades) for the rule monitor.
+    pub fn shadow_stats(&self) -> Vec<(String, String, u32)> {
+        self.shadow_traders.iter()
+            .map(|s| (s.model_id.clone(), s.rule.clone(), s.total_trades))
+            .collect()
+    }
+
+    /// The everyday log as (symbols logged, symbols qualified for r4).
+    pub fn legacy_summary(&self) -> (usize, usize) {
+        let qualified = self.legacy_trades.keys()
+            .filter(|s| self.is_legacy(s))
+            .count();
+        (self.legacy_trades.len(), qualified)
+    }
+
     /// Seconds the simulator has held each open position. Reconcile uses this
     /// to avoid opening a broker position for something about to be closed.
     pub fn book_ages(&self) -> HashMap<String, u64> {

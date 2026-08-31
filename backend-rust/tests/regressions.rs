@@ -1153,3 +1153,95 @@ fn a_partial_fill_is_topped_up_without_waiting() {
         "topping up a partial fill is not opening a position and must not wait");
     assert_eq!(actions[0]["action"], "buy");
 }
+
+// ── The rule monitor: catching an inert rule mechanically ───────────────
+//
+// Three of the five specification rules shipped structurally inert — r3 and r5
+// with all-zero weights, r4 with a self-referential history requirement — and
+// each ran that way for days looking exactly like a rule whose conditions had
+// not come up. All three were found by hand, late.
+//
+// The probe below is the mechanical version of the question that found them:
+// evaluate every rule against the most favourable input it could ever receive.
+// A rule that is false on THAT can never be true.
+
+use stock_market_ai::services::rule_monitor::{
+    check_legacy_log, check_reconcile_churn, check_rules_can_fire, rule_can_ever_fire, BookStat,
+};
+
+fn book(id: &str, rule: &str, trades: u32) -> BookStat {
+    BookStat { model_id: id.into(), rule: rule.into(), total_trades: trades }
+}
+
+#[test]
+fn every_shipped_rule_can_fire() {
+    for rule in ["r1_kronos_sectors", "r2_max_forecast", "r3_profit_only",
+                 "r4_legacy", "r5_concentrate"] {
+        assert!(
+            rule_can_ever_fire(rule),
+            "{rule} cannot fire under its own best-case input — no market \
+             condition will ever satisfy it, and its trade count on the board \
+             is a defect rather than a result"
+        );
+    }
+}
+
+#[test]
+fn a_misspelled_rule_is_reported_as_dead() {
+    let books = vec![book("r6_typo", "r6_typo", 0)];
+    let out = check_rules_can_fire(&books);
+    assert_eq!(out[0]["severity"], "critical",
+        "a book wired to a rule name with no match arm must be reported, not \
+         left looking merely selective");
+}
+
+#[test]
+fn a_healthy_roster_reports_no_dead_rules() {
+    let books = vec![
+        book("r1_kronos_sectors", "r1_kronos_sectors", 27),
+        book("r4_legacy", "r4_legacy", 10),
+    ];
+    let out = check_rules_can_fire(&books);
+    assert_eq!(out.len(), 1);
+    assert_eq!(out[0]["severity"], "info");
+}
+
+#[test]
+fn an_empty_everyday_log_after_real_trades_is_critical() {
+    // The exact r4 failure: the system has closed trades, and the log r4 reads
+    // has nothing in it, so r4 can never qualify a name.
+    let f = check_legacy_log(0, 0, 40);
+    assert_eq!(f["severity"], "critical",
+        "an empty log after 40 closed trades means the log is not being \
+         written, which is how r4 stayed inert");
+
+    let f = check_legacy_log(0, 0, 0);
+    assert_eq!(f["severity"], "info", "an empty log before any trade is normal");
+
+    let f = check_legacy_log(12, 3, 40);
+    assert_eq!(f["severity"], "info");
+}
+
+#[test]
+fn reconcile_opening_and_closing_within_the_window_is_flagged() {
+    // The real 2026-08-31 sequence: bought 13:51, sold 14:01.
+    let events = vec![
+        ("AMZN".to_string(), "buy".to_string(), 1_000_000i64),
+        ("AMZN".to_string(), "sell".to_string(), 1_000_600i64), // 10 minutes
+    ];
+    let f = check_reconcile_churn(&events, 30 * 60);
+    assert_eq!(f["severity"], "warn",
+        "reconcile is bookkeeping, not a strategy; a 10-minute round trip is \
+         pure cost and every one of them has lost money");
+}
+
+#[test]
+fn a_reconcile_position_that_is_actually_held_is_not_flagged() {
+    let events = vec![
+        ("UNP".to_string(), "buy".to_string(), 1_000_000i64),
+        ("UNP".to_string(), "sell".to_string(), 1_009_000i64), // 2.5 hours
+    ];
+    let f = check_reconcile_churn(&events, 30 * 60);
+    assert_eq!(f["severity"], "info",
+        "correcting drift and holding the position is reconcile working");
+}

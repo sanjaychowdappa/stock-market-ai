@@ -1,0 +1,50 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-08-29 16:10   |   Report date: 2026-08-29   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-08-29) ===
+  (no closed trades)
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       101   (W 40 / L 61)
+  Win rate:     39.6%
+  Gross P/L:    $-31.2157
+  Avg win:      $2.0874    Avg loss: $-1.8805
+  Expectancy:   $-0.3091/trade gross  ->  ~$-0.4216/trade after est. fees
+  Per symbol:
+    BAC     1 trades  W1   $10.5674
+    MRK     6 trades  W3   $6.6494
+    KO     12 trades  W6   $4.1163
+    V       3 trades  W1   $3.4465
+    MA      1 trades  W1   $0.1085
+    RTX     1 trades  W0   $-1.7165
+    EQIX    6 trades  W2   $-2.9235
+    UNP     7 trades  W3   $-3.1513
+    AMZN   11 trades  W5   $-4.5094
+    DIS    11 trades  W3   $-8.1073
+    FCX    12 trades  W5   $-8.1995
+    COP    12 trades  W3   $-8.4923
+    TMO     6 trades  W1   $-8.7186
+    AMD    12 trades  W6   $-10.2856
+  Exit reasons:
+    DAMAGE_CONTROL_FLATTEN 36
+    EOD_DAILY_SKIM     26
+    REGIME_EXIT        20
+    TRAIL_STOP         19
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $-0.3091/trade  (101 trades)
+  always_in_max_exposure   expectancy $-0.0328/trade  (26 trades)
+  trend_off                expectancy $-0.3661/trade  (19 trades)
+  trend_30min              expectancy $-0.2659/trade  (18 trades)
+  trend_fullday            expectancy $-0.4465/trade  (11 trades)
+  random_baseline          expectancy $-0.0631/trade  (31 trades)  <-- the bar to beat
+  r1_kronos_sectors        expectancy $-0.1608/trade  (23 trades)
+  r2_max_forecast          expectancy $-0.9946/trade  (16 trades)
+  r3_profit_only           expectancy $-0.1091/trade  (1 trades)
+  r5_concentrate           expectancy $0.0213/trade  (18 trades)
+  r4_legacy                expectancy $-0.4639/trade  (9 trades)
+  VERDICT: real does NOT beat random - no demonstrated edge yet
+
+LIVE: backend not reachable (Docker stopped?) - analysis above is from logs.

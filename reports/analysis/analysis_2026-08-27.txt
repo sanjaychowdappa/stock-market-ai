@@ -1,0 +1,69 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-08-27 16:10   |   Report date: 2026-08-27   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-08-27) ===
+  Trades:       40   (W 15 / L 25)
+  Win rate:     37.5%
+  Gross P/L:    $-14.176
+  Avg win:      $1.7206    Avg loss: $-1.5994
+  Expectancy:   $-0.3544/trade gross  ->  ~$-0.4669/trade after est. fees
+  Per symbol:
+    MRK     4 trades  W2   $5.0425
+    KO      5 trades  W3   $2.7241
+    FCX     4 trades  W3   $-0.1895
+    EQIX    1 trades  W0   $-0.5921
+    V       2 trades  W0   $-0.7064
+    UNP     5 trades  W2   $-1.2268
+    AMZN    5 trades  W1   $-2.1831
+    DIS     5 trades  W2   $-3.537
+    AMD     5 trades  W2   $-5.9929
+    COP     4 trades  W0   $-7.5148
+  Exit reasons:
+    REGIME_EXIT        16
+    DAMAGE_CONTROL_FLATTEN 12
+    EOD_DAILY_SKIM     6
+    TRAIL_STOP         6
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       84   (W 33 / L 51)
+  Win rate:     39.3%
+  Gross P/L:    $-33.8949
+  Avg win:      $1.9305    Avg loss: $-1.9138
+  Expectancy:   $-0.4035/trade gross  ->  ~$-0.516/trade after est. fees
+  Per symbol:
+    BAC     2 trades  W1   $10.3849
+    MRK     6 trades  W3   $6.6494
+    V       3 trades  W1   $3.4465
+    UNP     6 trades  W3   $1.9955
+    KO     10 trades  W5   $1.1685
+    TMO     4 trades  W2   $0.4728
+    RTX     1 trades  W0   $-1.7165
+    EQIX    3 trades  W0   $-3.2527
+    AMZN   12 trades  W6   $-3.9882
+    DIS     8 trades  W2   $-8.0991
+    COP    12 trades  W3   $-8.7405
+    FCX     8 trades  W3   $-12.4658
+    AMD     9 trades  W4   $-19.7498
+  Exit reasons:
+    DAMAGE_CONTROL_FLATTEN 25
+    REGIME_EXIT        24
+    EOD_DAILY_SKIM     20
+    TRAIL_STOP         15
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $-0.4035/trade  (84 trades)
+  always_in_max_exposure   expectancy $-0.3229/trade  (31 trades)
+  trend_off                expectancy $-0.4688/trade  (23 trades)
+  random_baseline          expectancy $-0.127/trade  (36 trades)  <-- the bar to beat
+  trend_30min              expectancy $-0.2863/trade  (23 trades)
+  trend_fullday            expectancy $-0.42/trade  (16 trades)
+  r1_kronos_sectors        expectancy $-0.2907/trade  (19 trades)
+  r2_max_forecast          expectancy $-0.9946/trade  (16 trades)
+  r3_profit_only           expectancy $-0.1091/trade  (1 trades)
+  r5_concentrate           expectancy $-0.2146/trade  (13 trades)
+  r4_legacy                expectancy $0.2346/trade  (5 trades)
+  VERDICT: real does NOT beat random - no demonstrated edge yet
+
+LIVE: portfolio $3000.0  (P/L $0.0)  running=True

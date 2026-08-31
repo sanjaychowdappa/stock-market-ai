@@ -291,6 +291,39 @@ pub async fn run_cycle(state: &Arc<AppState>, agent: &SharedAgent) {
     // own endpoint. On 2026-08-18 the deployment check DID detect the
     // stranded capital and logged it; nobody saw it. A finding that only
     // reaches a log file is a finding that does not exist.
+    // Rule health. The reason this runs every cycle rather than being
+    // checked by hand: three of the five specification rules shipped
+    // structurally inert and ran that way for days, each looking exactly like
+    // a rule whose conditions had not come up.
+    {
+        use crate::services::rule_monitor as rm;
+        let (books, legacy, closed) = {
+            let t = state.trader.lock();
+            let stats: Vec<rm::BookStat> = t.shadow_stats().into_iter()
+                .map(|(model_id, rule, total_trades)| rm::BookStat { model_id, rule, total_trades })
+                .collect();
+            let closed: u32 = stats.iter().map(|b| b.total_trades).sum();
+            (stats, t.legacy_summary(), closed)
+        };
+        let mut items = rm::check_rules_can_fire(&books);
+        items.extend(rm::check_silent_books(&books));
+        items.push(rm::check_legacy_log(legacy.0, legacy.1, closed));
+        items.extend(rm::run_from_logs());
+        for f in items {
+            let sev = match f["severity"].as_str() {
+                Some("critical") => Severity::Critical,
+                Some("warn") => Severity::Warn,
+                _ => Severity::Info,
+            };
+            findings.push(Finding::new(
+                f["check"].as_str().unwrap_or("rule_monitor"),
+                sev,
+                f["message"].as_str().unwrap_or("").to_string(),
+                None,
+            ));
+        }
+    }
+
     let mon = crate::services::change_monitor::run().await;
     if let Some(items) = mon["findings"].as_array() {
         for f in items {

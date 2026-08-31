@@ -5,6 +5,7 @@ pub mod technical;
 pub mod kronos_onnx;
 pub mod realtime_engine;
 pub mod paper_trader;
+pub mod rule_monitor;
 pub mod daily_tracker;
 pub mod stock_data;
 pub mod signal_generator;
