@@ -294,6 +294,77 @@ pub async fn buy_and_hold_benchmark(start_date: &str, capital: f64, strategy_pnl
 ///
 /// `sim_price` is what the internal simulator assumed it got. Everything is
 /// fire-and-forget: failures are logged, never propagated.
+/// The quantity that can actually be SOLD, given that Alpaca's record of a
+/// position and the simulator's diverge in the last few decimal places.
+///
+/// The simulator accumulates share counts from its own arithmetic; Alpaca
+/// stores what its fills produced. They agree to about four decimals and then
+/// disagree, and Alpaca rejects the WHOLE order — code 40310000 — when the
+/// request exceeds the holding by any amount at all:
+///
+///   FCX   requested 9.919237   available 9.919233
+///   KO    requested 8.373627   available 8.3736
+///   EQIX  requested 0.725741   available 0.7257
+///   AMZN  requested 1.071021   available 1.071
+///
+/// All four were TRAILING STOPS on 2026-08-31. A rejected stop does not
+/// execute: the simulator books the exit, the account keeps the position, and
+/// the two drift apart — the simulator closed that day at -$8.26 and the
+/// broker at -$27.79. The safety mechanism was silently not firing.
+///
+/// Flooring to four decimals is under the holding in every observed case. It
+/// leaves at most 0.0001 shares behind, which is under a dime on a $1,000
+/// stock and below the dust threshold reconcile already ignores. Selling
+/// slightly less is always safe; selling slightly more always fails.
+pub fn sellable_qty(qty: f64) -> f64 {
+    (qty * 10_000.0).floor() / 10_000.0
+}
+
+/// The `available` quantity Alpaca reports when it rejects an oversized sell.
+///
+/// Used to retry once with the exact holding, which covers any case where the
+/// gap is wider than flooring absorbs.
+pub fn available_from_rejection(detail: &str) -> Option<f64> {
+    let v: Value = serde_json::from_str(detail).ok()?;
+    if v["code"].as_i64() != Some(40310000) {
+        return None;
+    }
+    v["available"].as_str().and_then(|s| s.parse::<f64>().ok())
+}
+
+/// Submit one market order. Returns the order JSON, or (http status, body).
+/// A status of 0 means the request never completed.
+async fn post_market_order(
+    client: &reqwest::Client, base: &str, key: &str, secret: &str,
+    symbol: &str, qty: f64, side: &str,
+) -> Result<Value, (u16, String)> {
+    // Alpaca accepts fractional qty for market/day orders on liquid names.
+    let body = json!({
+        "symbol": symbol,
+        "qty": format!("{:.6}", qty),
+        "side": side,
+        "type": "market",
+        "time_in_force": "day",
+    });
+    match client
+        .post(format!("{}/v2/orders", base))
+        .header("APCA-API-KEY-ID", key)
+        .header("APCA-API-SECRET-KEY", secret)
+        .json(&body)
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+    {
+        Ok(r) if r.status().is_success() => r.json::<Value>().await
+            .map_err(|e| (0u16, format!("bad response: {e}"))),
+        Ok(r) => {
+            let st = r.status().as_u16();
+            Err((st, r.text().await.unwrap_or_default()))
+        }
+        Err(e) => Err((0u16, format!("submit failed: {e}"))),
+    }
+}
+
 pub async fn shadow_order(symbol: String, qty: f64, side: &str, sim_price: f64, reason: String) {
     let (key, secret, base) = match creds() {
         Some(c) => c,
@@ -303,6 +374,11 @@ pub async fn shadow_order(symbol: String, qty: f64, side: &str, sim_price: f64, 
         return;
     }
     let side = side.to_lowercase();
+    // A sell can never request more than the account holds — see sellable_qty.
+    let qty = if side == "sell" { sellable_qty(qty) } else { qty };
+    if qty <= 0.0 {
+        return;
+    }
     // Serialise per symbol so an exit and its immediate re-entry cannot be in
     // flight together — that collision is what Alpaca rejects as a wash trade.
     if !claim_symbol(&symbol).await {
@@ -310,36 +386,32 @@ pub async fn shadow_order(symbol: String, qty: f64, side: &str, sim_price: f64, 
     }
     let client = reqwest::Client::new();
 
-    // Alpaca accepts fractional qty for market/day orders on liquid names.
-    let body = json!({
-        "symbol": symbol,
-        "qty": format!("{:.6}", qty),
-        "side": side,
-        "type": "market",
-        "time_in_force": "day",
-    });
+    let mut qty = qty;
+    let mut attempt = post_market_order(&client, &base, &key, &secret, &symbol, qty, &side).await;
 
-    let submitted = client
-        .post(format!("{}/v2/orders", base))
-        .header("APCA-API-KEY-ID", &key)
-        .header("APCA-API-SECRET-KEY", &secret)
-        .json(&body)
-        .timeout(std::time::Duration::from_secs(10))
-        .send()
-        .await;
-
-    let order = match submitted {
-        Ok(r) if r.status().is_success() => match r.json::<Value>().await {
-            Ok(v) => v,
-            Err(e) => {
-                warn!("[BROKER] {} {} — bad response: {}", side, symbol, e);
-                release_symbol(&symbol);
-                return;
+    // ONE retry for an oversized sell, using the holding Alpaca reports.
+    //
+    // Flooring to four decimals covers every gap observed so far, but the gap
+    // is the simulator's arithmetic drifting from the broker's and nothing
+    // bounds it. A stop that fails is worse than a stop that sells slightly
+    // less, so when Alpaca tells us the exact available quantity, use it.
+    if let Err((status, ref msg)) = attempt {
+        if side == "sell" && status == 403 {
+            if let Some(avail) = available_from_rejection(msg) {
+                let retry_qty = sellable_qty(avail);
+                if retry_qty > 0.0 && retry_qty < qty {
+                    warn!("[BROKER] sell {} for {:.6} exceeded the holding;                            retrying at {:.6}", symbol, qty, retry_qty);
+                    qty = retry_qty;
+                    attempt = post_market_order(&client, &base, &key, &secret,
+                                                &symbol, qty, &side).await;
+                }
             }
-        },
-        Ok(r) => {
-            let status = r.status();
-            let msg = r.text().await.unwrap_or_default();
+        }
+    }
+
+    let order = match attempt {
+        Ok(v) => v,
+        Err((status, msg)) => {
             // Rejections are DATA, not failures — they reveal real constraints
             // (buying power, PDT, halted symbol) the simulator never models.
             warn!("[BROKER] {} {} REJECTED ({}): {}", side, symbol, status, msg.trim());
@@ -347,14 +419,9 @@ pub async fn shadow_order(symbol: String, qty: f64, side: &str, sim_price: f64, 
                 "timestamp": chrono::Local::now().to_rfc3339(),
                 "symbol": symbol, "side": side, "qty": qty,
                 "sim_price": sim_price, "reason": reason,
-                "outcome": "rejected", "http_status": status.as_u16(),
+                "outcome": "rejected", "http_status": status,
                 "detail": msg.trim(),
             }));
-            release_symbol(&symbol);
-            return;
-        }
-        Err(e) => {
-            warn!("[BROKER] {} {} — submit failed: {}", side, symbol, e);
             release_symbol(&symbol);
             return;
         }

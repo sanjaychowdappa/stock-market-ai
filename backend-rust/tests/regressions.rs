@@ -1245,3 +1245,77 @@ fn a_reconcile_position_that_is_actually_held_is_not_flagged() {
     assert_eq!(f["severity"], "info",
         "correcting drift and holding the position is reconcile working");
 }
+
+// ── BUG: every trailing stop asked to sell more shares than existed ─────
+//
+// The simulator accumulates share counts from its own arithmetic; Alpaca
+// stores what its fills produced. They agree to about four decimals and then
+// disagree, and Alpaca rejects the WHOLE order (code 40310000) when the
+// request exceeds the holding by any amount at all. On 2026-08-31:
+//
+//   FCX   requested 9.919237   available 9.919233
+//   KO    requested 8.373627   available 8.3736
+//   EQIX  requested 0.725741   available 0.7257
+//   AMZN  requested 1.071021   available 1.071
+//
+// All four were TRAILING STOPS. A rejected stop does not execute: the
+// simulator books the exit, the account keeps the position. That is both a
+// silently disabled safety mechanism and the source of the divergence — the
+// simulator closed that day at -$8.26 and the broker at -$27.79.
+
+use stock_market_ai::services::alpaca_broker::{available_from_rejection, sellable_qty};
+
+/// The four real rejections, as (requested, available).
+const REJECTED: [(f64, f64); 4] = [
+    (9.919237, 9.919233),
+    (8.373627, 8.3736),
+    (0.725741, 0.7257),
+    (1.071021, 1.071),
+];
+
+#[test]
+fn no_sell_asks_for_more_than_the_account_holds() {
+    for (requested, available) in REJECTED {
+        let send = sellable_qty(requested);
+        assert!(
+            send <= available,
+            "would send {send:.6} against a holding of {available:.6} — Alpaca \
+             rejects the entire order, so the stop does not execute"
+        );
+        assert!(send > 0.0, "the position must still be sold, not skipped");
+    }
+}
+
+#[test]
+fn the_dust_left_behind_is_negligible() {
+    for (requested, _) in REJECTED {
+        let left = requested - sellable_qty(requested);
+        assert!(
+            left < 0.0001,
+            "left {left} shares behind; more than a dust threshold means the \
+             position is not really being closed"
+        );
+    }
+}
+
+#[test]
+fn a_whole_share_count_is_not_disturbed() {
+    assert_eq!(sellable_qty(5.0), 5.0);
+    assert_eq!(sellable_qty(0.5), 0.5);
+}
+
+#[test]
+fn the_available_quantity_is_recovered_from_the_rejection() {
+    let detail = r#"{"available":"9.919233","code":40310000,"existing_qty":"9.919233","held_for_orders":"0","message":"insufficient qty available for order (requested: 9.919237, available: 9.919233)","symbol":"FCX"}"#;
+    assert_eq!(available_from_rejection(detail), Some(9.919233),
+        "the retry needs the exact holding; without it a wider drift than \
+         flooring absorbs would still fail the stop");
+}
+
+#[test]
+fn an_unrelated_rejection_yields_no_retry_quantity() {
+    let rate_limited = r#"{"code":42910000,"message":"rate limit exceeded"}"#;
+    assert_eq!(available_from_rejection(rate_limited), None,
+        "only an insufficient-quantity rejection carries a holding to retry with");
+    assert_eq!(available_from_rejection("not json"), None);
+}
