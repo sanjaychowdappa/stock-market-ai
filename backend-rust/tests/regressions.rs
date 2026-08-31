@@ -1319,3 +1319,75 @@ fn an_unrelated_rejection_yields_no_retry_quantity() {
         "only an insufficient-quantity rejection carries a holding to retry with");
     assert_eq!(available_from_rejection("not json"), None);
 }
+
+// ── GAP: the shadow books had no history that outlived a restart ────────
+//
+// Their recent-trade window was capped at 60 and never persisted, and this
+// process restarts daily. On 2026-08-31 r2_max_forecast showed +$45.27 and
+// the trades behind it could not be read back — the explanation had to be
+// reconstructed from the REAL trader's per-symbol numbers.
+//
+// These five books are what decides which specification rule survives. A
+// decision of that kind needs an audit trail, and a snapshot that gets
+// overwritten is not one.
+
+/// Recompute a book's realized total from its logged rows, the way
+/// /api/shadow-trades does. If this disagrees with the scoreboard, one of the
+/// two is wrong — which is the point of keeping an independent record.
+fn realized_from_log(rows: &[serde_json::Value], model: &str) -> (f64, u32) {
+    let mut pnl = 0.0;
+    let mut n = 0;
+    for r in rows {
+        if r["model_id"].as_str() != Some(model) { continue; }
+        if let Some(p) = r["pnl"].as_f64() {
+            pnl += p;
+            n += 1;
+        }
+    }
+    (pnl, n)
+}
+
+fn srow(model: &str, sym: &str, action: &str, pnl: Option<f64>) -> serde_json::Value {
+    match pnl {
+        Some(p) => serde_json::json!({"model_id": model, "symbol": sym, "action": action, "pnl": p}),
+        None => serde_json::json!({"model_id": model, "symbol": sym, "action": action, "pnl": null}),
+    }
+}
+
+#[test]
+fn a_books_total_can_be_rebuilt_from_the_log() {
+    let rows = vec![
+        srow("r2_max_forecast", "MRK", "BUY", None),
+        srow("r2_max_forecast", "MRK", "SELL", Some(34.10)),
+        srow("r2_max_forecast", "EQIX", "BUY", None),
+        srow("r2_max_forecast", "EQIX", "SELL", Some(11.17)),
+        srow("r1_kronos_sectors", "KO", "SELL", Some(-2.00)),
+    ];
+    let (pnl, n) = realized_from_log(&rows, "r2_max_forecast");
+    assert!((pnl - 45.27).abs() < 1e-9,
+        "rebuilt {pnl}, expected 45.27 — a scoreboard number that cannot be \
+         rebuilt from the log is a number nobody can check");
+    assert_eq!(n, 2, "only closes carry P&L; entries must not count as trades");
+}
+
+#[test]
+fn entries_do_not_contribute_to_the_rebuilt_total() {
+    let rows = vec![
+        srow("r4_legacy", "FCX", "BUY", None),
+        srow("r4_legacy", "FCX", "BUY", None),
+    ];
+    let (pnl, n) = realized_from_log(&rows, "r4_legacy");
+    assert_eq!(n, 0);
+    assert_eq!(pnl, 0.0);
+}
+
+#[test]
+fn one_books_trades_do_not_leak_into_another() {
+    let rows = vec![
+        srow("r2_max_forecast", "MRK", "SELL", Some(34.10)),
+        srow("r5_concentrate", "MRK", "SELL", Some(-1.10)),
+    ];
+    assert!((realized_from_log(&rows, "r5_concentrate").0 - (-1.10)).abs() < 1e-9,
+        "books trade the same symbols at the same moments; mixing them would \
+         make every comparison between rules meaningless");
+}

@@ -355,3 +355,58 @@ pub async fn accumulator_topup(
     let usd = q.get("usd").and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
     Json(crate::services::accumulator::top_up(usd).await)
 }
+
+/// GET /api/shadow-trades — the permanent audit trail for the rule books.
+///
+/// Exists because the books that decide which specification rule survives had
+/// no history that outlived a restart. On 2026-08-31 r2_max_forecast showed
+/// +$45.27 and the trades behind it could not be read back.
+///
+/// Query: `?model=r2_max_forecast` to filter, `?limit=200` (default 100).
+pub async fn shadow_trades(
+    axum::extract::Query(q): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Json<serde_json::Value> {
+    let model = q.get("model").cloned();
+    let limit: usize = q.get("limit").and_then(|s| s.parse().ok()).unwrap_or(100).min(2000);
+
+    let rows: Vec<serde_json::Value> = std::fs::read_to_string(
+        crate::services::paper_trader::SHADOW_TRADE_LOG)
+        .map(|s| s.lines()
+            .filter(|l| !l.trim().is_empty())
+            .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+            .filter(|r| match &model {
+                Some(m) => r["model_id"].as_str() == Some(m.as_str()),
+                None => true,
+            })
+            .collect())
+        .unwrap_or_default();
+
+    // Per-book totals from the log itself, so the audit trail can be checked
+    // against the scoreboard rather than trusted alongside it.
+    let mut by_book: std::collections::BTreeMap<String, (f64, u32)> = Default::default();
+    for r in &rows {
+        if let (Some(id), Some(p)) = (r["model_id"].as_str(), r["pnl"].as_f64()) {
+            let e = by_book.entry(id.to_string()).or_insert((0.0, 0));
+            e.0 += p;
+            e.1 += 1;
+        }
+    }
+    let totals: serde_json::Value = by_book.into_iter()
+        .map(|(k, (pnl, n))| (k, serde_json::json!({
+            "closed_trades": n,
+            "realized_pnl": (pnl * 100.0).round() / 100.0,
+        })))
+        .collect::<serde_json::Map<_, _>>()
+        .into();
+
+    let start = rows.len().saturating_sub(limit);
+    Json(serde_json::json!({
+        "note": "Append-only record of every shadow-book trade. Totals are \
+                 recomputed from this log, not copied from the scoreboard — if \
+                 they disagree, one of the two is wrong and that is worth knowing.",
+        "total_rows": rows.len(),
+        "returned": rows.len() - start,
+        "totals_from_log": totals,
+        "trades": &rows[start..],
+    }))
+}

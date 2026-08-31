@@ -72,6 +72,10 @@ struct PersistedShadow {
     winning_trades: u32,
     #[serde(default)]
     started_date: String,
+    /// The dashboard's recent-trade window. Persisted so a restart does not
+    /// blank the only view of what a book has been doing.
+    #[serde(default)]
+    trades: Vec<Trade>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -249,6 +253,48 @@ struct ShadowTrader {
     rule: String,
 }
 
+/// Permanent, append-only record of every shadow-book trade.
+///
+/// Separate from the state file on purpose: the state file is a snapshot that
+/// gets overwritten, and this question — "which trades produced that number?"
+/// — needs history rather than a snapshot. Same role broker_fills.jsonl plays
+/// for the real account.
+pub const SHADOW_TRADE_LOG: &str = "/app/reports/shadow_trades.jsonl";
+
+/// Append one shadow trade to the permanent log.
+///
+/// Synchronous, under the trader lock, which is deliberate: it is a few
+/// hundred bytes, the surrounding code already calls save_state_sync() under
+/// the same lock, and a fire-and-forget write can be lost exactly when the
+/// process dies — which is the moment the record matters most. A failed write
+/// is swallowed: losing an audit row must never take the trader down.
+fn log_shadow_trade(model_id: &str, rule: &str, t: &Trade) {
+    use std::io::Write;
+    let row = json!({
+        "timestamp": chrono::Local::now().to_rfc3339(),
+        "date": chrono::Local::now().format("%Y-%m-%d").to_string(),
+        "model_id": model_id,
+        "rule": rule,
+        "symbol": t.symbol,
+        "action": t.action,
+        "shares": t.shares,
+        "price": t.price,
+        "value": t.value,
+        "pnl": t.pnl,
+        "pnl_pct": t.pnl_pct,
+        "hold_seconds": t.hold_seconds,
+        "reason": t.reason,
+    });
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true).append(true).open(SHADOW_TRADE_LOG)
+    {
+        if let Ok(mut line) = serde_json::to_string(&row) {
+            line.push('\n');
+            let _ = f.write_all(line.as_bytes());
+        }
+    }
+}
+
 /// Layer weights every rule book scores with: the LIVE production weights,
 /// [kronos, kalman, pattern, cvd, vp, gex, cot].
 ///
@@ -363,7 +409,18 @@ impl ShadowTrader {
         }
     }
 
+    /// Record one shadow trade: to the in-memory window the dashboard reads,
+    /// and to the permanent log.
+    ///
+    /// The in-memory window is capped at 60 and was not persisted, so a book's
+    /// history vanished on every restart — and this process restarts daily. On
+    /// 2026-08-31 r2_max_forecast showed +$45.27 and there was no way to read
+    /// which trades produced it; the explanation had to be reconstructed from
+    /// the REAL trader's per-symbol numbers. These five books are what decides
+    /// which specification rule survives, and a decision needs an audit trail
+    /// that outlives the process.
     fn record_trade(&mut self, t: Trade) {
+        log_shadow_trade(&self.model_id, &self.rule, &t);
         if self.trades.len() >= 60 { self.trades.pop_front(); }
         self.trades.push_back(t);
     }
@@ -576,6 +633,7 @@ impl PaperTrader {
                     sh.total_trades = psh.total_trades;
                     sh.winning_trades = psh.winning_trades;
                     if !psh.started_date.is_empty() { sh.started_date = psh.started_date; }
+                    sh.trades = psh.trades.into_iter().collect();
                 }
             }
             info!("[STATE_RESTORE] resumed: cash ${:.2}, {} open positions, realized ${:.2}",
@@ -604,6 +662,7 @@ impl PaperTrader {
             total_trades: s.total_trades,
             winning_trades: s.winning_trades,
             started_date: s.started_date.clone(),
+            trades: s.trades.iter().cloned().collect(),
         }).collect();
         let state = PersistedState {
             cash: self.cash,
@@ -661,6 +720,7 @@ impl PaperTrader {
             total_trades: s.total_trades,
             winning_trades: s.winning_trades,
             started_date: s.started_date.clone(),
+            trades: s.trades.iter().cloned().collect(),
         }).collect();
         let state = PersistedState {
             cash: self.cash,
