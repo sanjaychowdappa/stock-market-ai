@@ -9,3 +9,5 @@
 {"date":"2026-08-27","order_id":"d5c9a80d-b4f3-413f-93b5-68ec1bf80353","outcome":"filled","price":767.766,"shares":0.651227066,"symbol":"SPY","timestamp":"2026-08-27T13:36:33.838417578+00:00","usd":500.0}
 {"date":"2026-08-28","order_id":"74063619-ef85-4a60-8ca6-229dd0493ff7","outcome":"filled","price":771.96,"shares":0.647688999,"symbol":"SPY","timestamp":"2026-08-28T13:30:30.463338979+00:00","usd":500.0}
 {"date":"2026-08-31","order_id":"cf85f0b3-bd09-4bc4-a09c-99dc2116d41b","outcome":"filled","price":766.504,"shares":0.65229927,"symbol":"SPY","timestamp":"2026-08-31T13:34:08.513621159+00:00","usd":500.0}
+{"date":"2026-09-01","order_id":"eac66a1f-f4f5-4e76-90aa-7d932fd29ac0","outcome":"filled","price":761.794,"shares":0.656332289,"symbol":"SPY","timestamp":"2026-09-01T13:38:43.336658606+00:00","usd":500.0}
+{"date":"2026-09-02","order_id":"b3ff9553-5b66-481e-b952-f7cf92326a57","outcome":"filled","price":762.336,"shares":0.655865655,"symbol":"SPY","timestamp":"2026-09-02T13:33:31.167919741+00:00","usd":500.0}

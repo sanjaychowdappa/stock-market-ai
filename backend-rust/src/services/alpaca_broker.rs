@@ -61,8 +61,36 @@ static RECONCILING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBoo
 
 /// Wait until this symbol has no order in flight, then claim it.
 /// Returns false if the wait timed out (caller should skip the order).
+/// Fill polling: how long a symbol can stay claimed after an order is sent.
+const FILL_POLL_ATTEMPTS: u32 = 120;
+const FILL_POLL_INTERVAL_MS: u64 = 500;
+
+/// Waiting for a claim: how long another order will wait for that to finish.
+const CLAIM_WAIT_ATTEMPTS: u32 = 400;
+const CLAIM_WAIT_INTERVAL_MS: u64 = 250;
+
+/// Longest a symbol can remain claimed while its fill is polled.
+pub const fn fill_poll_budget_ms() -> u64 {
+    FILL_POLL_ATTEMPTS as u64 * FILL_POLL_INTERVAL_MS
+}
+
+/// Longest another order will wait for that claim to clear.
+///
+/// MUST be at least the poll budget. It was 10s against a 60s poll, so any
+/// order arriving while a previous one for the same symbol was still settling
+/// was given up on — and dropped with no log row at all.
+///
+/// That is how the simulator came to hold positions the account did not. On
+/// 2026-09-01 the simulator sold AMD at 13:42, re-entered, and tried to sell
+/// again at 14:07; the broker rejected it because the account held 0.000051
+/// shares. The re-entry order had been silently discarded. Four symbols failed
+/// the same way that session and the books closed $20.45 apart.
+pub const fn claim_wait_budget_ms() -> u64 {
+    CLAIM_WAIT_ATTEMPTS as u64 * CLAIM_WAIT_INTERVAL_MS
+}
+
 async fn claim_symbol(symbol: &str) -> bool {
-    for _ in 0..24 {
+    for _ in 0..CLAIM_WAIT_ATTEMPTS {
         {
             let mut f = IN_FLIGHT.lock();
             if !f.contains(symbol) {
@@ -70,9 +98,8 @@ async fn claim_symbol(symbol: &str) -> bool {
                 return true;
             }
         }
-        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(CLAIM_WAIT_INTERVAL_MS)).await;
     }
-    warn!("[BROKER] {} still busy after 10s — skipping order", symbol);
     false
 }
 
@@ -382,6 +409,19 @@ pub async fn shadow_order(symbol: String, qty: f64, side: &str, sim_price: f64, 
     // Serialise per symbol so an exit and its immediate re-entry cannot be in
     // flight together — that collision is what Alpaca rejects as a wash trade.
     if !claim_symbol(&symbol).await {
+        // A dropped order MUST leave a record. Returning quietly is what let
+        // the simulator's book drift from the account's without anything
+        // saying so — the order simply never happened, and nothing counted it.
+        warn!("[BROKER] {} {} DROPPED — still busy after {}s",
+            side, symbol, claim_wait_budget_ms() / 1000);
+        log_entry(json!({
+            "timestamp": chrono::Local::now().to_rfc3339(),
+            "symbol": symbol, "side": side, "qty": qty,
+            "sim_price": sim_price, "reason": reason,
+            "outcome": "dropped_busy",
+            "detail": format!("another order for {} was still in flight after {}s;                                the simulator booked this trade and the account did not",
+                              symbol, claim_wait_budget_ms() / 1000),
+        }));
         return;
     }
     let client = reqwest::Client::new();
@@ -445,8 +485,8 @@ pub async fn shadow_order(symbol: String, qty: f64, side: &str, sim_price: f64, 
     // all 24 orders while this loop timed out on 15 of them and logged
     // "unfilled" — DIS, DUK and EQIX simply settle slower on IEX than AAPL
     // does. A fix validated on one universe is not validated on another.
-    for _ in 0..120 {
-        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    for _ in 0..FILL_POLL_ATTEMPTS {
+        tokio::time::sleep(std::time::Duration::from_millis(FILL_POLL_INTERVAL_MS)).await;
         let got = client
             .get(format!("{}/v2/orders/{}", base, order_id))
             .header("APCA-API-KEY-ID", &key)

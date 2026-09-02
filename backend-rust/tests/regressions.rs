@@ -1391,3 +1391,43 @@ fn one_books_trades_do_not_leak_into_another() {
         "books trade the same symbols at the same moments; mixing them would \
          make every comparison between rules meaningless");
 }
+
+// ── BUG: orders were silently discarded when the symbol was busy ────────
+//
+// A per-symbol claim serialises orders so an exit and its re-entry are never
+// in flight together. The claim is held while the fill is polled — up to 60
+// seconds — but a waiting order gave up after 10 and returned WITHOUT LOGGING
+// ANYTHING. The order simply never happened and nothing counted it.
+//
+// That is how the simulator came to hold positions the account did not. On
+// 2026-09-01 the simulator sold AMD at 13:42, re-entered, then tried to sell
+// again at 14:07; Alpaca rejected it because the account held 0.000051 shares.
+// The re-entry had been dropped. Four symbols failed the same way that
+// session and the books closed $20.45 apart — after the earlier
+// insufficient-quantity fix, so this was a second, separate cause.
+
+use stock_market_ai::services::alpaca_broker::{claim_wait_budget_ms, fill_poll_budget_ms};
+
+#[test]
+fn an_order_waits_at_least_as_long_as_a_claim_can_be_held() {
+    assert!(
+        claim_wait_budget_ms() >= fill_poll_budget_ms(),
+        "orders wait {}ms for a claim that can be held {}ms — anything arriving \
+         in the gap is discarded, and the simulator books a trade the account \
+         never receives",
+        claim_wait_budget_ms(), fill_poll_budget_ms()
+    );
+}
+
+#[test]
+fn a_dropped_order_is_reported_even_when_everything_else_filled() {
+    use stock_market_ai::services::rule_monitor::check_fill_quality;
+    // 20 of 21 filled is a 95% fill rate — healthy by every other measure.
+    let f = check_fill_quality(20, 0, 0, 0, 1);
+    assert_eq!(f["severity"], "warn",
+        "a dropped order is worse than a rejected one: nothing was sent and no \
+         broker-side record exists, so a high fill rate hides it completely");
+
+    let f = check_fill_quality(20, 0, 0, 1, 0);
+    assert_eq!(f["severity"], "info", "an ordinary pending order is not an alarm");
+}

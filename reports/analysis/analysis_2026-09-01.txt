@@ -1,0 +1,63 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-09-01 16:10   |   Report date: 2026-09-01   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-09-01) ===
+  Trades:       121   (W 56 / L 65)
+  Win rate:     46.3%
+  Gross P/L:    $-34.2357
+  Avg win:      $0.6812    Avg loss: $-1.1136
+  Expectancy:   $-0.2829/trade gross  ->  ~$-0.3954/trade after est. fees
+  Per symbol:
+    MRK     6 trades  W4   $0.2981
+    KO     14 trades  W8   $0.044
+    DIS    11 trades  W5   $-0.447
+    AMZN   11 trades  W5   $-0.7865
+    BAC     9 trades  W4   $-1.2028
+    FCX    14 trades  W5   $-3.2438
+    UNP    14 trades  W7   $-3.544
+    EQIX   13 trades  W5   $-4.9936
+    AMD    14 trades  W8   $-6.7946
+    SLB    15 trades  W5   $-13.5655
+  Exit reasons:
+    REGIME_EXIT        117
+    DAMAGE_CONTROL_FLATTEN 4
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       228   (W 94 / L 134)
+  Win rate:     41.2%
+  Gross P/L:    $-64.368
+  Avg win:      $1.3521    Avg loss: $-1.4288
+  Expectancy:   $-0.2823/trade gross  ->  ~$-0.3948/trade after est. fees
+  Per symbol:
+    MRK    14 trades  W9   $15.5454
+    V       3 trades  W1   $3.4465
+    MA      1 trades  W1   $0.1085
+    EQIX   20 trades  W8   $-0.2319
+    BAC    11 trades  W4   $-2.1174
+    KO     28 trades  W13  $-3.4319
+    AMD    24 trades  W13  $-3.4895
+    AMZN   23 trades  W9   $-5.5956
+    TMO     3 trades  W0   $-7.6915
+    DIS    23 trades  W9   $-8.4575
+    COP     9 trades  W1   $-9.045
+    FCX    29 trades  W11  $-12.4535
+    SLB    15 trades  W5   $-13.5655
+    UNP    25 trades  W10  $-17.3891
+  Exit reasons:
+    REGIME_EXIT        133
+    DAMAGE_CONTROL_FLATTEN 41
+    EOD_DAILY_SKIM     28
+    TRAIL_STOP         26
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $-0.2823/trade  (228 trades)
+  r3_profit_only           expectancy $-0.1091/trade  (1 trades)
+  r5_concentrate           expectancy $-0.0931/trade  (33 trades)
+  r1_kronos_sectors        expectancy $-0.39/trade  (27 trades)
+  r2_max_forecast          expectancy $-3.9068/trade  (14 trades)
+  r4_legacy                expectancy $-0.5446/trade  (15 trades)
+  (not enough random-baseline trades yet to judge)
+
+LIVE: portfolio $3000.0  (P/L $0.0)  running=True

@@ -172,19 +172,31 @@ pub fn check_divergence(day: &str, sim: f64, broker: f64) -> Value {
 
 /// CHECK: order fill quality. A collapsed fill rate means the simulator's book
 /// and the real one are drifting apart faster than reconcile can close them.
-pub fn check_fill_quality(filled: u32, rejected: u32, unfilled: u32, pending: u32) -> Value {
-    let total = filled + rejected + unfilled + pending;
+pub fn check_fill_quality(filled: u32, rejected: u32, unfilled: u32, pending: u32,
+                          dropped: u32) -> Value {
+    let total = filled + rejected + unfilled + pending + dropped;
     if total == 0 {
         return finding("fill_quality", INFO, "No orders placed today.".into());
     }
     let rate = 100.0 * filled as f64 / total as f64;
-    let sev = if rate < 70.0 { WARN } else { INFO };
+    // A dropped order is worse than a rejected one: the simulator booked the
+    // trade and nothing was ever sent, so the books diverge with no
+    // broker-side record of why. Any at all is worth surfacing, however
+    // healthy the fill rate looks.
+    let sev = if dropped > 0 || rate < 70.0 { WARN } else { INFO };
     finding("fill_quality", sev, format!(
-        "{} of {} orders filled ({:.0}%); {} rejected, {} unfilled, {} pending.{}",
-        filled, total, rate, rejected, unfilled, pending,
+        "{} of {} orders filled ({:.0}%); {} rejected, {} unfilled, {} pending, \
+         {} dropped.{}{}",
+        filled, total, rate, rejected, unfilled, pending, dropped,
+        if dropped > 0 {
+            " DROPPED orders were never sent — another order for the same \
+              symbol was still in flight. The simulator booked those trades \
+              and the account did not, which is exactly how the two books \
+              drift apart."
+        } else { "" },
         if rate < 70.0 {
-            " Below 70%: every unfilled order is a position the simulator holds \
-              and the account does not."
+            " Fill rate below 70%: every unfilled order is a position the \
+              simulator holds and the account does not."
         } else { "" }))
 }
 
@@ -246,7 +258,7 @@ pub fn run_from_logs() -> Vec<Value> {
 
     // Fill quality and reconcile churn, today only.
     let fills = read_lines(FILL_LOG);
-    let (mut f, mut r, mut u, mut p) = (0u32, 0u32, 0u32, 0u32);
+    let (mut f, mut r, mut u, mut p, mut dropped) = (0u32, 0u32, 0u32, 0u32, 0u32);
     let mut recon: Vec<(String, String, i64)> = Vec::new();
     for row in &fills {
         let ts = row["timestamp"].as_str().unwrap_or("");
@@ -256,6 +268,7 @@ pub fn run_from_logs() -> Vec<Value> {
             Some("rejected") => r += 1,
             Some("unfilled") => u += 1,
             Some("pending") => p += 1,
+            Some("dropped_busy") => dropped += 1,
             _ => {}
         }
         if row["reason"].as_str().unwrap_or("").starts_with("RECONCILE")
@@ -270,7 +283,7 @@ pub fn run_from_logs() -> Vec<Value> {
         }
     }
     recon.sort_by_key(|e| e.2);
-    out.push(check_fill_quality(f, r, u, p));
+    out.push(check_fill_quality(f, r, u, p, dropped));
     out.push(check_reconcile_churn(&recon, 30 * 60));
 
     // Simulator vs broker, for the most recent day that has both rows.

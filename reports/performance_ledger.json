@@ -629,6 +629,41 @@
       },
       "efficiency_score": 33.22085889570552,
       "portfolio_value": 3000.0
+    },
+    {
+      "date": "2026-09-01",
+      "gross_pnl": -38.24000000000001,
+      "cumulative_pnl": 241.34999999999997,
+      "daily_reliable": true,
+      "total_trades": 447,
+      "winning_trades": 190,
+      "win_rate": 42.505592841163306,
+      "avg_hold_seconds": 295,
+      "avg_pnl_per_trade": 0.0,
+      "total_shares_traded": 0.0,
+      "total_sell_value": 0.0,
+      "spread_cost": 0.0,
+      "sec_fee": 0.0,
+      "taf_fee": 0.0,
+      "pfof_cost": 0.0,
+      "total_fees": 0.0,
+      "tax": 0.0,
+      "net_pnl": -38.24000000000001,
+      "strategy_params": {
+        "min_buy_signal": 0.2,
+        "strong_buy_signal": 0.35,
+        "sell_signal_threshold": -0.1,
+        "trailing_stop_pct": 0.75,
+        "hard_stop_pct": -3.0,
+        "take_profit_pct": 4.0,
+        "trade_cooldown_secs": 10800,
+        "flat_exit_secs": 117000,
+        "max_concurrent_positions": 11,
+        "max_daily_trades": 5,
+        "min_predicted_move_pct": 0.012
+      },
+      "efficiency_score": 33.50111856823266,
+      "portfolio_value": 3000.0
     }
   ],
   "cost_model": {

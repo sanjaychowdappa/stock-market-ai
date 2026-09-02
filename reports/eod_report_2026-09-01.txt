@@ -1,0 +1,71 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-09-01
+  Generated:  2026-09-01T20:10:01.409223179+00:00
+  Uptime:     6h 32m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $89.86
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     447
+  Winning Trades:   190
+  Win Rate:         42.5%
+  Avg Hold Time:    295s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $459.74     bearish     -0.123   —
+  MRK      $149.95     bullish     0.173    —
+  BAC      $62.01      bullish     0.154    —
+  FCX      $72.47      bullish     0.225    —
+  SLB      $57.16      bearish     -0.389   —
+  UNP      $290.53     bullish     0.270    —
+  KO       $88.01      bullish     0.371    —
+  AMZN     $254.88     bearish     -0.180   —
+  DIS      $106.23     neutral     0.015    —
+  EQIX     $1027.79    neutral     0.059    —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:51:55  SELL   DIS      $106.42    $741.70  $1.1500    REGIME_EXIT(risk-off,pnl=0.16%)
+  19:50:25  SELL   SLB      $57.35     $739.08  $-1.9975   REGIME_EXIT(risk-off,pnl=-0.27%)
+  19:49:48  SELL   UNP      $290.13    $740.46  $-0.5615   REGIME_EXIT(risk-off,pnl=-0.08%)
+  19:48:27  SELL   KO       $87.95     $740.52  $-0.3789   REGIME_EXIT(risk-off,pnl=-0.05%)
+  19:46:57  BUY    DIS      $106.25    $740.55  $0.0000    ENTRY(s=0.164,K~,1of7)
+  19:46:24  SELL   FCX      $72.72     $740.34  $-0.8654   REGIME_EXIT(risk-off,pnl=-0.12%)
+  19:45:26  BUY    SLB      $57.51     $741.07  $0.0000    ENTRY(s=0.200,K~,2of7)
+  19:44:47  BUY    UNP      $290.35    $741.02  $0.0000    ENTRY(s=0.447,K-,1of7)
+  19:43:45  SELL   BAC      $61.90     $740.88  $-0.2992   REGIME_EXIT(risk-off,pnl=-0.04%)
+  19:43:27  BUY    KO       $88.00     $740.89  $0.0000    ENTRY(s=0.164,K~,1of7)
+  19:41:25  BUY    FCX      $72.80     $741.21  $0.0000    ENTRY(s=0.452,K~,1of7)
+  19:38:45  BUY    BAC      $61.92     $741.18  $0.0000    ENTRY(s=0.144,K-,1of7)
+  19:37:58  SELL   EQIX     $1027.38   $739.83  $-1.1306   REGIME_EXIT(risk-off,pnl=-0.15%)
+  19:36:00  SELL   AMD      $460.10    $741.91  $0.5966    REGIME_EXIT(risk-off,pnl=0.08%)
+  19:33:00  BUY    EQIX     $1028.95   $740.96  $0.0000    ENTRY(s=0.188,K-,1of7)
+  19:31:00  BUY    AMD      $459.73    $741.31  $0.0000    ENTRY(s=0.089,K-,0of7)
+  19:26:56  SELL   DIS      $106.26    $740.94  $-0.9065   REGIME_EXIT(risk-off,pnl=-0.12%)
+  19:25:26  SELL   SLB      $57.72     $740.79  $-0.8984   REGIME_EXIT(risk-off,pnl=-0.12%)
+  19:23:27  SELL   KO       $88.00     $741.82  $0.1686    REGIME_EXIT(risk-off,pnl=0.02%)
+  19:21:58  BUY    DIS      $106.39    $741.85  $0.0000    ENTRY(s=0.287,K~,2of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════
