@@ -1249,6 +1249,30 @@ impl PaperTrader {
                         "basis": "alpaca /v2/account",
                     }));
                 }
+                // The accumulator's holding, recorded so its drift can be
+                // NETTED OUT before the simulator and the broker are compared.
+                //
+                // Alpaca's today_pnl is the whole account, which includes a
+                // long-term SPY position the simulator does not model at all.
+                // On 2026-09-03 SPY rose 0.68% and the account showed +$46.39
+                // while the simulator showed -$9.06 — a $55 "divergence" with
+                // ZERO unfilled orders, entirely index drift. Comparing the two
+                // without this is comparing different things, and the check
+                // would fire on every good SPY day until it was ignored.
+                //
+                // Value and contributed are logged rather than a day figure, so
+                // the day change is (value - value_prev) - (contributed -
+                // contributed_prev): exact, and needing no price lookup.
+                let acc = crate::services::accumulator::status().await;
+                if let (Some(v), Some(c)) =
+                    (acc["value"].as_f64(), acc["contributed"].as_f64())
+                {
+                    Self::bank_day(&date_for_broker, "accumulator", 0.0, json!({
+                        "accum_value": (v * 100.0).round() / 100.0,
+                        "accum_contributed": (c * 100.0).round() / 100.0,
+                        "basis": "long-term SPY holding, excluded from the trader's result",
+                    }));
+                }
             });
             // Reset working capital for tomorrow. Profit is "taken out".
             self.cash = INITIAL_CASH;

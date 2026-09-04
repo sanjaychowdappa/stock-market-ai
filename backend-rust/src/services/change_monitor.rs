@@ -250,12 +250,22 @@ pub fn compare(prev: &Value, cur: &Value, entry_cap: u32) -> Vec<(String, String
     if g(cur, "round_trips") >= 10.0 && ce < pe - 0.15 {
         out.push(("expectancy".into(), "critical".into(), format!(
             "Expectancy per round trip fell from ${:.2} to ${:.2} over {:.0} trips since the \
-             config changed. The change made results worse, not merely different.",
+             config changed. The change made results worse, not merely different. \
+             BASIS: this config epoch, FIFO-matched from our own fill log. The \
+             live_kill_criterion finding measures the TRIAL window from Alpaca's \
+             equity curve, so the two can point opposite ways — and where they \
+             do, the broker's number is the one to act on.",
             pe, ce, g(cur, "round_trips"))));
     } else if g(cur, "round_trips") >= 10.0 && ce > pe + 0.15 {
         out.push(("expectancy".into(), "info".into(), format!(
             "Expectancy per round trip improved from ${:.2} to ${:.2} over {:.0} trips. \
-             Provisional until the trip count is comparable to the baseline.",
+             Provisional until the trip count is comparable to the baseline. \
+             BASIS: this config epoch, FIFO-matched from our own fill log — a \
+             DIFFERENT window and a different source from live_kill_criterion, \
+             which reads Alpaca's equity curve over the trial window. An \
+             improvement here alongside a worse figure there is not a \
+             contradiction, and it is not grounds to prefer this one: a number \
+             rebuilt from our own records can inherit our own bugs, and has.",
             pe, ce, g(cur, "round_trips"))));
     }
 

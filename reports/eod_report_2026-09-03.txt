@@ -1,0 +1,70 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-09-03
+  Generated:  2026-09-03T20:10:00.927154560+00:00
+  Uptime:     6h 23m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $101.99
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     538
+  Winning Trades:   237
+  Win Rate:         44.0%
+  Avg Hold Time:    5413s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  CRM      $264.39     bearish     -0.167   —
+  MRK      $152.32     bullish     0.378    —
+  COP      $135.67     bullish     0.144    —
+  BAC      $63.06      bullish     0.260    —
+  FCX      $72.52      neutral     0.004    —
+  KO       $88.84      bearish     -0.264   —
+  DIS      $107.14     bullish     0.229    —
+  UNP      $289.03     bearish     -0.220   —
+  AMZN     $258.93     bullish     0.138    —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   UNP      $289.98    $746.48  $-2.4455   EOD_DAILY_SKIM
+  19:55:00  SELL   CRM      $264.23    $742.96  $-1.2091   EOD_DAILY_SKIM
+  19:55:00  SELL   KO       $89.08     $371.81  $-0.0209   EOD_DAILY_SKIM
+  19:55:00  SELL   MRK      $152.20    $756.65  $9.1972    EOD_DAILY_SKIM
+  19:55:00  SELL   FCX      $72.67     $373.29  $1.3611    EOD_DAILY_SKIM
+  19:45:20  BUY    CRM      $264.57    $743.91  $0.0000    ENTRY(s=0.291,K-,2of7)
+  19:45:04  SELL   DIS      $107.21    $744.11  $-3.3315   TRAIL_STOP(-0.78% from peak,pnl=-0.45%)
+  19:12:19  BUY    KO       $89.09     $371.85  $0.0000    ENTRY(s=0.134,K~,1of7)
+  19:12:19  BUY    FCX      $72.39     $371.85  $0.0000    ENTRY(s=0.164,K~,1of7)
+  19:12:19  SELL   CRM      $265.44    $743.25  $0.9520    TRAIL_STOP(-0.78% from peak,pnl=0.13%)
+  16:55:25  BUY    CRM      $265.30    $742.85  $0.0000    ENTRY(s=0.180,K~,1of7)
+  16:55:25  SELL   COP      $136.02    $742.42  $-5.3490   TRAIL_STOP(-0.77% from peak,pnl=-0.72%)
+  15:57:13  BUY    UNP      $290.88    $748.80  $0.0000    ENTRY(s=0.156,K-,1of7)
+  15:57:12  SELL   FCX      $72.70     $749.50  $2.2681    TRAIL_STOP(-0.76% from peak,pnl=0.30%)
+  15:47:29  BUY    COP      $136.97    $747.63  $0.0000    ENTRY(s=0.164,K~,2of7)
+  14:41:58  BUY    MRK      $150.35    $747.46  $0.0000    ENTRY(s=0.080,K-,1of7)
+  14:41:56  BUY    FCX      $72.48     $747.23  $0.0000    ENTRY(s=0.250,K+,1of7)
+  14:38:47  BUY    DIS      $107.69    $747.44  $0.0000    ENTRY(s=0.367,K~,1of7)
+  14:21:56  SELL   UNP      $287.34    $741.60  $-3.3294   DAMAGE_CONTROL_FLATTEN
+  14:21:56  SELL   MRK      $149.97    $753.55  $3.6933    DAMAGE_CONTROL_FLATTEN
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

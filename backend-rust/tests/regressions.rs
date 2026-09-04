@@ -1431,3 +1431,84 @@ fn a_dropped_order_is_reported_even_when_everything_else_filled() {
     let f = check_fill_quality(20, 0, 0, 1, 0);
     assert_eq!(f["severity"], "info", "an ordinary pending order is not an alarm");
 }
+
+// ── The divergence check compared two different things ──────────────────
+//
+// Alpaca's today_pnl is the WHOLE account, including a long-term SPY position
+// the simulator does not model. On 2026-09-03 SPY rose 0.68% and the account
+// showed +$46.39 against the simulator's -$9.06 — a $55 "divergence" with ZERO
+// unfilled orders, entirely index drift.
+//
+// A warning that fires on every good SPY day is a warning that gets ignored,
+// and this one exists to catch orders the broker never filled.
+
+use stock_market_ai::services::rule_monitor::{accumulator_day_pnl, check_divergence};
+
+fn arow(day: &str, value: f64, contributed: f64) -> serde_json::Value {
+    serde_json::json!({
+        "kind": "accumulator", "date": day,
+        "accum_value": value, "accum_contributed": contributed,
+    })
+}
+
+#[test]
+fn index_drift_is_removed_before_the_books_are_compared() {
+    // The real day: +$46.39 at the account, ~+$41 of it SPY drift.
+    let f = check_divergence("2026-09-03", -9.06, 46.39, Some(41.0));
+    let msg = f["message"].as_str().unwrap();
+    // The raw gap was -55.45; netting the index out leaves -14.45, which is
+    // still a real disagreement about TRADING and still warns. The point is
+    // that the reported number now describes trading rather than SPY.
+    assert!(msg.contains("+5.39 from trading"),
+        "the comparison must be against trading only; got: {msg}");
+    assert!(msg.contains("-14.45"),
+        "the gap must be the netted one, not the raw -55.45; got: {msg}");
+    assert!(!msg.contains("-55.45"), "the raw gap must not be the headline");
+}
+
+#[test]
+fn a_day_that_is_only_index_drift_stops_warning_entirely() {
+    // Same shape, where SPY accounts for essentially all of it.
+    let f = check_divergence("2026-09-03", -9.06, 46.39, Some(50.0));
+    assert_eq!(f["severity"], "info",
+        "when the account's move is the index and trading roughly matches the \
+         simulator, there is nothing to report — this is the case that would \
+         have fired on every good SPY day until the warning was ignored");
+}
+
+#[test]
+fn a_real_divergence_still_fires_once_the_index_is_netted_out() {
+    // 2026-08-31: simulator -8.26, broker -27.79, SPY roughly flat.
+    let f = check_divergence("2026-08-31", -8.26, -27.79, Some(-0.5));
+    assert_eq!(f["severity"], "warn",
+        "the rejected-stop divergence must still be caught");
+}
+
+#[test]
+fn an_unknown_accumulator_move_is_not_silently_treated_as_zero() {
+    let f = check_divergence("2026-09-03", -9.06, 46.39, None);
+    let msg = f["message"].as_str().unwrap();
+    assert!(msg.contains("UNKNOWN"),
+        "treating an unknown as zero would attribute a whole day of index \
+         drift to the trader without saying so; got: {msg}");
+}
+
+#[test]
+fn the_accumulators_day_move_excludes_new_money() {
+    let rows = vec![
+        arow("2026-09-02", 5000.0, 5000.0),
+        // $500 added, holding also gained $41.
+        arow("2026-09-03", 5541.0, 5500.0),
+    ];
+    let got = accumulator_day_pnl(&rows, "2026-09-03").unwrap();
+    assert!((got - 41.0).abs() < 1e-9,
+        "got {got}, expected 41.00 — a daily contribution is a transfer, not a \
+         gain, and counting it would net the wrong amount out of the broker");
+}
+
+#[test]
+fn the_first_logged_day_reports_unknown_rather_than_zero() {
+    let rows = vec![arow("2026-09-03", 5541.0, 5500.0)];
+    assert_eq!(accumulator_day_pnl(&rows, "2026-09-03"), None,
+        "the first row has no yesterday to difference against");
+}

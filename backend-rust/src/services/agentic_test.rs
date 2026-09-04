@@ -242,8 +242,13 @@ async fn check_live_kill_criterion() -> Finding {
     if !due {
         Finding::new("live_kill_criterion", Severity::Info,
             format!("Trial running: {}/{} real round trips, day {}/{}. \
-                     Expectancy ${:.4}/trade (retire below ${:.2}).",
-                trades, LIVE_KILL_TRADES, days, LIVE_KILL_DAYS, exp, LIVE_KILL_MIN_EXPECTANCY),
+                     Expectancy ${:.4}/trade (retire below ${:.2}). BASIS: \
+                     Alpaca's equity curve since {}, accumulator netted out. \
+                     THIS is the figure the retirement decision rests on; the \
+                     change_monitor expectancy finding covers a config epoch \
+                     from our own FIFO log and can point the other way.",
+                trades, LIVE_KILL_TRADES, days, LIVE_KILL_DAYS, exp,
+                LIVE_KILL_MIN_EXPECTANCY, LIVE_KILL_START_DATE),
             Some("No entry rule, score floor, sizing or exit parameter may change \
                   while this runs — a mid-trial change resets the count.".into()))
     } else if exp > LIVE_KILL_MIN_EXPECTANCY {

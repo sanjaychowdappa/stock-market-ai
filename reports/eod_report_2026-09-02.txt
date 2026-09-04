@@ -1,0 +1,71 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-09-02
+  Generated:  2026-09-02T20:10:00.511239196+00:00
+  Uptime:     5h 38m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $111.06
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     523
+  Winning Trades:   231
+  Win Rate:         44.2%
+  Avg Hold Time:    290s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  CRM      $256.89     bullish     0.298    —
+  MRK      $151.62     neutral     0.026    —
+  COP      $137.19     neutral     0.062    —
+  BAC      $62.61      neutral     0.066    —
+  FCX      $73.94      bullish     0.181    —
+  KO       $88.43      neutral     0.062    —
+  DIS      $108.01     bearish     -0.279   —
+  UNP      $289.69     bullish     0.431    —
+  AMZN     $254.91     neutral     0.090    —
+  EQIX     $1019.18    bearish     -0.237   —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:46:44  SELL   DIS      $108.53    $755.27  $0.1740    REGIME_EXIT(risk-off,pnl=0.02%)
+  19:44:38  SELL   BAC      $62.62     $755.29  $0.1206    REGIME_EXIT(risk-off,pnl=0.02%)
+  19:41:46  BUY    DIS      $108.51    $755.09  $0.0000    ENTRY(s=0.086,K+,0of7)
+  19:39:38  SELL   FCX      $73.77     $755.34  $0.3072    REGIME_EXIT(risk-off,pnl=0.04%)
+  19:39:38  BUY    BAC      $62.60     $755.17  $0.0000    ENTRY(s=0.050,K-,0of7)
+  19:37:59  SELL   CRM      $257.27    $753.81  $-1.8166   REGIME_EXIT(risk-off,pnl=-0.24%)
+  19:36:40  SELL   KO       $88.45     $755.28  $-0.3842   REGIME_EXIT(risk-off,pnl=-0.05%)
+  19:34:38  BUY    FCX      $73.74     $755.03  $0.0000    ENTRY(s=0.150,K-,1of7)
+  19:32:59  BUY    CRM      $257.89    $755.62  $0.0000    ENTRY(s=0.111,K-,1of7)
+  19:32:35  SELL   AMZN     $254.97    $755.14  $-0.6664   REGIME_EXIT(risk-off,pnl=-0.09%)
+  19:31:41  BUY    KO       $88.50     $755.66  $0.0000    ENTRY(s=0.067,K~,0of7)
+  19:27:35  BUY    AMZN     $255.20    $755.81  $0.0000    ENTRY(s=0.104,K-,0of7)
+  19:21:45  SELL   DIS      $108.46    $755.05  $-1.0790   REGIME_EXIT(risk-off,pnl=-0.14%)
+  19:17:32  SELL   BAC      $62.55     $756.25  $0.3023    REGIME_EXIT(risk-off,pnl=0.04%)
+  19:16:47  BUY    DIS      $108.61    $756.12  $0.0000    ENTRY(s=0.080,K+,0of7)
+  19:12:39  SELL   CRM      $257.96    $756.83  $1.1002    REGIME_EXIT(risk-off,pnl=0.15%)
+  19:12:32  BUY    BAC      $62.52     $755.95  $0.0000    ENTRY(s=0.073,K-,0of7)
+  19:07:40  BUY    CRM      $257.58    $755.73  $0.0000    ENTRY(s=0.141,K~,1of7)
+  19:03:05  SELL   AMZN     $255.16    $756.00  $0.3555    REGIME_EXIT(risk-off,pnl=0.05%)
+  18:58:04  BUY    AMZN     $255.04    $755.64  $0.0000    ENTRY(s=0.069,K-,0of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

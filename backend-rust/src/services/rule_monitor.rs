@@ -155,16 +155,42 @@ pub fn check_legacy_log(symbols: usize, qualified: usize, closed_trades: u32) ->
 /// They will never match exactly — the simulator books no spread, no slippage
 /// and no rejections. A LARGE gap is the interesting case: it has twice meant
 /// the simulator was booking trades the broker never filled.
-pub fn check_divergence(day: &str, sim: f64, broker: f64) -> Value {
-    let gap = sim - broker;
-    let sev = if gap.abs() >= 10.0 { WARN } else { INFO };
+///
+/// `accum` is the accumulator's mark-to-market change for the same day, which
+/// is SUBTRACTED from the broker figure before comparing.
+///
+/// Alpaca's today_pnl is the whole account and includes a long-term SPY
+/// position the simulator does not model at all. On 2026-09-03 SPY rose 0.68%
+/// and the account showed +$46.39 against the simulator's -$9.06 — a $55
+/// "divergence" with ZERO unfilled orders, entirely index drift. Comparing the
+/// raw numbers compares different things, and this check would have fired on
+/// every good SPY day until someone learned to ignore it.
+///
+/// None means the accumulator's day change is unknown, which is itself worth
+/// saying rather than silently treating as zero.
+pub fn check_divergence(day: &str, sim: f64, broker: f64, accum: Option<f64>) -> Value {
+    let traded = broker - accum.unwrap_or(0.0);
+    let gap = sim - traded;
+    let big = gap.abs() >= 10.0;
+    let sev = if big { WARN } else { INFO };
+
+    let basis = match accum {
+        Some(a) => format!(
+            "broker {:+.2} less accumulator {:+.2} = {:+.2} from trading",
+            broker, a, traded),
+        None => format!(
+            "broker {:+.2}, accumulator drift UNKNOWN for this day so it is not \
+             netted out — treat the gap as an upper bound", broker),
+    };
+
     finding("sim_vs_broker", sev, format!(
-        "{}: simulator {:+.2}, broker {:+.2}, gap {:+.2}. {}",
-        day, sim, broker, gap,
-        if gap.abs() >= 10.0 {
-            "The simulator and the real account disagree by more than $10. The \
-             usual cause is orders the simulator counted and the broker never \
-             filled — check the rejected and unfilled counts for the same day."
+        "{}: simulator {:+.2}, {}. Gap {:+.2}. {}",
+        day, sim, basis, gap,
+        if big {
+            "The simulator and the real account disagree by more than $10 on \
+             trading alone. The usual cause is orders the simulator counted and \
+             the broker never filled — check the rejected, unfilled and dropped \
+             counts for the same day."
         } else {
             "Within the range spread and slippage explain."
         }))
@@ -243,6 +269,31 @@ fn read_lines(path: &str) -> Vec<Value> {
         .unwrap_or_default()
 }
 
+/// The accumulator's mark-to-market change on `day`, from consecutive
+/// accumulator rows in the profit ledger.
+///
+/// (value - value_prev) - (contributed - contributed_prev): the holding's move,
+/// with new money removed. Exact, and needing no price lookup.
+///
+/// None when there is no prior row to difference against — the first logged day
+/// has no yesterday, and reporting an unknown as zero would silently attribute
+/// a whole day of index drift to the trader.
+pub fn accumulator_day_pnl(rows: &[Value], day: &str) -> Option<f64> {
+    let accum: Vec<&Value> = rows.iter()
+        .filter(|r| r["kind"].as_str() == Some("accumulator"))
+        .collect();
+    let idx = accum.iter().rposition(|r| r["date"].as_str() == Some(day))?;
+    if idx == 0 {
+        return None;
+    }
+    let cur = accum[idx];
+    let prev = accum[idx - 1];
+    let (v, vp) = (cur["accum_value"].as_f64()?, prev["accum_value"].as_f64()?);
+    let (c, cp) = (cur["accum_contributed"].as_f64()?,
+                   prev["accum_contributed"].as_f64()?);
+    Some((v - vp) - (c - cp))
+}
+
 fn today_et() -> String {
     let utc = chrono::Utc::now();
     let off = if chrono::Datelike::month(&utc) >= 3 && chrono::Datelike::month(&utc) <= 10 { 4 } else { 5 };
@@ -305,7 +356,7 @@ pub fn run_from_logs() -> Vec<Value> {
     }
     if let (Some((ds, s)), Some((db, b))) = (sim, brk) {
         if ds == db {
-            out.push(check_divergence(&ds, s, b));
+            out.push(check_divergence(&ds, s, b, accumulator_day_pnl(&profit, &ds)));
         } else {
             out.push(finding("sim_vs_broker", INFO, format!(
                 "No matching pair yet: latest simulator row is {}, latest broker \
