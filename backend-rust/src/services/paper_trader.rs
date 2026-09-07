@@ -878,10 +878,17 @@ impl PaperTrader {
         let utc_now = chrono::Utc::now();
         let month = utc_now.month();
         let offset_hours: i64 = if month >= 3 && month <= 10 { 4 } else { 5 };
-        let et_hour = (utc_now.hour() as i64 - offset_hours).rem_euclid(24) as u32;
-        let et_minute = utc_now.minute();
-        let weekday = utc_now.weekday().num_days_from_monday();
+        let et = utc_now - chrono::Duration::hours(offset_hours);
+        let et_hour = et.hour();
+        let et_minute = et.minute();
+        let weekday = et.weekday().num_days_from_monday();
         if weekday >= 5 { return false; }
+        // Weekday-and-clock is not a trading calendar. On 2026-09-07 (Labor
+        // Day) this returned true, the loops ran against a dead feed, and
+        // reconcile placed orders that sat pending into the next session.
+        if crate::config::is_market_holiday(&et.format("%Y-%m-%d").to_string()) {
+            return false;
+        }
         let mins = et_hour * 60 + et_minute;
         mins >= 9 * 60 + 30 && mins < 16 * 60
     }

@@ -1512,3 +1512,107 @@ fn the_first_logged_day_reports_unknown_rather_than_zero() {
     assert_eq!(accumulator_day_pnl(&rows, "2026-09-03"), None,
         "the first row has no yesterday to difference against");
 }
+
+// ── BUG: a market holiday was treated as an ordinary trading day ────────
+//
+// is_market_open() checked weekday and clock only. On 2026-09-07, Labor Day,
+// the system ran its loops against a dead feed, the supervisor reported
+// CRITICAL because 0 of 10 symbols were streaming, and reconcile placed four
+// orders that sat pending and would have queued into the next session's open.
+//
+// An alarm that is wrong on a known, published schedule is an alarm people
+// learn to ignore — the same failure as a divergence check that fires on every
+// good SPY day.
+
+use stock_market_ai::config::{is_market_holiday, HOLIDAYS_KNOWN_THROUGH, MARKET_HOLIDAYS};
+
+#[test]
+fn labor_day_is_not_a_trading_day() {
+    assert!(is_market_holiday("2026-09-07"), "the day this was found");
+    assert!(is_market_holiday("2026-11-26"), "Thanksgiving");
+    assert!(is_market_holiday("2026-12-25"), "Christmas");
+}
+
+#[test]
+fn an_ordinary_monday_is_still_a_trading_day() {
+    assert!(!is_market_holiday("2026-09-14"));
+    assert!(!is_market_holiday("2026-09-08"));
+}
+
+#[test]
+fn half_days_are_deliberately_not_holidays() {
+    // The 1:00pm closes after Thanksgiving and at Christmas Eve: the market IS
+    // open, and skipping them would skip real sessions. Idle afternoon loops
+    // are the cheaper mistake.
+    assert!(!is_market_holiday("2026-11-27"), "day after Thanksgiving is a half day, not a closure");
+    assert!(!is_market_holiday("2026-12-24"), "Christmas Eve is a half day, not a closure");
+}
+
+#[test]
+fn the_holiday_list_has_not_gone_stale() {
+    // Past the last covered date the system is silently back to weekday-and-
+    // clock, and the next holiday behaves exactly as 2026-09-07 did.
+    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    assert!(
+        today.as_str() <= HOLIDAYS_KNOWN_THROUGH,
+        "MARKET_HOLIDAYS covers only to {HOLIDAYS_KNOWN_THROUGH} and today is \
+         {today}; holidays past that are treated as ordinary sessions"
+    );
+    assert!(MARKET_HOLIDAYS.len() >= 18, "roughly nine closures a year");
+}
+
+// ── BUG: the dust guard stopped working when prices were missing ───────
+//
+// reconcile skips gaps worth under $1, but that test was conditional on
+// `px > 0.0`. With no ticks — a holiday, a dead feed — it silently stopped
+// applying and only the share test remained. Four RECONCILE sells of 0.0001
+// shares went out on 2026-09-07 and sat pending.
+//
+// 0.0001 is exactly what sellable_qty() leaves behind by design, so a strict
+// `<` made reconcile chase precisely the residue of the stop-loss fix.
+
+#[test]
+fn no_correction_is_attempted_without_a_price() {
+    let mut sim = HashMap::new();
+    sim.insert("AMZN".to_string(), 0.0);
+    let mut live = HashMap::new();
+    live.insert("AMZN".to_string(), 0.0001);
+    let prices: HashMap<String, f64> = HashMap::new();   // feed is dead
+
+    let (actions, deferred) =
+        reconcile_plan(&sim, &live, &prices, &HashSet::new(), &settled(&sim));
+    assert!(actions.is_empty(),
+        "a gap that cannot be valued cannot be told from dust; acting blind is \
+         how four orders went out on a closed exchange");
+    assert_eq!(deferred, vec!["AMZN".to_string()],
+        "and it must be reported as deferred, not silently dropped");
+}
+
+#[test]
+fn the_residue_of_a_floored_sell_is_treated_as_dust() {
+    let mut sim = HashMap::new();
+    sim.insert("KO".to_string(), 0.0);
+    let mut live = HashMap::new();
+    live.insert("KO".to_string(), 0.0001);       // exactly what flooring leaves
+    let mut prices = HashMap::new();
+    prices.insert("KO".to_string(), 90.0);
+
+    let (actions, _) = reconcile_plan(&sim, &live, &prices, &HashSet::new(), &settled(&sim));
+    assert!(actions.is_empty(),
+        "sellable_qty() leaves up to 0.0001 shares by design; reconcile must \
+         not spend a round trip chasing it");
+}
+
+#[test]
+fn a_real_gap_is_still_corrected_when_priced() {
+    let mut sim = HashMap::new();
+    sim.insert("KO".to_string(), 0.0);
+    let mut live = HashMap::new();
+    live.insert("KO".to_string(), 8.0);
+    let mut prices = HashMap::new();
+    prices.insert("KO".to_string(), 90.0);
+
+    let (actions, _) = reconcile_plan(&sim, &live, &prices, &HashSet::new(), &settled(&sim));
+    assert_eq!(actions.len(), 1, "real drift must still be corrected");
+    assert_eq!(actions[0]["action"], "sell");
+}

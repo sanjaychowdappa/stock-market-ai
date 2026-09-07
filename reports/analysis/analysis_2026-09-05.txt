@@ -1,0 +1,42 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-09-05 16:10   |   Report date: 2026-09-05   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-09-05) ===
+  (no closed trades)
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       251   (W 116 / L 135)
+  Win rate:     46.2%
+  Gross P/L:    $-27.4717
+  Avg win:      $1.2649    Avg loss: $-1.2904
+  Expectancy:   $-0.1094/trade gross  ->  ~$-0.2219/trade after est. fees
+  Per symbol:
+    MRK    14 trades  W9   $21.0917
+    CRM    12 trades  W8   $7.1689
+    AMZN   27 trades  W12  $4.3659
+    BAC    20 trades  W11  $3.7858
+    EQIX   27 trades  W11  $1.5336
+    COP     8 trades  W3   $-4.2812
+    KO     27 trades  W13  $-4.916
+    SLB    16 trades  W6   $-5.4435
+    AMD    15 trades  W9   $-6.1079
+    DIS    26 trades  W11  $-9.5447
+    FCX    27 trades  W11  $-12.0096
+    UNP    32 trades  W12  $-23.1146
+  Exit reasons:
+    REGIME_EXIT        187
+    DAMAGE_CONTROL_FLATTEN 23
+    TRAIL_STOP         22
+    EOD_DAILY_SKIM     19
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $-0.1094/trade  (251 trades)
+  r5_concentrate           expectancy $-0.0204/trade  (33 trades)
+  r1_kronos_sectors        expectancy $0.0422/trade  (27 trades)
+  r4_legacy                expectancy $-0.255/trade  (21 trades)
+  r2_max_forecast          expectancy $-6.7323/trade  (9 trades)
+  (not enough random-baseline trades yet to judge)
+
+LIVE: backend not reachable (Docker stopped?) - analysis above is from logs.

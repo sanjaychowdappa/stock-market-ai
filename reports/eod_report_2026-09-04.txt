@@ -1,0 +1,58 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-09-04
+  Generated:  2026-09-04T20:10:00.642984847+00:00
+  Uptime:     0h 26m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $96.45
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     554
+  Winning Trades:   243
+  Win Rate:         43.9%
+  Avg Hold Time:    10860s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $476.87     bullish     0.426    —
+  MRK      $150.31     neutral     0.056    —
+  BAC      $62.68      bullish     0.208    —
+  FCX      $72.69      neutral     0.084    —
+  COP      $134.25     bullish     0.233    —
+  KO       $88.07      neutral     -0.037   —
+  AMZN     $258.40     bearish     -0.115   —
+  UNP      $289.51     neutral     -0.069   —
+  DIS      $105.30     bearish     -0.315   —
+  EQIX     $1035.50    neutral     0.093    —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   KO       $87.99     $745.11  $0.2540    EOD_DAILY_SKIM
+  19:55:00  SELL   AMZN     $259.05    $752.90  $10.2123   EOD_DAILY_SKIM
+  19:55:00  SELL   DIS      $105.33    $248.27  $-1.0371   EOD_DAILY_SKIM
+  19:55:00  SELL   MRK      $150.51    $747.34  $-0.2234   EOD_DAILY_SKIM
+  19:55:00  SELL   FCX      $72.66     $250.95  $0.1236    EOD_DAILY_SKIM
+  19:55:00  SELL   UNP      $289.44    $249.90  $-0.6173   EOD_DAILY_SKIM
+  19:49:07  BUY    FCX      $72.62     $250.81  $0.0000    ENTRY(s=0.054,K~,1of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

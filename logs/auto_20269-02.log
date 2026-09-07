@@ -122,3 +122,39 @@ time="2026-09-04T09:48:18-04:00" level=warning msg="C:\\Users\\sanja\\stock-mark
 [04-09-2026  9:48:18.64] Backend healthy - paper trading active 
 {"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","MRK","COP","BAC","KO","FCX","UNP","DIS","AMZN","EQIX"],"version":"claude_1"} 
 [04-09-2026  9:48:18.66] Auto start complete 
+[04-09-2026 16:10:00.61] === AUTO STOP === 
+[04-09-2026 16:10:00.61] Fetching final EOD report... 
+[04-09-2026 16:10:00.65] EOD report saved to reports/ 
+[04-09-2026 16:10:00.65] Final daily status: 
+{"data_collected":{"AMD":{"predictions":1542,"ticks":1542,"trades":0},"AMZN":{"predictions":1581,"ticks":1581,"trades":1},"BAC":{"predictions":1573,"ticks":1573,"trades":0},"COP":{"predictions":1585,"ticks":1585,"trades":0},"DIS":{"predictions":1535,"ticks":1535,"trades":1},"EQIX":{"predictions":1471,"ticks":1471,"trades":0},"FCX":{"predictions":1559,"ticks":1559,"trades":2},"KO":{"predictions":1580,"ticks":1580,"trades":1},"MRK":{"predictions":1565,"ticks":1565,"trades":1},"UNP":{"predictions":1559,"ticks":1559,"trades":1}},"date":"2026-09-04","finetune_triggered":true,"portfolio":{"current_value":3000.0,"pnl":0.0,"profitable":false,"start_value":2993.64},"running":true,"snapshots_count":1589} 
+[04-09-2026 16:10:00.68] Stopping containers... 
+time="2026-09-04T16:10:00-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-frontend-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopped 
+ Container stock-market-ai-finetune-sidecar-1 Removing 
+ Container stock-market-ai-finetune-sidecar-1 Removed 
+ Container stock-market-ai-frontend-1 Stopped 
+ Container stock-market-ai-frontend-1 Removing 
+ Container stock-market-ai-frontend-1 Removed 
+ Container stock-market-ai-backend-1 Stopping 
+ Container stock-market-ai-backend-1 Error Error while Stopping
+
+^C[07-09-2026  9:25:00.93] === AUTO START === 
+[07-09-2026  9:25:01.01] Docker Desktop not running - launching 
+[07-09-2026  9:25:14.02] Docker daemon ready after 1 attempts 
+[07-09-2026  9:25:14.03] Starting containers... 
+time="2026-09-07T09:25:14-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-frontend-1 Creating 
+ Container stock-market-ai-finetune-sidecar-1 Creating 
+ Container stock-market-ai-frontend-1 Created 
+ Container stock-market-ai-finetune-sidecar-1 Created 
+ Container stock-market-ai-backend-1 Starting 
+ Container stock-market-ai-finetune-sidecar-1 Starting 
+ Container stock-market-ai-backend-1 Started 
+ Container stock-market-ai-frontend-1 Starting 
+ Container stock-market-ai-frontend-1 Started 
+ Container stock-market-ai-finetune-sidecar-1 Started 
+[07-09-2026  9:25:17.05] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","MRK","COP","BAC","FCX","KO","AMZN","UNP","DIS","EQIX"],"version":"claude_1"} 
+[07-09-2026  9:25:17.08] Auto start complete 

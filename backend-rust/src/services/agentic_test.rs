@@ -91,7 +91,12 @@ fn et_now() -> (u32, bool) {
     let et = utc - chrono::Duration::hours(off);
     let mins = et.hour() * 60 + et.minute();
     let weekday = !matches!(et.weekday(), Weekday::Sat | Weekday::Sun);
-    let open = weekday && mins >= 9 * 60 + 30 && mins < 16 * 60;
+    // Holidays too, or every one of them reports CRITICAL for a dead feed that
+    // is dead because the exchange is shut. An alarm that is wrong on a known
+    // schedule is an alarm people learn to ignore.
+    let trading_day = weekday
+        && !crate::config::is_market_holiday(&et.format("%Y-%m-%d").to_string());
+    let open = trading_day && mins >= 9 * 60 + 30 && mins < 16 * 60;
     (mins, open)
 }
 

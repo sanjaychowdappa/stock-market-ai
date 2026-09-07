@@ -755,8 +755,28 @@ pub fn reconcile_plan(
         let delta = want - have;
         let px = prices.get(&sym).copied().unwrap_or(0.0);
 
+        // No price, no correction.
+        //
+        // The dollar-value dust guard below is conditional on `px > 0.0`, so
+        // when prices are missing it silently stops applying and only the share
+        // test remains. On 2026-09-07 — Labor Day, no ticks at all — that let
+        // four RECONCILE sells of 0.0001 shares through, which sat pending and
+        // would have queued into the next session's open.
+        //
+        // A gap you cannot value is a gap you cannot classify: without a price
+        // there is no way to tell dust from a real position, so the safe answer
+        // is to wait for one rather than act blind.
+        if px <= 0.0 {
+            deferred.push(sym);
+            continue;
+        }
+
         // Skip dust: sub-cent share counts, or gaps worth under $1.
-        if delta.abs() < 0.0001 || (px > 0.0 && (delta.abs() * px) < 1.0) {
+        //
+        // `<=`, not `<`. sellable_qty() floors sells to four decimals and so
+        // leaves up to exactly 0.0001 shares behind by design; a strict `<`
+        // made reconcile chase precisely that residue.
+        if delta.abs() <= 0.0001 || (delta.abs() * px) < 1.0 {
             continue;
         }
 

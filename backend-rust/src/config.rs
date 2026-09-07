@@ -242,6 +242,56 @@ pub const REGIME_EXIT_ENABLED: bool = true;
 /// how the duplicate-sell bug of 2026-08-12 becomes possible again.
 pub const RECONCILE_MIN_AGE_SECS: u64 = 900;
 
+/// NYSE full-day closures. Weekday-and-clock is not a trading calendar.
+///
+/// On 2026-09-07 (Labor Day) the system treated a holiday as an ordinary
+/// Monday: it ran its loops, the supervisor reported CRITICAL because 0 of 10
+/// symbols were streaming, and reconcile placed four orders that sat pending
+/// and would have queued into the next session's open at unknown prices.
+///
+/// A monitor that raises a critical alarm on every market holiday is a monitor
+/// people learn to ignore, which is the same failure as a divergence check that
+/// fires on every good SPY day.
+///
+/// Half-days (the 1:00pm closes after Thanksgiving and at Christmas) are
+/// deliberately NOT here: the market is open on those, and treating them as
+/// closed would skip real sessions. They cost a late-afternoon hour of idle
+/// loops, which is harmless.
+pub const MARKET_HOLIDAYS: &[&str] = &[
+    // 2026
+    "2026-01-01", // New Year's Day
+    "2026-01-19", // Martin Luther King Jr. Day
+    "2026-02-16", // Washington's Birthday
+    "2026-04-03", // Good Friday
+    "2026-05-25", // Memorial Day
+    "2026-06-19", // Juneteenth
+    "2026-07-03", // Independence Day (observed)
+    "2026-09-07", // Labor Day
+    "2026-11-26", // Thanksgiving
+    "2026-12-25", // Christmas
+    // 2027
+    "2027-01-01", // New Year's Day
+    "2027-01-18", // Martin Luther King Jr. Day
+    "2027-02-15", // Washington's Birthday
+    "2027-03-26", // Good Friday
+    "2027-05-31", // Memorial Day
+    "2027-06-18", // Juneteenth (observed)
+    "2027-07-05", // Independence Day (observed)
+    "2027-09-06", // Labor Day
+    "2027-11-25", // Thanksgiving
+    "2027-12-24", // Christmas (observed)
+];
+
+/// Is `date` (YYYY-MM-DD, ET) a full-day market closure?
+pub fn is_market_holiday(date: &str) -> bool {
+    MARKET_HOLIDAYS.contains(&date)
+}
+
+/// The last date MARKET_HOLIDAYS covers. Past this the list is stale and the
+/// system is silently back to weekday-and-clock, so it is worth surfacing
+/// rather than discovering on the next holiday.
+pub const HOLIDAYS_KNOWN_THROUGH: &str = "2027-12-31";
+
 pub const ACCUMULATOR_ENABLED: bool = true;
 pub const ACCUMULATOR_SYMBOL: &str = "SPY";
 /// Daily contribution.
