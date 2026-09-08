@@ -48,14 +48,27 @@ fn rows() -> Vec<Value> {
         .unwrap_or_default()
 }
 
-/// Has today's contribution already been made?
+/// Has today's contribution already been ATTEMPTED?
 ///
-/// Idempotency is the whole safety story here. The loop wakes repeatedly and
-/// the process restarts often; without this a single day could be funded many
-/// times over.
-fn already_contributed(date: &str) -> bool {
+/// Idempotency is the whole safety story here: the loop wakes every ten minutes
+/// and the process restarts often, so without this a single day could be funded
+/// many times over.
+///
+/// Deliberately not "filled". This checked for a filled row, so on a day when
+/// the order was accepted and never filled it stayed false and the ten-minute
+/// loop tried again. On 2026-09-07 — Labor Day, orders queued but nothing
+/// trading — that produced 33 SPY buys for $16,500 notional, all of which would
+/// have executed together at the next open. The account holds $500/day; it very
+/// nearly held $16,500 of one morning.
+///
+/// One attempt per day is the rule. An attempt that does not fill is a MISS to
+/// be reported, not a thing to retry: retrying a queued notional market order
+/// stacks duplicates rather than replacing one.
+fn already_attempted(date: &str) -> bool {
     rows().iter().any(|r| {
-        r["date"].as_str() == Some(date) && r["outcome"].as_str() == Some("filled")
+        r["date"].as_str() == Some(date)
+            && r["kind"].as_str() != Some("top_up")
+            && (r["order_id"].as_str().is_some() || r["outcome"].as_str().is_some())
     })
 }
 
@@ -128,8 +141,8 @@ pub async fn contribute() -> Value {
     let usd = crate::config::ACCUMULATOR_DAILY_USD;
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
 
-    if already_contributed(&today) {
-        return json!({"skipped": "already contributed today", "date": today});
+    if already_attempted(&today) {
+        return json!({"skipped": "already attempted today", "date": today});
     }
 
     let order = match buy_notional(symbol, usd).await {
@@ -314,8 +327,8 @@ pub fn spawn() {
             let today = chrono::Local::now().format("%Y-%m-%d").to_string();
             if !market_open_now() {
                 info!("[ACCUM] market closed — no contribution this cycle");
-            } else if already_contributed(&today) {
-                info!("[ACCUM] {} already funded — nothing to do", today);
+            } else if already_attempted(&today) {
+                info!("[ACCUM] {} already attempted — nothing to do", today);
             } else {
                 info!("[ACCUM] market open and {} unfunded — contributing", today);
                 let _ = contribute().await;
@@ -329,15 +342,7 @@ pub fn spawn() {
 /// idempotent per day and retried every 10 minutes, so a holiday just means the
 /// order is rejected and the day records nothing.
 fn market_open_now() -> bool {
-    use chrono::{Datelike, Timelike};
-    let utc = chrono::Utc::now();
-    let month = utc.month();
-    let offset = if (3..=10).contains(&month) { 4 } else { 5 };
-    let et = utc - chrono::Duration::hours(offset);
-    let dow = et.weekday().num_days_from_monday();
-    if dow > 4 {
-        return false;
-    }
-    let mins = et.hour() * 60 + et.minute();
-    (9 * 60 + 30..16 * 60).contains(&mins)
+    // Was a private copy of the calendar and did not know about holidays. On
+    // 2026-09-07 it ran all through Labor Day.
+    crate::config::is_market_open_now()
 }

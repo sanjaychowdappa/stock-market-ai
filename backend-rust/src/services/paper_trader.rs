@@ -875,22 +875,10 @@ impl PaperTrader {
 
     /// Check if US stock market is open (9:30 AM â€“ 4:00 PM ET, Monâ€“Fri).
     fn is_market_open() -> bool {
-        let utc_now = chrono::Utc::now();
-        let month = utc_now.month();
-        let offset_hours: i64 = if month >= 3 && month <= 10 { 4 } else { 5 };
-        let et = utc_now - chrono::Duration::hours(offset_hours);
-        let et_hour = et.hour();
-        let et_minute = et.minute();
-        let weekday = et.weekday().num_days_from_monday();
-        if weekday >= 5 { return false; }
-        // Weekday-and-clock is not a trading calendar. On 2026-09-07 (Labor
-        // Day) this returned true, the loops ran against a dead feed, and
-        // reconcile placed orders that sat pending into the next session.
-        if crate::config::is_market_holiday(&et.format("%Y-%m-%d").to_string()) {
-            return false;
-        }
-        let mins = et_hour * 60 + et_minute;
-        mins >= 9 * 60 + 30 && mins < 16 * 60
+        // ONE definition, in config. There were three copies of this calendar;
+        // on 2026-09-07 two learned about holidays and the third did not, and
+        // the third submitted 33 duplicate orders through Labor Day.
+        crate::config::is_market_open_now()
     }
 
     /// True while real orders are suppressed by damage control. The reconcile

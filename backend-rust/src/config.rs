@@ -282,6 +282,27 @@ pub const MARKET_HOLIDAYS: &[&str] = &[
     "2027-12-24", // Christmas (observed)
 ];
 
+/// Is the market open right now? THE definition — every caller uses this.
+///
+/// There were three separate copies of this logic (paper_trader, agentic_test,
+/// accumulator). On 2026-09-07 two were taught about holidays and the third was
+/// missed, and the one that was missed submitted 33 duplicate SPY orders.
+/// Copies of a calendar drift; one does not.
+pub fn is_market_open_now() -> bool {
+    use chrono::{Datelike, Timelike};
+    let utc = chrono::Utc::now();
+    let offset = if (3..=10).contains(&utc.month()) { 4 } else { 5 };
+    let et = utc - chrono::Duration::hours(offset);
+    if et.weekday().num_days_from_monday() > 4 {
+        return false;
+    }
+    if is_market_holiday(&et.format("%Y-%m-%d").to_string()) {
+        return false;
+    }
+    let mins = et.hour() * 60 + et.minute();
+    (9 * 60 + 30..16 * 60).contains(&mins)
+}
+
 /// Is `date` (YYYY-MM-DD, ET) a full-day market closure?
 pub fn is_market_holiday(date: &str) -> bool {
     MARKET_HOLIDAYS.contains(&date)

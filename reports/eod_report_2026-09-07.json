@@ -1,0 +1,179 @@
+{
+  "data_quality": {
+    "finetune_triggered": false,
+    "snapshots": 20046,
+    "tracker": {
+      "AMD": {
+        "predictions": 0,
+        "ticks": 0,
+        "trades": 0
+      },
+      "AMZN": {
+        "predictions": 0,
+        "ticks": 0,
+        "trades": 0
+      },
+      "BAC": {
+        "predictions": 0,
+        "ticks": 0,
+        "trades": 0
+      },
+      "COP": {
+        "predictions": 0,
+        "ticks": 0,
+        "trades": 0
+      },
+      "DIS": {
+        "predictions": 0,
+        "ticks": 0,
+        "trades": 0
+      },
+      "EQIX": {
+        "predictions": 0,
+        "ticks": 0,
+        "trades": 0
+      },
+      "FCX": {
+        "predictions": 0,
+        "ticks": 0,
+        "trades": 0
+      },
+      "KO": {
+        "predictions": 0,
+        "ticks": 0,
+        "trades": 0
+      },
+      "MRK": {
+        "predictions": 0,
+        "ticks": 0,
+        "trades": 0
+      },
+      "UNP": {
+        "predictions": 0,
+        "ticks": 0,
+        "trades": 0
+      }
+    }
+  },
+  "portfolio": {
+    "cash": 3000.0,
+    "drawdown_pct": 0.0,
+    "initial_capital": 3000.0,
+    "positions_value": -0.0,
+    "realized_pnl": 96.4455,
+    "target": {
+      "goal": "$500 → $600 challenge",
+      "progress_pct": 0.0,
+      "target_value": 3100.0
+    },
+    "total_pnl": 0.0,
+    "total_pnl_pct": 0.0,
+    "total_value": 3000.0
+  },
+  "positions": [],
+  "recent_trades": [],
+  "report": {
+    "date": "2026-09-07",
+    "generated_at": "2026-09-07T20:20:34.007249213+00:00",
+    "market_session": {
+      "close": "16:00 ET",
+      "open": "09:30 ET",
+      "status": "closed"
+    },
+    "type": "end_of_day"
+  },
+  "symbols": [
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 0.0,
+      "position_pnl": 0.0,
+      "signal_strength": 0.0,
+      "symbol": "AMD"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 0.0,
+      "position_pnl": 0.0,
+      "signal_strength": 0.0,
+      "symbol": "MRK"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 0.0,
+      "position_pnl": 0.0,
+      "signal_strength": 0.0,
+      "symbol": "BAC"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 0.0,
+      "position_pnl": 0.0,
+      "signal_strength": 0.0,
+      "symbol": "COP"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 0.0,
+      "position_pnl": 0.0,
+      "signal_strength": 0.0,
+      "symbol": "FCX"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 0.0,
+      "position_pnl": 0.0,
+      "signal_strength": 0.0,
+      "symbol": "KO"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 0.0,
+      "position_pnl": 0.0,
+      "signal_strength": 0.0,
+      "symbol": "AMZN"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 0.0,
+      "position_pnl": 0.0,
+      "signal_strength": 0.0,
+      "symbol": "UNP"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 0.0,
+      "position_pnl": 0.0,
+      "signal_strength": 0.0,
+      "symbol": "DIS"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 0.0,
+      "position_pnl": 0.0,
+      "signal_strength": 0.0,
+      "symbol": "EQIX"
+    }
+  ],
+  "trading_stats": {
+    "avg_hold_seconds": 0,
+    "open_positions": 0,
+    "total_trades": 554,
+    "uptime_seconds": 20055,
+    "win_rate": 43.86,
+    "winning_trades": 243
+  },
+  "value_history": [
+    3000.0,
+    3000.0
+  ]
+}

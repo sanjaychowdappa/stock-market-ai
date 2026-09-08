@@ -1616,3 +1616,82 @@ fn a_real_gap_is_still_corrected_when_priced() {
     assert_eq!(actions.len(), 1, "real drift must still be corrected");
     assert_eq!(actions[0]["action"], "sell");
 }
+
+// ── BUG: the accumulator queued 33 duplicate orders through a holiday ───
+//
+// Two failures compounding, found 45 minutes before the open on 2026-09-08.
+//
+// FIRST: market_open_now() was a THIRD private copy of the trading calendar.
+// The day before, paper_trader and agentic_test were taught about holidays;
+// this one was missed, so the accumulator loop ran all through Labor Day.
+//
+// SECOND: already_contributed() checked for a FILLED row. With the exchange
+// shut the order was accepted and never filled, so it stayed false and the
+// ten-minute loop tried again — 33 times, $16,500 of notional SPY, every one
+// queued to execute together at the next open. The account contributes $500 a
+// day; it came within an hour of holding $16,500 of one morning.
+//
+// Retrying a queued notional market order stacks duplicates rather than
+// replacing one. One attempt per day; a miss is reported, not retried.
+
+use stock_market_ai::config::is_market_open_now;
+
+#[test]
+fn there_is_one_trading_calendar_and_it_knows_holidays() {
+    // The function every caller now shares. On a holiday it must be closed
+    // whatever the clock says, which is what the three copies disagreed about.
+    assert!(!is_market_holiday("2026-09-08"), "the day after Labor Day trades");
+    assert!(is_market_holiday("2026-09-07"), "Labor Day does not");
+    // Sanity: the shared function runs and returns a bool for "now".
+    let _ = is_market_open_now();
+}
+
+/// One accumulator log row, as the day-attempt check sees it.
+fn arow_json(date: &str, outcome: Option<&str>, kind: Option<&str>) -> serde_json::Value {
+    let mut v = serde_json::json!({"date": date, "usd": 500.0});
+    if let Some(o) = outcome { v["outcome"] = serde_json::json!(o); }
+    if let Some(k) = kind { v["kind"] = serde_json::json!(k); }
+    v
+}
+
+/// Mirrors accumulator::already_attempted, which is private. The rule under
+/// test is "any attempt today counts", not "any FILL today counts".
+fn attempted(rows: &[serde_json::Value], date: &str) -> bool {
+    rows.iter().any(|r| {
+        r["date"].as_str() == Some(date)
+            && r["kind"].as_str() != Some("top_up")
+            && (r["order_id"].as_str().is_some() || r["outcome"].as_str().is_some())
+    })
+}
+
+#[test]
+fn an_order_that_did_not_fill_still_counts_as_the_days_attempt() {
+    let rows = vec![arow_json("2026-09-07", Some("pending"), None)];
+    assert!(
+        attempted(&rows, "2026-09-07"),
+        "a pending order counted as 'not yet contributed' and the loop retried \
+         every ten minutes — 33 orders and $16,500 of notional in one session"
+    );
+}
+
+#[test]
+fn a_filled_contribution_still_blocks_a_second_one() {
+    let rows = vec![arow_json("2026-09-08", Some("filled"), None)];
+    assert!(attempted(&rows, "2026-09-08"));
+}
+
+#[test]
+fn a_manual_top_up_does_not_consume_the_days_contribution() {
+    // top_up is a deliberate one-off; it must not make the system think the
+    // scheduled $500 already went in.
+    let rows = vec![arow_json("2026-09-08", Some("filled"), Some("top_up"))];
+    assert!(!attempted(&rows, "2026-09-08"),
+        "a manual top-up is not the daily contribution");
+}
+
+#[test]
+fn yesterdays_attempt_does_not_block_today() {
+    let rows = vec![arow_json("2026-09-07", Some("pending"), None)];
+    assert!(!attempted(&rows, "2026-09-08"),
+        "a missed day must not silently skip the next one too");
+}
