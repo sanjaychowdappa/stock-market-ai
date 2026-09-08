@@ -295,6 +295,33 @@ fn log_shadow_trade(model_id: &str, rule: &str, t: &Trade) {
     }
 }
 
+/// What each book is allowed to do in a given state.
+///
+/// Exists so the mirroring rule is one testable statement rather than four
+/// scattered conditions. It used to be four, and they disagreed: a halt
+/// suppressed broker entries, allowed broker exits only for
+/// DAMAGE_CONTROL_FLATTEN, skipped reconcile entirely, and let the simulator
+/// keep opening positions. On 2026-09-08 the simulator finished the morning at
+/// +0.62% while the account sat flat and locked out.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BookPolicy {
+    /// May the simulator open a new position?
+    pub sim_may_enter: bool,
+    /// Does an action taken by the simulator reach the broker?
+    pub broker_mirrors: bool,
+}
+
+/// THE mirroring rule. `halted` is damage control's state.
+///
+/// The invariant: there is no state in which the simulator trades and the
+/// broker does not. A halt stops both; otherwise both act.
+pub fn book_policy(halted: bool) -> BookPolicy {
+    BookPolicy {
+        sim_may_enter: !halted,
+        broker_mirrors: true,
+    }
+}
+
 /// Layer weights every rule book scores with: the LIVE production weights,
 /// [kronos, kalman, pattern, cvd, vp, gex, cot].
 ///
@@ -1330,17 +1357,30 @@ impl PaperTrader {
                 self.halt_baseline_value = self.total_value();
                 let syms: Vec<String> = self.positions.keys().cloned().collect();
                 for s in &syms { self.sell(s, "DAMAGE_CONTROL_FLATTEN"); }
-                warn!("[DAMAGE_CONTROL] Day P&L {:.2}% breached the {:.2}% floor{} â€” \
-                       flattened {} position(s). REAL ORDERS HALTED; simulator keeps \
-                       trading to earn its way back. Capital ${:.2}.",
-                    day_pnl_pct, floor,
+                // Report the number the floor was ACTUALLY measured against.
+                // This printed day_pnl_pct against a floor measured from
+                // floor_baseline, and after a resume those are different
+                // reference points — producing "Day P&L 0.11% breached the
+                // -0.30% floor" on 2026-09-08. The logic was right and the
+                // sentence was nonsense; anyone auditing it would conclude the
+                // reverse.
+                warn!("[DAMAGE_CONTROL] {:.2}% against the ${:.2} baseline breached the \
+                       {:.2}% floor{} — flattened {} position(s). BOTH books stop for \
+                       {}m (halt {}/{} today). Day P&L {:.2}%. Capital ${:.2}.",
+                    floor_pnl_pct, self.floor_baseline, floor,
                     if locked { format!(" (profit-locked from peak {:.2}%)", self.day_peak_pnl_pct) }
                     else { String::new() },
-                    syms.len(), self.total_value());
+                    syms.len(), RECOVERY_MIN_SECS / 60,
+                    self.resumes_today + 1, MAX_HALTS_PER_DAY,
+                    day_pnl_pct, self.total_value());
                 self.save_state_sync();
-                // Deliberately NOT returning. The halt stops REAL orders, not
-                // decisions â€” the simulator has to keep trading or there is no
-                // evidence on which to decide whether to re-engage.
+                // Both books are flat and both stay out until the cooldown
+                // passes. The simulator no longer trades on alone: that
+                // asymmetry WAS the divergence. On 2026-09-08 it finished the
+                // morning at +0.62% while the account sat flat and locked out,
+                // unable to join a recovery it could see happening. A paper
+                // account that does not mirror the simulator is not measuring
+                // the simulator.
             }
 
             // Recovery gate. Alpaca re-engages when the simulator has shown it
@@ -1377,11 +1417,18 @@ impl PaperTrader {
                 let evidence = (self.total_value() - self.halt_baseline_value) - cost;
                 self.recovery_pnl = (evidence * 100.0).round() / 100.0;
 
-                if waited
-                    && self.recovery_trades >= RECOVERY_MIN_TRADES
-                    && evidence > RECOVERY_MIN_PNL
-                    && self.resumes_today < MAX_RESUMES_PER_DAY
-                {
+                // A COOLDOWN, not an evidence gate.
+                //
+                // The old test judged re-entry on the simulator's book change
+                // since the halt. That only worked because the simulator kept
+                // trading while Alpaca sat out — the asymmetry this change
+                // removes. With both books flat there is nothing to measure and
+                // the gate would deadlock, which is the failure its own
+                // comments already record twice.
+                //
+                // So: flatten, wait, both resume. The protection is the flatten
+                // and the daily halt cap, not a cleverer re-entry test.
+                if waited && self.resumes_today < MAX_HALTS_PER_DAY {
                     self.damage_halted = false;
                     self.halted_at = None;
                     self.resumes_today += 1;
@@ -1390,11 +1437,11 @@ impl PaperTrader {
                     // the floor and re-halts immediately, spending the day's
                     // only allowance on nothing.
                     self.floor_baseline = self.total_value();
-                    info!("[DAMAGE_CONTROL] RECOVERY GATE PASSED â€” book up ${:.2} since the halt, \
-                           net of ${:.2} modeled cost. Alpaca re-engaging ({}/{}); floor re-based \
-                           to ${:.2}. Day P&L {:.2}%.",
-                        evidence, cost, self.resumes_today, MAX_RESUMES_PER_DAY,
-                        self.floor_baseline, day_pnl_pct);
+                    info!("[DAMAGE_CONTROL] COOLDOWN COMPLETE — BOTH books resuming \
+                           (halt {}/{} today); floor re-based to ${:.2}. Day P&L {:.2}%. \
+                           Book moved ${:.2} while out, net of ${:.2} modeled cost.",
+                        self.resumes_today, MAX_HALTS_PER_DAY,
+                        self.floor_baseline, day_pnl_pct, evidence, cost);
                     self.save_state_sync();
                 }
             }
@@ -1724,6 +1771,15 @@ impl PaperTrader {
 
 
     fn find_best_entry(&mut self) {
+        // A halt stops BOTH books. Previously only real orders were suppressed
+        // and the simulator kept opening positions, so the two diverged for the
+        // rest of the session — the account flat, the simulator compounding a
+        // recovery it could not act on. Mirroring is the point of the paper
+        // account; a simulator-only recovery is not a result.
+        if self.damage_halted {
+            return;
+        }
+
         // The cap now applies in max-exposure mode too. It was written as
         // `!MAX_EXPOSURE_MODE && ...`, and MAX_EXPOSURE_MODE is true, so the
         // condition was always false and the cap never once applied. That is how
@@ -2074,7 +2130,10 @@ impl PaperTrader {
                 // Mirror to the Alpaca paper account. Suppressed while halted:
                 // the simulator trades on to earn its way back, but no real
                 // order is placed until the recovery gate passes.
-                if ALPACA_SHADOW_ORDERS && !self.damage_halted {
+                // No `!damage_halted` condition: find_best_entry returns early
+                // while halted, so there is nothing to suppress here, and the
+                // extra test only created a way for the books to disagree.
+                if ALPACA_SHADOW_ORDERS {
                     let (s, q, p) = (best_sym.clone(), shares, price);
                     tokio::spawn(async move {
                         crate::services::alpaca_broker::shadow_order(
@@ -2619,7 +2678,7 @@ impl PaperTrader {
         // leaves the market. Only trades opened after the halt are suppressed,
         // and those have no Alpaca position to close anyway.
         let mirror_exit = ALPACA_SHADOW_ORDERS
-            && (!self.damage_halted || reason == "DAMAGE_CONTROL_FLATTEN");
+            ;   // every exit mirrors: the account holds what the simulator holds
         if mirror_exit {
             let (s, q, p, r) = (symbol.to_string(), pos.shares, pos.current_price, reason.to_string());
             tokio::spawn(async move {
@@ -2797,8 +2856,9 @@ impl PaperTrader {
                 "profit_lock_armed": lock_armed,
                 "profit_lock_trigger_pct": PROFIT_LOCK_TRIGGER_PCT,
                 "resumes_used": self.resumes_today,
-                "resumes_allowed": MAX_RESUMES_PER_DAY,
-                "simulator_still_trading": self.damage_halted,
+                "halts_allowed": MAX_HALTS_PER_DAY,
+                "books_mirrored": true,
+                "simulator_still_trading": false,
                 "recovery_trades": self.recovery_trades,
                 "recovery_trades_needed": RECOVERY_MIN_TRADES,
                 "recovery_pnl": (self.recovery_pnl * 100.0).round() / 100.0,

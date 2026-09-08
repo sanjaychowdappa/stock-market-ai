@@ -82,15 +82,19 @@ impl AppState {
                     // at the broker precisely the positions the halt exists to
                     // keep real money out of. The simulator trades on; Alpaca
                     // stays flat until the recovery gate passes.
-                    let (halted, qty, px, ages) = {
+                    // No halt skip any more. It existed because a halt used to
+                    // suppress real orders while the simulator kept trading, so
+                    // reconciling would have bought back exactly what the halt
+                    // was keeping real money out of. A halt now flattens and
+                    // stops BOTH books, so the simulator holds nothing to
+                    // mirror — and while both are flat, reconcile's job is to
+                    // confirm the account is flat too, which is precisely when
+                    // you want it running.
+                    let (qty, px, ages) = {
                         let t = st.trader.lock();
                         let (q, p) = t.book_snapshot();
-                        (t.alpaca_halted(), q, p, t.book_ages())
+                        (q, p, t.book_ages())
                     };
-                    if halted {
-                        tokio::time::sleep(tokio::time::Duration::from_secs(120)).await;
-                        continue;
-                    }
                     let alpaca_has = crate::services::alpaca_broker::positions()
                         .await.map(|p| !p.is_empty()).unwrap_or(false);
                     if !qty.is_empty() || alpaca_has {

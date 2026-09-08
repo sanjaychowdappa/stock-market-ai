@@ -578,7 +578,19 @@ pub const PROFIT_LOCK_GIVEBACK_PCT: f64 = 0.15;
 // cost-adjusted P&L, not by a clock.
 
 /// Resumptions allowed per day. More than one lets a bad session repeat itself.
-pub const MAX_RESUMES_PER_DAY: u32 = 1;
+/// Halts allowed per day. After this many, BOTH books stop for the session.
+///
+/// Was MAX_RESUMES_PER_DAY = 1, under a design where a halt suppressed real
+/// orders while the simulator traded on. That produced exactly the divergence
+/// it was asked not to: on 2026-09-08 the simulator finished the morning at
+/// +0.62% while the account sat flat and locked out, unable to participate in
+/// a recovery it could see happening.
+///
+/// The books now move together — see DAMAGE_CONTROL in paper_trader. A halt
+/// flattens both and stops both entering for RECOVERY_MIN_SECS, then both
+/// resume. Three is enough to survive a choppy morning and few enough that a
+/// genuinely bad day still ends.
+pub const MAX_HALTS_PER_DAY: u32 = 3;
 
 // ── RECOVERY GATE ────────────────────────────────────────────────────────
 //

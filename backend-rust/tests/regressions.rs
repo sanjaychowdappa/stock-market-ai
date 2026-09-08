@@ -1695,3 +1695,54 @@ fn yesterdays_attempt_does_not_block_today() {
     assert!(!attempted(&rows, "2026-09-08"),
         "a missed day must not silently skip the next one too");
 }
+
+// ── The simulator traded while the account sat flat ─────────────────────
+//
+// A halt suppressed real orders and let the simulator keep opening positions,
+// "to earn its way back". On 2026-09-08 that ran as designed and produced
+// exactly what it was asked not to: the simulator finished the morning at
+// +0.62% while the account was flat, locked out, and unable to join a recovery
+// it could see happening. The broker held nothing but SPY; the simulator held
+// five positions.
+//
+// A paper account that does not mirror the simulator is not measuring the
+// simulator. A halt now stops BOTH books and both resume together.
+
+use stock_market_ai::config::MAX_HALTS_PER_DAY;
+use stock_market_ai::services::paper_trader::book_policy;
+
+#[test]
+fn the_simulator_never_trades_while_the_account_cannot() {
+    for halted in [false, true] {
+        let p = book_policy(halted);
+        assert!(
+            !(p.sim_may_enter && !p.broker_mirrors),
+            "halted={halted}: the simulator may enter but the broker does not \
+             mirror — that is the divergence, and it is the state the old halt \
+             deliberately created"
+        );
+    }
+}
+
+#[test]
+fn a_halt_stops_the_simulator_too() {
+    assert!(!book_policy(true).sim_may_enter,
+        "the simulator kept trading through a halt and compounded a paper \
+         recovery the account could not act on");
+    assert!(book_policy(false).sim_may_enter, "and trades normally otherwise");
+}
+
+#[test]
+fn the_broker_mirrors_in_every_state() {
+    assert!(book_policy(true).broker_mirrors);
+    assert!(book_policy(false).broker_mirrors,
+        "there is no state where an action is taken and not mirrored");
+}
+
+#[test]
+fn a_bad_day_still_ends() {
+    // Mirroring must not mean trading through an unlimited number of halts.
+    assert!((1..=5).contains(&MAX_HALTS_PER_DAY),
+        "with the books mirrored, the halt cap is what stops a bad session \
+         repeating itself; {MAX_HALTS_PER_DAY} is outside the sane range");
+}
