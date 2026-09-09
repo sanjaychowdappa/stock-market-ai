@@ -113,7 +113,14 @@ pub async fn experiments(State(state): State<Arc<AppState>>) -> Json<serde_json:
 
     let equity = crate::services::alpaca_broker::equity_pnl().await;
     let real = crate::services::alpaca_broker::real_pnl().await;
-    let broker_net = equity["net_pnl"].as_f64();
+    // The accumulator is a long-term SPY holding the simulator does not model.
+    // Leaving it in makes REAL_TRADER carry index drift it never traded, and
+    // makes every simulator-vs-account comparison compare different things.
+    let acc = crate::services::accumulator::status().await;
+    let acc_profit = acc["profit"].as_f64().unwrap_or(0.0);
+    let broker_net = equity["net_pnl"].as_f64()
+        .map(|n| crate::services::alpaca_broker::trading_net(n, acc_profit));
+    let account_net_raw = equity["net_pnl"].as_f64();
 
     if let Some(models) = payload["models"].as_array_mut() {
         for m in models.iter_mut() {
@@ -131,7 +138,15 @@ pub async fn experiments(State(state): State<Arc<AppState>>) -> Json<serde_json:
                 match broker_net {
                     Some(net) => {
                         obj.insert("realized_pnl".into(), json!((net * 100.0).round() / 100.0));
-                        obj.insert("source".into(), json!("alpaca /v2/account"));
+                        obj.insert("source".into(), json!(
+                            "alpaca /v2/account, accumulator removed"));
+                        // Show the decomposition so the headline can be checked
+                        // rather than trusted. Every wrong P&L in this project
+                        // was wrong because one number stood alone.
+                        obj.insert("account_net_all_in".into(),
+                            json!(account_net_raw.map(|n| (n * 100.0).round() / 100.0)));
+                        obj.insert("accumulator_profit_removed".into(),
+                            json!((acc_profit * 100.0).round() / 100.0));
                         // Round trips and win rate from real fills, not from
                         // simulated ones: the simulator counted 147 trades
                         // against 87 round trips the broker actually closed.

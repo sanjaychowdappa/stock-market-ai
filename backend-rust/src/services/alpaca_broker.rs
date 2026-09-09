@@ -599,6 +599,23 @@ fn log_entry(v: Value) {
 /// broker whenever an order is rejected, partially filled, or suppressed by a
 /// halt — and on 2026-08-05 it showed five holdings while the real account was
 /// flat. Anything presented as a position must come from the broker.
+/// The intraday trader's result: the account's net with the long-term
+/// accumulator's profit removed.
+///
+/// ONE definition, because there were two and they disagreed. The kill
+/// criterion subtracted the accumulator; the /api/experiments scoreboard did
+/// not, so REAL_TRADER displayed the whole account. On 2026-09-09 that read
+/// -$161.90 against an actual trading result of -$127.42 — the intraday book
+/// carrying $34.53 of SPY's decline, which it never traded and cannot control.
+///
+/// It is also why the simulator and the account looked like they had diverged
+/// when their positions matched exactly: the simulator does not model the
+/// accumulator at all, so any comparison that leaves it in compares different
+/// things.
+pub fn trading_net(account_net: f64, accumulator_profit: f64) -> f64 {
+    account_net - accumulator_profit
+}
+
 pub async fn positions_detail() -> Vec<Value> {
     let (key, secret, base) = match creds() { Some(c) => c, None => return Vec::new() };
     let client = reqwest::Client::new();

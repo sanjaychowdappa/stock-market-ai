@@ -1813,3 +1813,43 @@ fn the_accumulator_is_not_counted_as_a_divergence() {
     assert_eq!(check_book_parity(&sim, &live, &px, 0.0001)["severity"], "info",
         "a $7,000 permanent gap would make this check useless within a day");
 }
+
+// ── BUG: REAL_TRADER carried the accumulator's P&L ─────────────────────
+//
+// The kill criterion subtracted the long-term SPY holding before judging the
+// intraday trader. The /api/experiments scoreboard did not — it displayed the
+// whole account. Two definitions of the same number, and they disagreed.
+//
+// On 2026-09-09 REAL_TRADER read -$161.90 against an actual trading result of
+// -$127.42: the intraday book carrying $34.53 of SPY's decline, which it never
+// traded and cannot control.
+//
+// It is also why the simulator and the account looked like they had diverged
+// while their positions matched to the cent. The simulator does not model the
+// accumulator at all, so any comparison that leaves it in compares different
+// things.
+
+use stock_market_ai::services::alpaca_broker::trading_net;
+
+#[test]
+fn the_trader_is_not_charged_for_the_index_holding() {
+    // The real readings.
+    let shown = trading_net(-161.95, -34.53);
+    assert!((shown - (-127.42)).abs() < 0.01,
+        "got {shown}, expected -127.42 — the trader was carrying the \
+         accumulator's loss");
+}
+
+#[test]
+fn a_profitable_accumulator_does_not_flatter_the_trader_either() {
+    // The error runs both ways: on an up day the index would make a losing
+    // book look better, which is the more dangerous direction.
+    let shown = trading_net(-20.00, 40.00);
+    assert!((shown - (-60.00)).abs() < 1e-9,
+        "got {shown}, expected -60.00 — index gains must not hide trading losses");
+}
+
+#[test]
+fn with_no_accumulator_the_account_net_is_the_trading_net() {
+    assert!((trading_net(-127.42, 0.0) - (-127.42)).abs() < 1e-9);
+}
