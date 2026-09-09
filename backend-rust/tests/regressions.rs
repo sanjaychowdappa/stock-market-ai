@@ -1746,3 +1746,70 @@ fn a_bad_day_still_ends() {
         "with the books mirrored, the halt cap is what stops a bad session \
          repeating itself; {MAX_HALTS_PER_DAY} is outside the sane range");
 }
+
+// ── Watching that the books ACTUALLY match, not that they intend to ─────
+//
+// Mirroring shipped 2026-09-08, but "the code intends to mirror" and "the
+// books match right now" are different claims and only the second is worth
+// anything. Every divergence in this project was invisible until two numbers
+// were compared by hand: a halt that suppressed real orders while the
+// simulator traded on, stops rejected for oversized quantity, entries silently
+// discarded when a symbol was busy.
+
+use stock_market_ai::services::rule_monitor::check_book_parity;
+
+fn holdings(pairs: &[(&str, f64)]) -> HashMap<String, f64> {
+    pairs.iter().map(|(s, q)| (s.to_string(), *q)).collect()
+}
+
+#[test]
+fn matching_books_report_clean() {
+    let sim = holdings(&[("AMD", 1.5), ("KO", 8.0)]);
+    let live = holdings(&[("AMD", 1.5), ("KO", 8.0)]);
+    let px = holdings(&[("AMD", 460.0), ("KO", 90.0)]);
+    assert_eq!(check_book_parity(&sim, &live, &px, 0.0001)["severity"], "info");
+}
+
+#[test]
+fn a_position_the_account_never_got_is_reported() {
+    // The 2026-09-08 shape: the simulator holds five, the account holds none.
+    let sim = holdings(&[("AMD", 1.5), ("KO", 8.0)]);
+    let live: HashMap<String, f64> = HashMap::new();
+    let px = holdings(&[("AMD", 460.0), ("KO", 90.0)]);
+    let f = check_book_parity(&sim, &live, &px, 0.0001);
+    assert_eq!(f["severity"], "warn");
+    let msg = f["message"].as_str().unwrap();
+    assert!(msg.contains("AMD") && msg.contains("KO"),
+        "the message must name the symbols; a bare count sends you hunting");
+}
+
+#[test]
+fn a_position_only_the_account_holds_is_reported() {
+    // The other direction: a rejected exit leaves the account long something
+    // the simulator has already sold.
+    let sim: HashMap<String, f64> = HashMap::new();
+    let live = holdings(&[("FCX", 9.9)]);
+    let px = holdings(&[("FCX", 75.0)]);
+    assert_eq!(check_book_parity(&sim, &live, &px, 0.0001)["severity"], "warn");
+}
+
+#[test]
+fn flooring_residue_is_not_a_divergence() {
+    // sellable_qty() leaves up to 0.0001 shares by design.
+    let sim = holdings(&[("KO", 0.0)]);
+    let live = holdings(&[("KO", 0.0001)]);
+    let px = holdings(&[("KO", 90.0)]);
+    assert_eq!(check_book_parity(&sim, &live, &px, 0.0001)["severity"], "info",
+        "a cent of residue is not a broken mirror");
+}
+
+#[test]
+fn the_accumulator_is_not_counted_as_a_divergence() {
+    // The simulator does not model the long-term SPY holding at all, so it
+    // reads as a permanent gap and would drown every real signal.
+    let sim: HashMap<String, f64> = HashMap::new();
+    let live = holdings(&[("SPY", 9.21)]);
+    let px = holdings(&[("SPY", 767.0)]);
+    assert_eq!(check_book_parity(&sim, &live, &px, 0.0001)["severity"], "info",
+        "a $7,000 permanent gap would make this check useless within a day");
+}

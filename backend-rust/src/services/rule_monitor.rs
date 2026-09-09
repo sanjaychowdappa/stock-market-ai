@@ -196,6 +196,66 @@ pub fn check_divergence(day: &str, sim: f64, broker: f64, accum: Option<f64>) ->
         }))
 }
 
+/// CHECK: does the account actually hold what the simulator holds?
+///
+/// The books were made to mirror on 2026-09-08, but "the code intends to
+/// mirror" and "the books match right now" are different claims, and only the
+/// second one is worth anything. Every divergence this project has had was
+/// invisible until someone compared two numbers by hand:
+///
+///   * a halt that suppressed real orders while the simulator traded on
+///   * stop losses rejected for oversized quantity, so the simulator booked
+///     exits the account never made
+///   * entry orders silently discarded when a symbol was busy
+///
+/// So this compares position by position, every cycle, and says which symbol
+/// and by how much. `dust` is the share threshold below which a difference is
+/// the residue of flooring sells rather than a real gap.
+///
+/// The accumulator's symbol is excluded: the simulator does not model it, so it
+/// reads as a permanent divergence and would drown the signal.
+pub fn check_book_parity(
+    sim: &std::collections::HashMap<String, f64>,
+    live: &std::collections::HashMap<String, f64>,
+    prices: &std::collections::HashMap<String, f64>,
+    dust: f64,
+) -> Value {
+    let mut symbols: Vec<String> = sim.keys().cloned().collect();
+    for s in live.keys() {
+        if !symbols.contains(s) { symbols.push(s.clone()); }
+    }
+    symbols.retain(|s| !crate::services::accumulator::owns(s));
+    symbols.sort();
+
+    let mut gaps: Vec<String> = Vec::new();
+    let mut worst_usd = 0.0f64;
+    for sym in &symbols {
+        let want = sim.get(sym).copied().unwrap_or(0.0);
+        let have = live.get(sym).copied().unwrap_or(0.0);
+        let delta = want - have;
+        if delta.abs() <= dust { continue; }
+        let px = prices.get(sym).copied().unwrap_or(0.0);
+        let usd = delta.abs() * px;
+        if usd > worst_usd { worst_usd = usd; }
+        gaps.push(format!("{sym} sim {want:.4} vs account {have:.4} (${usd:.2})"));
+    }
+
+    if gaps.is_empty() {
+        return finding("book_parity", INFO, format!(
+            "Books match across {} symbol(s): the account holds what the              simulator holds.", symbols.len()));
+    }
+
+    // Under $1 is execution residue; above it the two books genuinely disagree
+    // and one of them is describing trades that did not happen.
+    let sev = if worst_usd >= 1.0 { WARN } else { INFO };
+    finding("book_parity", sev, format!(
+        "{} symbol(s) differ between the simulator and the account: {}.          Largest gap ${:.2}.{}",
+        gaps.len(), gaps.join("; "), worst_usd,
+        if worst_usd >= 1.0 {
+            " One of the two books is describing positions that do not exist.               Reconcile corrects this within a cycle; if it persists, the               mirroring is broken rather than merely lagging."
+        } else { "" }))
+}
+
 /// CHECK: order fill quality. A collapsed fill rate means the simulator's book
 /// and the real one are drifting apart faster than reconcile can close them.
 pub fn check_fill_quality(filled: u32, rejected: u32, unfilled: u32, pending: u32,

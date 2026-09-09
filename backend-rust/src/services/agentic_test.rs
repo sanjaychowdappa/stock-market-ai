@@ -334,6 +334,32 @@ pub async fn run_cycle(state: &Arc<AppState>, agent: &SharedAgent) {
         }
     }
 
+    // Does the account actually hold what the simulator holds?
+    //
+    // The books were made to mirror on 2026-09-08, but "the code intends to
+    // mirror" and "the books match right now" are different claims and only the
+    // second is worth anything. Every divergence this project has had was
+    // invisible until two numbers were compared by hand.
+    {
+        use crate::services::rule_monitor as rm;
+        let (sim, prices) = { state.trader.lock().book_snapshot() };
+        match crate::services::alpaca_broker::positions().await {
+            Some(live) => {
+                let f = rm::check_book_parity(&sim, &live, &prices, 0.0001);
+                let sev = match f["severity"].as_str() {
+                    Some("critical") => Severity::Critical,
+                    Some("warn") => Severity::Warn,
+                    _ => Severity::Info,
+                };
+                findings.push(Finding::new("book_parity", sev,
+                    f["message"].as_str().unwrap_or("").to_string(), None));
+            }
+            None => findings.push(Finding::new("book_parity", Severity::Warn,
+                "Could not read Alpaca positions, so the books cannot be                  compared. Unverified is not the same as matching.".into(),
+                None)),
+        }
+    }
+
     let mon = crate::services::change_monitor::run().await;
     if let Some(items) = mon["findings"].as_array() {
         for f in items {
