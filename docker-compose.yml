@@ -15,7 +15,12 @@ services:
     volumes:
       - model_data:/app/model_cache
       - ./reports:/app/reports
-    restart: unless-stopped
+    # NOT unless-stopped: that restarts containers whenever the Docker daemon
+    # starts, including on a weekend when the machine is switched on for
+    # something else. auto_start.bat is the only thing that should start this
+    # stack, and it runs weekdays before the open. on-failure still recovers a
+    # crash during a session, which is the case worth restarting for.
+    restart: on-failure:3
 
   # ── Python Fine-Tune + Agent Sidecar (GPU) ───────────────────
   # Kronos inference on :8001, ML Agent predictions on :8002
@@ -41,7 +46,12 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    restart: unless-stopped
+    # NOT unless-stopped: that restarts containers whenever the Docker daemon
+    # starts, including on a weekend when the machine is switched on for
+    # something else. auto_start.bat is the only thing that should start this
+    # stack, and it runs weekdays before the open. on-failure still recovers a
+    # crash during a session, which is the case worth restarting for.
+    restart: on-failure:3
 
   frontend:
     build:
@@ -54,7 +64,12 @@ services:
     volumes:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
-    restart: unless-stopped
+    # NOT unless-stopped: that restarts containers whenever the Docker daemon
+    # starts, including on a weekend when the machine is switched on for
+    # something else. auto_start.bat is the only thing that should start this
+    # stack, and it runs weekdays before the open. on-failure still recovers a
+    # crash during a session, which is the case worth restarting for.
+    restart: on-failure:3
 
 # redis removed: nothing ever connected to it. No redis crate in Cargo.toml,
 # no code path referencing REDIS_URL — the container held a port and a volume

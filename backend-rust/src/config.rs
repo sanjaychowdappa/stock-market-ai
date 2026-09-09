@@ -111,7 +111,38 @@ pub const LIVE_KILL_ENABLED: bool = true;
 pub const LIVE_KILL_TRADES: u32 = 100;
 pub const LIVE_KILL_DAYS: i64 = 20;
 
-// ── TRIAL 2, opened 2026-08-20 ───────────────────────────────────────────
+// ── TRIAL 3, opened 2026-09-09 ───────────────────────────────────────────
+//
+// TRIAL 2 ABANDONED at 96/100 round trips with expectancy -$1.3131. It did not
+// formally resolve; the books-mirrored change on 2026-09-08 altered entry and
+// exit behaviour, and the rule is explicit that a mid-trial parameter change
+// resets the count. Reset chosen by the owner over letting it run to a verdict.
+//
+// Worth stating plainly, because it is the uncomfortable part: this is the
+// THIRD window. Trial 1 failed at -$0.2888 over 130 trips. Trial 2 was reset
+// once at 9 trips, ran to 96, and was abandoned at -$1.3131. A criterion that
+// restarts every time something is fixed never delivers a verdict, and every
+// reset has so far happened while the number was bad. That is exactly the
+// pattern pre-commitment exists to prevent, and noting it here is the only
+// defence left once the reset is taken.
+//
+// The differences this time are real, and they are the reason a fresh window
+// is defensible rather than convenient:
+//
+//   * Trials 1 and 2 measured a system whose stop losses did not execute
+//     (oversized sell quantities, fixed 2026-08-31) and whose entry orders
+//     were sometimes silently discarded (busy-symbol drops, fixed 2026-09-03).
+//   * Trial 2 measured a system where the account and the simulator diverged
+//     by design after a halt. That is now gone.
+//
+// So the earlier numbers describe execution defects as much as strategy. This
+// window is the first that measures the strategy on machinery that works.
+//
+// The threshold is NOT relaxed: expectancy above zero, same as trials 1 and 2.
+// If this one fails, it is over — a fourth window would be goalpost-moving with
+// extra steps.
+
+// ── TRIAL 2, opened 2026-08-20, abandoned 2026-09-09 ─────────────────────
 //
 // Trial 1 FAILED: -$0.2888 per trade over 130 real round trips. Intraday
 // trading was resumed on 2026-08-20 by explicit decision, so a NEW window
@@ -138,8 +169,23 @@ pub const LIVE_KILL_DAYS: i64 = 20;
 // mid-trial parameter change resets the count: the data before a change
 // describes a different system. Trial 2 had reached 9 of 100 round trips, so
 // this was the cheap moment to do it.
-pub const LIVE_KILL_BASELINE_NET: f64 = -66.98;
-pub const LIVE_KILL_BASELINE_TRIPS: u32 = 152;
+/// Account net P&L at the moment trial 3 opened, WITH THE ACCUMULATOR ALREADY
+/// SUBTRACTED.
+///
+/// That subtraction matters and was previously wrong. The criterion computes
+/// `account_net - BASELINE_NET - acc_profit`, which is
+/// `(account_net - acc_profit) - BASELINE_NET`. So the baseline has to be the
+/// accumulator-excluded figure. Recording the raw account net instead — as
+/// trials 1 and 2 did — leaves the accumulator's profit AT RESET TIME embedded
+/// in the baseline and subtracted a second time later, understating the trial's
+/// net by that amount for its whole life.
+///
+/// Readings at 2026-09-09 09:40 ET: account net -$167.58, accumulator -$24.79.
+/// Baseline = -167.58 - (-24.79) = -142.79, so the trial starts at exactly zero.
+pub const LIVE_KILL_BASELINE_NET: f64 = -142.79;
+
+/// Broker round trips completed before trial 3 opened.
+pub const LIVE_KILL_BASELINE_TRIPS: u32 = 310;
 
 /// Expectancy per real round trip below which the trader is retired.
 /// Zero, not a negative tolerance: a system that loses money on average has
@@ -147,9 +193,13 @@ pub const LIVE_KILL_BASELINE_TRIPS: u32 = 152;
 pub const LIVE_KILL_MIN_EXPECTANCY: f64 = 0.0;
 
 /// The date the criterion was fixed. Trading days are counted from here.
-/// Reset to 2026-08-24 when the damage-control parameters changed; trial 2
-/// first opened 2026-08-20, trial 1 ran from 2026-08-06.
-pub const LIVE_KILL_START_DATE: &str = "2026-08-24";
+///
+/// Trial 1: 2026-08-06, failed at -$0.2888 over 130 trips.
+/// Trial 2: opened 2026-08-20, reset 2026-08-24, abandoned at 96/100 trips
+///          and -$1.3131 when the books-mirrored change landed.
+/// Trial 3: 2026-09-09 — the first window measuring the strategy on execution
+///          machinery that actually works.
+pub const LIVE_KILL_START_DATE: &str = "2026-09-09";
 
 
 /// Mirror simulated intraday trades as real orders on the Alpaca PAPER account.

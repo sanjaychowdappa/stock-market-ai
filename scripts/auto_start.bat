@@ -41,6 +41,23 @@ set LOGFILE=%ROOT%\logs\auto_%date:~-4%%date:~4,2%%date:~7,2%.log
 
 echo [%date% %time%] === AUTO START === >> "%LOGFILE%"
 
+:: -- Weekend guard --
+:: The scheduled trigger is already Mon-Fri, so this is the second lock, not
+:: the first. It exists because the stack has been started by hand and by a
+:: daemon restart, and neither route consults the schedule. Nothing should be
+:: running on a Saturday or Sunday.
+for /f %%d in ('powershell -NoProfile -Command "(Get-Date).DayOfWeek.value__"') do set DOW=%%d
+if "%DOW%"=="0" goto weekend
+if "%DOW%"=="6" goto weekend
+goto not_weekend
+
+:weekend
+echo [%date% %time%] Weekend (DayOfWeek=%DOW%) - the market is shut; not starting >> "%LOGFILE%"
+docker compose -f "%ROOT%\docker-compose.yml" down >> "%LOGFILE%" 2>&1
+exit /b 0
+
+:not_weekend
+
 :: -- Docker Desktop --
 tasklist /FI "IMAGENAME eq Docker Desktop.exe" 2>NUL | find /I "Docker Desktop.exe" >NUL
 if not errorlevel 1 goto docker_launched

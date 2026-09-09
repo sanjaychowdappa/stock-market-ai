@@ -1,0 +1,56 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-09-08
+  Generated:  2026-09-08T20:10:01.277138686+00:00
+  Uptime:     1h 29m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $107.76
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     571
+  Winning Trades:   251
+  Win Rate:         44.0%
+  Avg Hold Time:    19216s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $505.54     neutral     0.050    —
+  MRK      $148.48     neutral     0.027    —
+  BAC      $62.39      bearish     -0.356   —
+  COP      $134.99     neutral     0.055    —
+  FCX      $76.63      bullish     0.444    —
+  KO       $88.46      neutral     0.046    —
+  AMZN     $256.95     bullish     0.164    —
+  UNP      $288.44     bullish     0.137    —
+  DIS      $105.04     bearish     -0.307   —
+  EQIX     $1041.67    bearish     -0.385   —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   UNP      $289.45    $500.30  $0.0691    EOD_DAILY_SKIM
+  19:55:00  SELL   BAC      $62.39     $501.31  $1.0847    EOD_DAILY_SKIM
+  19:55:00  SELL   AMZN     $256.59    $754.50  $3.7344    EOD_DAILY_SKIM
+  19:55:00  SELL   DIS      $104.96    $502.43  $2.2020    EOD_DAILY_SKIM
+  19:16:23  SELL   EQIX     $1045.62   $752.99  $2.5061    TRAIL_STOP(-0.77% from peak,pnl=0.33%)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════
