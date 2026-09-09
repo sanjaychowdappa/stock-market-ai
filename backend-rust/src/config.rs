@@ -223,7 +223,36 @@ pub const LIVE_KILL_START_DATE: &str = "2026-09-09";
 /// Turning this on re-arms three guards that were dormant while it was false:
 /// damage control, the reconcile in-flight guard, and the accumulator-symbol
 /// exclusion that stops reconcile liquidating the long-term SPY holding.
-pub const ALPACA_SHADOW_ORDERS: bool = true;
+///
+/// SET FALSE 2026-09-09, by explicit decision, in answer to "make sure Alpaca
+/// should be in only profits and avoid losses".
+///
+/// No system can guarantee only winning trades, and this one has failed its own
+/// profit test twice — -$0.2888 per round trip over 130, then -$1.3131 over 96.
+/// What CAN be done is to stop paying real money to test entry signals that
+/// have no demonstrated edge. The five rule books keep running against live
+/// Alpaca ticks, keep being scored, and stay directly comparable; they simply
+/// stop costing roughly $0.40 a round trip to run, at ~20 round trips a day.
+///
+/// The account is then left holding only the accumulator, which is the one
+/// component in this repository that has ever tested profitable: +52.1% over
+/// 1,160 trading days.
+///
+/// TIMING MATTERS AND IS NOT OPTIONAL. Flipping this while intraday positions
+/// are open at the broker STRANDS them: the simulator exits, the exit does not
+/// mirror, and the reconcile loop is gated off by this same flag, so the
+/// account keeps positions with no stop protection and nothing watching them.
+/// This was changed at 2026-09-09 10:15 ET with 8 positions open, so the build
+/// was deliberately NOT deployed into the running session — the EOD skim
+/// flattens through the mirror at 15:55, and tomorrow's scheduled start brings
+/// the account up holding only SPY.
+///
+/// CONSEQUENCE FOR THE KILL CRITERION: trial 3 opened this morning at 0/100 and
+/// stops accumulating here, because it counts real broker round trips and there
+/// will not be any. It is paused, not passed and not failed. Re-arming this
+/// flag resumes it; the trial's own rules make that a fresh window, not a
+/// continuation.
+pub const ALPACA_SHADOW_ORDERS: bool = false;
 
 // == LONG-TERM ACCUMULATOR ===============================================
 //
