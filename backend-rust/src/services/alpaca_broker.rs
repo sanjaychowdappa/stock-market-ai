@@ -155,6 +155,73 @@ pub async fn account() -> Option<Value> {
 ///
 /// A sell that Alpaca reports as filled closed a position. That is the round
 /// trip, and the broker is the only place to count it.
+/// Filled sell orders since `after_iso` (RFC3339), counted by paginating
+/// Alpaca's order history rather than sampling a fixed window of it.
+///
+/// round_trips_from_broker() below fetches `limit=500&direction=desc` and
+/// counts filled sells among those. That works until the account passes 500
+/// closed orders, after which the window slides forward and the count STOPS
+/// GROWING no matter how much trading happens.
+///
+/// Found 2026-09-09: the counter read 310 all morning while our own fill log
+/// recorded 331 filled sells all-time and 13 that session. Trial 3 could have
+/// run its full 20-day clock and never reached the 100 trips it needs, and the
+/// retirement decision would have rested on a number that had quietly stopped
+/// counting. That is the third time in this project a verdict has depended on
+/// a figure derived from a capped or mis-parsed source.
+///
+/// Counting from the trial's start date also removes the need to subtract a
+/// baseline trip count, so there is one fewer stored number to get wrong.
+///
+/// Deduplicated by order id: Alpaca's `after` bound has caught us out before
+/// and a repeated page would silently inflate the count.
+pub async fn round_trips_since(after_iso: &str) -> u32 {
+    let (key, secret, base) = match creds() { Some(c) => c, None => return 0 };
+    let client = reqwest::Client::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut cursor = after_iso.to_string();
+
+    // Bounded at 20 pages (10,000 orders). A runaway loop against a broker API
+    // is worse than an undercount.
+    for _ in 0..20 {
+        let url = format!(
+            "{}/v2/orders?status=closed&limit=500&direction=asc&after={}",
+            base, urlencoding_minimal(&cursor));
+        let resp = client
+            .get(&url)
+            .header("APCA-API-KEY-ID", &key)
+            .header("APCA-API-SECRET-KEY", &secret)
+            .timeout(std::time::Duration::from_secs(20))
+            .send()
+            .await;
+        let orders: Vec<Value> = match resp {
+            Ok(r) if r.status().is_success() => match r.json().await {
+                Ok(v) => v,
+                Err(e) => { warn!("[BROKER] order page unparseable: {e}"); break }
+            },
+            Ok(r) => { warn!("[BROKER] order page {}: giving up", r.status()); break }
+            Err(e) => { warn!("[BROKER] order page failed: {e}"); break }
+        };
+        if orders.is_empty() { break; }
+        let n = orders.len();
+        let mut last_ts = String::new();
+        for o in &orders {
+            if let Some(ts) = o["submitted_at"].as_str() { last_ts = ts.to_string(); }
+            if o["status"].as_str() == Some("filled") && o["side"].as_str() == Some("sell") {
+                if let Some(id) = o["id"].as_str() { seen.insert(id.to_string()); }
+            }
+        }
+        if n < 500 || last_ts.is_empty() || last_ts == cursor { break; }
+        cursor = last_ts;
+    }
+    seen.len() as u32
+}
+
+/// Percent-encode just enough for a timestamp in a query string.
+fn urlencoding_minimal(s: &str) -> String {
+    s.replace(':', "%3A").replace('+', "%2B")
+}
+
 pub async fn round_trips_from_broker() -> u32 {
     let (key, secret, base) = match creds() { Some(c) => c, None => return 0 };
     let client = reqwest::Client::new();

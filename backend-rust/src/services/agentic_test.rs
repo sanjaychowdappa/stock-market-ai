@@ -219,7 +219,13 @@ async fn check_live_kill_criterion() -> Finding {
     // our own records is precisely the mistake this project keeps repeating.
     let eq = crate::services::alpaca_broker::equity_pnl().await;
     let account_net = eq["net_pnl"].as_f64().unwrap_or(0.0);
-    let all_trips = crate::services::alpaca_broker::round_trips_from_broker().await;
+    // Counted FROM the trial's start date by paginating, not sampled from the
+    // most recent 500 closed orders. The old counter saturated once the account
+    // passed 500 closed orders and reported 310 all through 2026-09-09 while 13
+    // sells filled that session — trial 3 could have run its whole clock and
+    // never reached the 100 trips it needs.
+    let trades = crate::services::alpaca_broker::round_trips_since(
+        &format!("{}T00:00:00Z", LIVE_KILL_START_DATE)).await;
 
     // Measure THIS trial, not the account's whole history.
     //
@@ -236,7 +242,6 @@ async fn check_live_kill_criterion() -> Finding {
     let acc_profit = acc["profit"].as_f64().unwrap_or(0.0);
 
     let net = account_net - LIVE_KILL_BASELINE_NET - acc_profit;
-    let trades = all_trips.saturating_sub(LIVE_KILL_BASELINE_TRIPS);
     let exp = if trades > 0 { net / trades as f64 } else { 0.0 };
 
     let days = chrono::NaiveDate::parse_from_str(LIVE_KILL_START_DATE, "%Y-%m-%d")

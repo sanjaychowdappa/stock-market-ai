@@ -185,6 +185,14 @@ pub const LIVE_KILL_DAYS: i64 = 20;
 pub const LIVE_KILL_BASELINE_NET: f64 = -142.79;
 
 /// Broker round trips completed before trial 3 opened.
+///
+/// NO LONGER USED by the criterion, and kept only as a record of where the
+/// account stood. Trips are now counted FROM LIVE_KILL_START_DATE by
+/// paginating Alpaca's order history, because the old counter sampled the most
+/// recent 500 closed orders and saturated once the account passed that — it
+/// read 310 all through 2026-09-09 while 13 sells filled that session. One
+/// fewer stored number is one fewer to get wrong.
+#[allow(dead_code)]
 pub const LIVE_KILL_BASELINE_TRIPS: u32 = 310;
 
 /// Expectancy per real round trip below which the trader is retired.
@@ -252,7 +260,21 @@ pub const LIVE_KILL_START_DATE: &str = "2026-09-09";
 /// will not be any. It is paused, not passed and not failed. Re-arming this
 /// flag resumes it; the trial's own rules make that a fresh window, not a
 /// continuation.
-pub const ALPACA_SHADOW_ORDERS: bool = false;
+/// SET TRUE AGAIN 2026-09-09 14:00 ET, same session, by explicit decision:
+/// real paper trading driven by the simulator's intraday decisions is the point
+/// of the exercise, and measuring rules that are never funded answers a
+/// different question.
+///
+/// Flipped at a flat moment on purpose — both books held nothing but the
+/// accumulator and the simulator was halted at 3/3, so no position could be
+/// stranded by the change. That constraint is not optional; see the note above.
+///
+/// Trial 3 is NOT re-baselined. It opened at 09:40 this morning and no real
+/// round trips closed during the ~3 hours mirroring was off, so the count
+/// simply paused. The accumulator's drift over that gap is netted out at
+/// evaluation, so the trial's net is unaffected by the pause. Re-baselining
+/// would have been a fourth reset for no measurement reason.
+pub const ALPACA_SHADOW_ORDERS: bool = true;
 
 // == LONG-TERM ACCUMULATOR ===============================================
 //

@@ -1853,3 +1853,61 @@ fn a_profitable_accumulator_does_not_flatter_the_trader_either() {
 fn with_no_accumulator_the_account_net_is_the_trading_net() {
     assert!((trading_net(-127.42, 0.0) - (-127.42)).abs() < 1e-9);
 }
+
+// ── BUG: the round-trip counter saturated at 500 closed orders ─────────
+//
+// The kill criterion counted filled sells within `limit=500&direction=desc` —
+// the most recent 500 closed orders. That works until the account passes 500,
+// after which the window slides forward and the count STOPS GROWING however
+// much trading happens.
+//
+// On 2026-09-09 it read 310 all morning while our own fill log held 331 filled
+// sells all-time and 13 that session. Trial 3 could have run its full 20-day
+// clock and never reached the 100 trips it needs, and a retirement decision
+// would have rested on a number that had quietly stopped counting. Third time
+// in this project a verdict has depended on a capped or mis-parsed source.
+
+/// Mirrors the counting rule: filled sells, deduplicated by order id.
+/// Pagination cannot inflate a count that dedupes.
+fn count_round_trips(pages: &[Vec<(&str, &str, &str)>]) -> usize {
+    let mut seen = std::collections::HashSet::new();
+    for page in pages {
+        for (id, status, side) in page {
+            if *status == "filled" && *side == "sell" {
+                seen.insert(id.to_string());
+            }
+        }
+    }
+    seen.len()
+}
+
+#[test]
+fn trips_keep_counting_past_one_page() {
+    let p1 = vec![("a", "filled", "sell"), ("b", "filled", "buy")];
+    let p2 = vec![("c", "filled", "sell"), ("d", "canceled", "sell")];
+    assert_eq!(count_round_trips(&[p1, p2]), 2,
+        "a second page must add to the count; the old counter only ever saw \
+         the most recent 500 orders and stopped growing");
+}
+
+#[test]
+fn a_repeated_page_does_not_inflate_the_count() {
+    // Alpaca's `after` bound has caught this project out before. Dedupe by id
+    // means an overlapping page is harmless either way.
+    let p1 = vec![("a", "filled", "sell"), ("b", "filled", "sell")];
+    let p2 = vec![("b", "filled", "sell"), ("c", "filled", "sell")];
+    assert_eq!(count_round_trips(&[p1, p2]), 3,
+        "b appears on both pages and must be counted once");
+}
+
+#[test]
+fn only_filled_sells_are_round_trips() {
+    let p = vec![
+        ("a", "filled", "buy"),
+        ("b", "canceled", "sell"),
+        ("c", "rejected", "sell"),
+        ("d", "filled", "sell"),
+    ];
+    assert_eq!(count_round_trips(&[p]), 1,
+        "a buy opens a position and a rejected sell closes nothing");
+}
