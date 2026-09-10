@@ -2094,3 +2094,61 @@ fn position_and_cash_cannot_disagree_after_restatement() {
         "shares held plus shares refunded must equal shares originally booked; \
          got {shares} + {returned_shares} vs {sim_shares}");
 }
+
+// ── BUG: a fill correction for a closed position was silently discarded ─
+//
+// `if let Some(pos) = self.positions.get_mut(&c.symbol)` had no else. When the
+// broker's real fill price arrived after the simulator had already exited, the
+// whole adjustment was thrown away — the second-largest bug class in this
+// project, arriving silently.
+//
+// It happens exactly when the simulator exits fast. The fill poll runs up to
+// 60 seconds; on 2026-09-08 damage control flattened 33 seconds after entry.
+// Every buy correction in that window was dropped, so those round trips booked
+// P&L against the ASSUMED price and the account's real cost never reached the
+// books.
+//
+// AND: the early `if diff.abs() < 1e-9 { continue; }` guard threw away a
+// partial fill that happened to execute at exactly the assumed price, so the
+// quantity was never restated. That one was introduced alongside the quantity
+// restatement itself, an hour before it was found.
+
+/// Cash and realized-P&L delta when a buy correction lands after the exit.
+fn closed_position_correction(assumed: f64, actual: f64, qty: f64) -> f64 {
+    -(actual - assumed) * qty
+}
+
+/// Does this correction need applying at all?
+fn correction_matters(assumed: f64, actual: f64, sim_shares: f64, filled_qty: f64) -> bool {
+    (actual - assumed).abs() >= 1e-9 || (sim_shares - filled_qty).abs() > 1e-9
+}
+
+#[test]
+fn a_correction_that_arrives_after_the_exit_is_still_applied() {
+    // Paid 0.05 more than assumed on 3 shares: the book is $0.15 too rich.
+    let adj = closed_position_correction(100.00, 100.05, 3.0);
+    assert!((adj - (-0.15)).abs() < 1e-9,
+        "got {adj}, expected -0.15 — dropping this leaves the round trip booked \
+         against a price the account never paid");
+}
+
+#[test]
+fn a_cheaper_fill_after_the_exit_credits_the_book() {
+    let adj = closed_position_correction(100.00, 99.90, 3.0);
+    assert!(adj > 0.0, "a cheaper fill must credit, got {adj}");
+}
+
+#[test]
+fn a_partial_fill_at_the_assumed_price_is_not_skipped() {
+    // The defect introduced with the quantity restatement: price matches
+    // exactly, so the old guard returned early and the position kept shares
+    // the account never received.
+    assert!(correction_matters(88.31, 88.31, 8.539820, 3.000000),
+        "a quantity mismatch must matter even when the price is identical");
+}
+
+#[test]
+fn an_exact_fill_at_the_exact_price_is_correctly_skipped() {
+    assert!(!correction_matters(88.31, 88.31, 3.0, 3.0),
+        "nothing to restate; skipping is the fast path and must stay");
+}

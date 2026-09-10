@@ -1483,7 +1483,14 @@ impl PaperTrader {
         if ALPACA_SHADOW_ORDERS {
             for c in crate::services::alpaca_broker::drain_corrections() {
                 let diff = c.actual_price - c.assumed_price;
-                if diff.abs() < 1e-9 { continue; }
+                // Do NOT skip on price alone. A partial fill that happens to
+                // execute at exactly the assumed price still has to restate the
+                // QUANTITY, and this guard would have thrown it away — a defect
+                // introduced alongside the quantity restatement itself.
+                let qty_differs = self.positions.get(&c.symbol)
+                    .map(|p| (p.shares - c.qty).abs() > 1e-9)
+                    .unwrap_or(false);
+                if diff.abs() < 1e-9 && !qty_differs { continue; }
                 if c.side == "buy" {
                     if let Some(pos) = self.positions.get_mut(&c.symbol) {
                         // Restate BOTH price and quantity.
@@ -1508,10 +1515,32 @@ impl PaperTrader {
                         pos.shares = c.qty;
                         pos.entry_price = c.actual_price;
                         if shortfall.abs() > 0.0001 {
-                            warn!("[FILL_SYNC] {} PARTIAL: requested {:.6}, filled                                    {:.6} — simulator position cut to match,                                    ${:.2} returned to cash",
+                            warn!("[FILL_SYNC] {} PARTIAL: requested {:.6}, filled {:.6} — simulator position cut to match, ${:.2} returned to cash",
                                 c.symbol, c.qty + shortfall, c.qty,
                                 shortfall * c.actual_price);
                         }
+                    } else {
+                        // The position is already gone.
+                        //
+                        // `if let Some(pos)` had no else, so the whole
+                        // adjustment was DISCARDED — the second-largest bug
+                        // class in this project, arriving silently.
+                        //
+                        // It happens exactly when the simulator exits fast: the
+                        // fill poll can take 60s, and on 2026-09-08 damage
+                        // control flattened 33 seconds after entry. Every buy
+                        // correction in that window was dropped, so those round
+                        // trips booked P&L against the assumed price and the
+                        // account's real cost never reached the books.
+                        //
+                        // The trade is closed, so there is no position to
+                        // restate; the price difference lands on cash and
+                        // realized P&L directly, exactly as the sell branch
+                        // does.
+                        self.cash -= diff * c.qty;
+                        self.realized_pnl -= diff * c.qty;
+                        warn!("[FILL_SYNC] {} buy correction arrived after the position closed — ${:.4} applied to realized P&L instead of the entry price",
+                            c.symbol, -diff * c.qty);
                     }
                 } else {
                     // Sold: proceeds differ from what was credited at close.
