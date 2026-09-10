@@ -1911,3 +1911,68 @@ fn only_filled_sells_are_round_trips() {
     assert_eq!(count_round_trips(&[p]), 1,
         "a buy opens a position and a rejected sell closes nothing");
 }
+
+// ── BUG: the heaviest signal layer was frozen for 30 minutes at a time ──
+//
+// The volume profile is rebuilt every 30 minutes, and `position`/`signal` were
+// computed once at that moment against the last completed bar's close. Both are
+// functions of the CURRENT price, so for the next half hour the layer reported
+// where price had been, not where it was.
+//
+// Observed 2026-09-10: AMZN's value area was [251.17, 252.74] and the live
+// price was 251.73 — inside it — while the layer reported `below_value` with
+// signal 0.50, the maximum buy reading. Five of ten symbols were pinned at 0.50
+// that morning, on a layer weighted 0.52 of the entry score: more than Kronos,
+// Kalman, pattern and CVD combined.
+
+use stock_market_ai::services::institutional_signals::classify;
+
+/// The real AMZN profile from that morning.
+const POC: f64 = 252.1872;
+const VA_LOW: f64 = 251.168;
+const VA_HIGH: f64 = 252.736;
+const LEVEL: f64 = 0.03;
+
+#[test]
+fn a_price_inside_the_value_area_is_not_below_it() {
+    let (pos, sig) = classify(POC, VA_LOW, VA_HIGH, LEVEL, 251.73);
+    assert_ne!(pos, "below_value",
+        "251.73 sits inside [251.17, 252.74]; calling it below_value is what \
+         pinned the heaviest layer at a maximum buy signal");
+    assert!(sig.abs() < 0.5,
+        "an in-value price must not emit the full 0.50 support reading, got {sig}");
+}
+
+#[test]
+fn genuinely_below_value_still_reads_as_support() {
+    let (pos, sig) = classify(POC, VA_LOW, VA_HIGH, LEVEL, 250.10);
+    assert_eq!(pos, "below_value");
+    assert!((sig - 0.5).abs() < 1e-9, "the support reading itself is unchanged");
+}
+
+#[test]
+fn genuinely_above_value_still_reads_as_resistance() {
+    let (pos, sig) = classify(POC, VA_LOW, VA_HIGH, LEVEL, 253.50);
+    assert_eq!(pos, "above_value");
+    assert!((sig - (-0.3)).abs() < 1e-9);
+}
+
+#[test]
+fn a_price_at_the_point_of_control_is_recognised() {
+    let (pos, _) = classify(POC, VA_LOW, VA_HIGH, LEVEL, POC + 0.01);
+    assert_eq!(pos, "at_poc",
+        "at_poc needs the level size; losing it would silently collapse this \
+         case into in_value");
+}
+
+#[test]
+fn the_reading_tracks_price_across_the_value_area() {
+    // The property that matters: moving through the area must change the
+    // reading. Frozen values did not, which is the whole defect.
+    let below = classify(POC, VA_LOW, VA_HIGH, LEVEL, 250.0).1;
+    let inside = classify(POC, VA_LOW, VA_HIGH, LEVEL, 252.0).1;
+    let above = classify(POC, VA_LOW, VA_HIGH, LEVEL, 254.0).1;
+    assert!(below > inside && inside > above,
+        "signal must fall monotonically as price rises through the value area; \
+         got below={below} inside={inside} above={above}");
+}

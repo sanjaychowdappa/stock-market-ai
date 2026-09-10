@@ -152,8 +152,18 @@ fn spawn_orchestrator(state: Arc<AppState>) {
                     let (gex_sig, gex_reg) = gex.as_ref()
                         .map(|g| (g.signal, g.regime.clone()))
                         .unwrap_or((0.0, "neutral".to_string()));
+                    // Re-evaluate the profile against the LIVE price rather
+                    // than shipping the reading frozen at the last 30-minute
+                    // refresh. The profile is slow-moving; where price sits
+                    // inside it is not. See institutional_signals::classify.
+                    let live_px = state.get_engine(sym).get_last_payload()
+                        .and_then(|p| p["current_price"].as_f64())
+                        .unwrap_or(0.0);
                     let (vp_sig, vp_pos) = vp.as_ref()
-                        .map(|v| (v.signal, v.position.clone()))
+                        .map(|v| {
+                            let (p, sg) = v.evaluate(live_px);
+                            (sg, p)
+                        })
                         .unwrap_or((0.0, "unknown".to_string()));
 
                     trader.set_institutional_signals(

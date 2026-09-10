@@ -297,6 +297,59 @@ impl VolumeProfile {
 }
 
 /// Compute volume profile from OHLCV bar data.
+/// Where a price sits relative to the value area, and what that implies.
+///
+/// SEPARATED FROM compute_volume_profile ON PURPOSE. The profile itself — POC,
+/// value area, the volume-at-price histogram — is genuinely slow-moving and is
+/// rebuilt every 30 minutes. Position and signal are NOT slow-moving: they are
+/// functions of the current price, and freezing them for half an hour makes the
+/// heaviest layer in the stack report where price was, not where it is.
+///
+/// Observed 2026-09-10: AMZN's value area was [251.17, 252.74] and the live
+/// price was 251.73 — inside it — while the layer reported `below_value` with
+/// signal 0.50, the maximum buy reading. It was classifying against a bar close
+/// from the last refresh. Five of ten symbols were pinned at 0.50 that morning,
+/// on a layer weighted 0.52 of the entry score.
+impl VolumeProfile {
+    /// Distance between adjacent price levels, recovered from the histogram.
+    fn level_size(&self) -> f64 {
+        if self.levels.len() < 2 { return 0.0; }
+        (self.levels[1].0 - self.levels[0].0).abs()
+    }
+
+    /// Re-classify against a LIVE price. The profile stays as computed; only
+    /// the reading of where price sits within it is refreshed.
+    pub fn evaluate(&self, current_price: f64) -> (String, f64) {
+        if self.va_high <= self.va_low || current_price <= 0.0 {
+            return (self.position.clone(), self.signal);
+        }
+        let (pos, sig) = classify(
+            self.poc_price, self.va_low, self.va_high, self.level_size(), current_price);
+        (pos.to_string(), sig)
+    }
+}
+
+pub fn classify(
+    poc_price: f64, va_low: f64, va_high: f64, level_size: f64, current_price: f64,
+) -> (&'static str, f64) {
+    let position = if current_price > va_high { "above_value" }
+        else if current_price < va_low { "below_value" }
+        else if (current_price - poc_price).abs() < level_size { "at_poc" }
+        else { "in_value" };
+
+    // Price at VA low = support (buy), at VA high = resistance (sell).
+    let signal = if current_price < va_low {
+        0.5
+    } else if current_price > va_high {
+        -0.3
+    } else {
+        // Within value area — closer to POC = neutral.
+        let dist_from_poc = (current_price - poc_price) / (va_high - va_low + 0.01);
+        -dist_from_poc * 0.3
+    };
+    (position, signal.clamp(-1.0, 1.0))
+}
+
 pub fn compute_volume_profile(
     bars: &[serde_json::Value],
     current_price: f64,
@@ -393,22 +446,7 @@ pub fn compute_volume_profile(
     let va_high = price_at_level[va_high_idx] + level_size / 2.0;
     let va_low = price_at_level[va_low_idx] - level_size / 2.0;
 
-    // Position and signal
-    let position = if current_price > va_high { "above_value" }
-        else if current_price < va_low { "below_value" }
-        else if (current_price - poc_price).abs() < level_size { "at_poc" }
-        else { "in_value" };
-
-    // Signal: price at VA low = support (buy), at VA high = resistance (sell)
-    let signal = if current_price < va_low {
-        0.5  // Below value = potential buy (oversold)
-    } else if current_price > va_high {
-        -0.3 // Above value = potential sell (overbought)
-    } else {
-        // Within value area — closer to POC = neutral
-        let dist_from_poc = (current_price - poc_price) / (va_high - va_low + 0.01);
-        -dist_from_poc * 0.3
-    };
+    let (position, signal) = classify(poc_price, va_low, va_high, level_size, current_price);
 
     let levels: Vec<(f64, f64)> = price_at_level.iter().zip(volume_at_level.iter())
         .map(|(&p, &v)| (p, v))

@@ -1,0 +1,59 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-09-09 16:10   |   Report date: 2026-09-09   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-09-09) ===
+  Trades:       13   (W 4 / L 9)
+  Win rate:     30.8%
+  Gross P/L:    $15.1502
+  Avg win:      $4.8351    Avg loss: $-0.4656
+  Expectancy:   $1.1654/trade gross  ->  ~$1.0529/trade after est. fees
+  Per symbol:
+    BAC     1 trades  W1   $11.0759
+    DIS     1 trades  W1   $7.3681
+    AMD     1 trades  W1   $0.5763
+    KO      2 trades  W1   $0.3199
+    UNP     2 trades  W0   $-0.0481
+    FCX     1 trades  W0   $-0.13
+    MRK     1 trades  W0   $-0.1741
+    META    1 trades  W0   $-0.5903
+    EQIX    1 trades  W0   $-0.6734
+    AMZN    2 trades  W0   $-2.5743
+  Exit reasons:
+    DAMAGE_CONTROL_FLATTEN 9
+    TRAIL_STOP         4
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       61   (W 24 / L 37)
+  Win rate:     39.3%
+  Gross P/L:    $17.5224
+  Avg win:      $3.517    Avg loss: $-1.8077
+  Expectancy:   $0.2873/trade gross  ->  ~$0.1748/trade after est. fees
+  Per symbol:
+    EQIX    3 trades  W2   $12.6259
+    BAC     5 trades  W3   $9.8621
+    MRK     6 trades  W2   $9.3967
+    KO      6 trades  W3   $4.1968
+    CRM     3 trades  W2   $3.1134
+    AMD     1 trades  W1   $0.5763
+    META    1 trades  W0   $-0.5903
+    UNP     8 trades  W2   $-3.0203
+    FCX     8 trades  W4   $-3.9522
+    AMZN    8 trades  W2   $-4.2749
+    COP     4 trades  W1   $-4.4871
+    DIS     8 trades  W2   $-5.924
+  Exit reasons:
+    DAMAGE_CONTROL_FLATTEN 26
+    TRAIL_STOP         20
+    EOD_DAILY_SKIM     15
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $0.2873/trade  (61 trades)
+  r5_concentrate           expectancy $0.0286/trade  (45 trades)
+  r1_kronos_sectors        expectancy $0.3459/trade  (36 trades)
+  r2_max_forecast          expectancy $3.9101/trade  (9 trades)
+  r4_legacy                expectancy $0.3384/trade  (20 trades)
+  (not enough random-baseline trades yet to judge)
+
+LIVE: portfolio $3000.0  (P/L $0.0)  running=True

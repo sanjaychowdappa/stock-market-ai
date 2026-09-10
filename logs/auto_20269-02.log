@@ -229,3 +229,22 @@ time="2026-09-09T09:37:54-04:00" level=warning msg="C:\\Users\\sanja\\stock-mark
 [09-09-2026  9:38:07.34] Backend healthy - paper trading active 
 {"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","MRK","FCX","BAC","COP","KO","UNP","AMZN","EQIX","DIS"],"version":"claude_1"} 
 [09-09-2026  9:38:07.36] Auto start complete 
+[09-09-2026 16:10:01.13] === AUTO STOP === 
+[09-09-2026 16:10:01.13] Fetching final EOD report... 
+[09-09-2026 16:10:01.18] EOD report saved to reports/ 
+[09-09-2026 16:10:01.18] Final daily status: 
+{"data_collected":{"AMD":{"predictions":7542,"ticks":7542,"trades":0},"AMZN":{"predictions":7538,"ticks":7538,"trades":0},"BAC":{"predictions":7526,"ticks":7526,"trades":0},"COP":{"predictions":7538,"ticks":7538,"trades":0},"EQIX":{"predictions":7279,"ticks":7279,"trades":0},"FCX":{"predictions":7478,"ticks":7478,"trades":0},"KO":{"predictions":7472,"ticks":7472,"trades":0},"META":{"predictions":7544,"ticks":7544,"trades":0},"MRK":{"predictions":7372,"ticks":7372,"trades":0},"UNP":{"predictions":7452,"ticks":7452,"trades":0}},"date":"2026-09-09","finetune_triggered":true,"portfolio":{"current_value":3000.0,"pnl":0.0,"profitable":false,"start_value":3014.72},"running":true,"snapshots_count":7561} 
+[09-09-2026 16:10:01.21] Stopping containers... 
+time="2026-09-09T16:10:01-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-finetune-sidecar-1 Stopping 
+ Container stock-market-ai-frontend-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopped 
+ Container stock-market-ai-finetune-sidecar-1 Removing 
+ Container stock-market-ai-finetune-sidecar-1 Removed 
+ Container stock-market-ai-frontend-1 Stopped 
+ Container stock-market-ai-frontend-1 Removing 
+ Container stock-market-ai-frontend-1 Removed 
+ Container stock-market-ai-backend-1 Stopping 
+ Container stock-market-ai-backend-1 Error Error while Stopping
+
+^C
