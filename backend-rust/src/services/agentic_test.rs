@@ -322,6 +322,11 @@ pub async fn run_cycle(state: &Arc<AppState>, agent: &SharedAgent) {
         };
         let mut items = rm::check_rules_can_fire(&books);
         items.extend(rm::check_silent_books(&books));
+        // Is every signal layer actually moving? The two "frozen value" defects
+        // were invisible from the outside; only watching for movement catches
+        // that class.
+        let layers = { state.trader.lock().layer_snapshot() };
+        items.extend(rm::check_layer_liveness(&layers));
         items.push(rm::check_legacy_log(legacy.0, legacy.1, closed));
         items.extend(rm::run_from_logs());
         for f in items {

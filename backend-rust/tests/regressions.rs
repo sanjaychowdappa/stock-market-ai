@@ -1976,3 +1976,58 @@ fn the_reading_tracks_price_across_the_value_area() {
         "signal must fall monotonically as price rises through the value area; \
          got below={below} inside={inside} above={above}");
 }
+
+// ── The class that hides: a value computed once, consumed as if live ────
+//
+// Two of the fourteen defects found between 2026-08-25 and 2026-09-10 were
+// exactly this: the trail-stop ATR frozen at entry, and the volume profile
+// frozen for 30 minutes at a stretch on the layer weighted 0.52 — more than
+// Kronos, Kalman, pattern and CVD combined. Five of ten symbols sat pinned at
+// the maximum buy reading.
+//
+// Both were found by eye, weeks apart, only because someone happened to compare
+// a layer's output to the live price. A frozen layer is indistinguishable from
+// a working one unless you watch whether it ever moves.
+
+use stock_market_ai::services::rule_monitor::is_frozen;
+
+#[test]
+fn a_layer_that_never_moves_is_detected() {
+    assert!(is_frozen(&[0.5, 0.5, 0.5, 0.5], 4),
+        "the volume profile held exactly 0.50 for half an hour at a time");
+}
+
+#[test]
+fn a_layer_that_moves_at_all_is_not_accused() {
+    assert!(!is_frozen(&[0.5, 0.5, 0.5, 0.49], 4));
+    assert!(!is_frozen(&[0.5, 0.4, 0.5, 0.5], 4));
+}
+
+#[test]
+fn one_reading_is_never_enough_to_convict() {
+    // A layer legitimately holds a value between updates. Judging on a short
+    // series would make this check noise, and a noisy check gets ignored —
+    // which is how the frozen profile survived a week of daily reports.
+    assert!(!is_frozen(&[0.5], 4));
+    assert!(!is_frozen(&[0.5, 0.5], 4));
+    assert!(!is_frozen(&[0.5, 0.5, 0.5], 4));
+}
+
+#[test]
+fn a_flat_market_does_not_convict_a_working_layer() {
+    // The same predicate guards the price series. If price has not moved
+    // either, a still layer is correct rather than broken — and a check that
+    // cried wolf every quiet afternoon would be worthless.
+    let flat_price = [100.0, 100.0, 100.0, 100.0];
+    let still_layer = [0.2, 0.2, 0.2, 0.2];
+    assert!(is_frozen(&flat_price, 4), "price is genuinely flat");
+    assert!(is_frozen(&still_layer, 4));
+    // The monitor requires price_moved && layer_frozen, so this pair is silent.
+}
+
+#[test]
+fn zero_is_frozen_like_any_other_value() {
+    // r3 and r5 ran on all-zero weights: weighted_score was identically 0.0
+    // for days. A dead layer is a frozen layer whose constant happens to be 0.
+    assert!(is_frozen(&[0.0, 0.0, 0.0, 0.0], 4));
+}

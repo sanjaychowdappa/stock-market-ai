@@ -256,6 +256,115 @@ pub fn check_book_parity(
         } else { "" }))
 }
 
+/// Is a series frozen — every reading identical?
+///
+/// The pure core of the liveness check. `min_len` readings are required before
+/// a verdict, so a layer is never called dead on one sample.
+pub fn is_frozen(history: &[f64], min_len: usize) -> bool {
+    if history.len() < min_len { return false; }
+    let first = history[0];
+    history.iter().all(|v| (v - first).abs() < 1e-12)
+}
+
+/// Rolling history of every layer's output, keyed (symbol, layer).
+static LAYER_HISTORY: once_cell::sync::Lazy<
+    parking_lot::Mutex<std::collections::HashMap<(String, String), Vec<f64>>>,
+> = once_cell::sync::Lazy::new(|| parking_lot::Mutex::new(std::collections::HashMap::new()));
+
+/// Rolling history of each symbol's price, so a still layer can be told from a
+/// still market.
+static PRICE_HISTORY: once_cell::sync::Lazy<
+    parking_lot::Mutex<std::collections::HashMap<String, Vec<f64>>>,
+> = once_cell::sync::Lazy::new(|| parking_lot::Mutex::new(std::collections::HashMap::new()));
+
+/// How many readings before a layer can be judged. At one cycle per 15 minutes
+/// this is roughly an hour — long enough that a genuinely quiet signal is not
+/// accused, short enough to catch a freeze inside a session.
+const LIVENESS_MIN_READINGS: usize = 4;
+
+/// Minimum wall-clock gap between RECORDED samples.
+///
+/// Without this the history is whatever the call rate happens to be. The first
+/// run of this check reported 21 frozen layers because /api/agentic/run was
+/// invoked six times in ninety seconds by hand: four readings spanned about a
+/// minute, and any layer updating more slowly than that looked frozen. A
+/// monitor that cries wolf gets scrolled past, which is the failure mode half
+/// the comments in this file are about.
+///
+/// The supervisor's own cycle is 15 minutes, so this floor only exists to stop
+/// hand-run bursts from filling the history with readings taken seconds apart.
+const LIVENESS_SAMPLE_SECS: u64 = 300;
+
+/// When the last sample was recorded.
+static LAST_SAMPLE: once_cell::sync::Lazy<parking_lot::Mutex<Option<std::time::Instant>>> =
+    once_cell::sync::Lazy::new(|| parking_lot::Mutex::new(None));
+
+/// CHECK: is every signal layer actually moving?
+///
+/// THE CLASS THIS EXISTS FOR. Two of the fourteen defects found between
+/// 2026-08-25 and 2026-09-10 were a value computed once and consumed as if
+/// live: the trail-stop ATR frozen at entry, and the volume profile frozen for
+/// 30 minutes at a stretch — on the layer weighted 0.52, more than Kronos,
+/// Kalman, pattern and CVD combined. Five of ten symbols sat pinned at the
+/// maximum buy reading.
+///
+/// Both were found by eye, weeks apart, only because someone happened to
+/// compare a layer's output to the live price. A frozen layer is
+/// indistinguishable from a working one unless you watch whether it moves.
+///
+/// A layer is only accused when its own symbol's PRICE moved and its output did
+/// not. A quiet market is not a broken feed, and the difference matters — this
+/// check has to survive a flat afternoon without crying wolf, or it joins the
+/// warnings people learn to scroll past.
+pub fn check_layer_liveness(samples: &[(String, String, f64, f64)]) -> Vec<Value> {
+    // Record a sample only when enough wall-clock time has passed. The check
+    // still EVALUATES on every call; it just does not let a burst of manual
+    // runs masquerade as the passage of time.
+    let now = std::time::Instant::now();
+    let record = {
+        let mut last = LAST_SAMPLE.lock();
+        match *last {
+            Some(t) if now.duration_since(t).as_secs() < LIVENESS_SAMPLE_SECS => false,
+            _ => { *last = Some(now); true }
+        }
+    };
+
+    let mut hist = LAYER_HISTORY.lock();
+    let mut prices = PRICE_HISTORY.lock();
+
+    for (sym, layer, value, price) in samples.iter().filter(|_| record) {
+        let e = hist.entry((sym.clone(), layer.clone())).or_default();
+        e.push(*value);
+        if e.len() > 8 { e.remove(0); }
+
+        let p = prices.entry(sym.clone()).or_default();
+        if p.last().map(|last| (last - price).abs() > 1e-12).unwrap_or(true) {
+            p.push(*price);
+        }
+        if p.len() > 8 { p.remove(0); }
+    }
+
+    let mut frozen: Vec<String> = Vec::new();
+    for ((sym, layer), series) in hist.iter() {
+        let price_moved = prices.get(sym)
+            .map(|p| !is_frozen(p, LIVENESS_MIN_READINGS))
+            .unwrap_or(false);
+        if price_moved && is_frozen(series, LIVENESS_MIN_READINGS) {
+            frozen.push(format!("{sym}/{layer} held {:.4}", series[0]));
+        }
+    }
+
+    if frozen.is_empty() {
+        return vec![finding("layer_liveness", INFO, format!(
+            "All layers moving across {} tracked series (samples at least {}s apart).",
+            hist.len(), LIVENESS_SAMPLE_SECS))];
+    }
+    frozen.sort();
+    vec![finding("layer_liveness", WARN, format!(
+        "{} layer(s) unchanged over {} readings at least {}s apart while their price moved: {}.          A frozen layer looks identical to a working one from the outside;          both previous instances were a value computed once and then consumed          as if it were live.",
+        frozen.len(), LIVENESS_MIN_READINGS, LIVENESS_SAMPLE_SECS, frozen.join("; ")))]
+}
+
 /// CHECK: order fill quality. A collapsed fill rate means the simulator's book
 /// and the real one are drifting apart faster than reconcile can close them.
 pub fn check_fill_quality(filled: u32, rejected: u32, unfilled: u32, pending: u32,

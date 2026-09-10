@@ -1679,6 +1679,32 @@ impl PaperTrader {
         (qty, px)
     }
 
+    /// Every signal layer's current value per symbol, as
+    /// (symbol, layer, value, price).
+    ///
+    /// For the liveness monitor. Two of the fourteen defects found between
+    /// 2026-08-25 and 2026-09-10 were a value computed once and consumed as if
+    /// live — the trail-stop ATR frozen at entry, and the volume profile frozen
+    /// for 30 minutes at a stretch on the heaviest-weighted layer in the stack.
+    /// Both were found by hand, weeks apart. A frozen layer looks exactly like
+    /// a working one from the outside, so the only way to catch it is to watch
+    /// whether it ever moves.
+    pub fn layer_snapshot(&self) -> Vec<(String, String, f64, f64)> {
+        let mut out = Vec::new();
+        for (sym, d) in &self.market_data {
+            for (layer, v) in [
+                ("kronos", d.kronos_direction),
+                ("kalman", d.kalman_momentum),
+                ("pattern", d.pattern_signal),
+                ("cvd", d.cvd_signal),
+                ("vp", d.vp_signal),
+            ] {
+                out.push((sym.clone(), layer.to_string(), v, d.price));
+            }
+        }
+        out
+    }
+
     /// Shadow books as (model_id, rule, total_trades) for the rule monitor.
     pub fn shadow_stats(&self) -> Vec<(String, String, u32)> {
         self.shadow_traders.iter()
