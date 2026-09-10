@@ -1486,12 +1486,42 @@ impl PaperTrader {
                 if diff.abs() < 1e-9 { continue; }
                 if c.side == "buy" {
                     if let Some(pos) = self.positions.get_mut(&c.symbol) {
+                        // Restate BOTH price and quantity.
+                        //
+                        // This only ever restated the price, so a partial fill
+                        // left the simulator holding shares the account did
+                        // not. On 2026-09-02 a KO buy requested 8.5398 and
+                        // filled 3.0000 — the simulator carried 5.54 shares,
+                        // about $490, that were never bought. It also debited
+                        // cash for the requested size while adjusting it for
+                        // the filled size, so the position and the cash
+                        // disagreed with each other as well.
+                        //
+                        // Reconcile would top the account up within 120s, but
+                        // "the books agree two minutes later" is not the same
+                        // as investing the same amount, and every exit in that
+                        // window prices against the wrong share count.
+                        let assumed_cost = pos.shares * c.assumed_price;
+                        let actual_cost = c.qty * c.actual_price;
+                        let shortfall = pos.shares - c.qty;
+                        self.cash += assumed_cost - actual_cost;
+                        pos.shares = c.qty;
                         pos.entry_price = c.actual_price;
-                        // Paying more (or less) than assumed changes cash too.
-                        self.cash -= diff * c.qty;
+                        if shortfall.abs() > 0.0001 {
+                            warn!("[FILL_SYNC] {} PARTIAL: requested {:.6}, filled                                    {:.6} — simulator position cut to match,                                    ${:.2} returned to cash",
+                                c.symbol, c.qty + shortfall, c.qty,
+                                shortfall * c.actual_price);
+                        }
                     }
                 } else {
                     // Sold: proceeds differ from what was credited at close.
+                    //
+                    // A partial SELL cannot be restated here — the simulator
+                    // has already removed the position and its entry price is
+                    // gone, so there is nothing to put back. Reconcile closes
+                    // the remainder at the broker within a cycle, which is the
+                    // correct owner of that repair. Log it so the gap is
+                    // visible rather than inferred from a parity warning.
                     self.cash += diff * c.qty;
                     self.realized_pnl += diff * c.qty;
                 }

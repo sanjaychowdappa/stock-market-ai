@@ -2031,3 +2031,66 @@ fn zero_is_frozen_like_any_other_value() {
     // for days. A dead layer is a frozen layer whose constant happens to be 0.
     assert!(is_frozen(&[0.0, 0.0, 0.0, 0.0], 4));
 }
+
+// ── BUG: a partial fill left the simulator holding shares nobody bought ─
+//
+// When a mirrored order fills, the broker reports the real price back so the
+// simulator can restate the position — "identical cost bases rather than merely
+// similar numbers". It restated the PRICE and never the QUANTITY.
+//
+// On 2026-09-02 a KO buy requested 8.539820 shares and filled 3.000000. The
+// simulator carried 5.54 shares, about $490, that were never bought. Worse, it
+// had debited cash for the REQUESTED size while adjusting cash for the FILLED
+// size, so the position and the cash disagreed with each other too.
+//
+// Reconcile tops the account up within 120s, but "the books agree two minutes
+// later" is not investing the same amount, and every exit in that window prices
+// against the wrong share count.
+
+/// The restatement: position and cash after a fill reports back.
+/// Returns (shares_held, cash_delta).
+fn restate_buy(
+    sim_shares: f64, assumed_price: f64, filled_qty: f64, actual_price: f64,
+) -> (f64, f64) {
+    let assumed_cost = sim_shares * assumed_price;
+    let actual_cost = filled_qty * actual_price;
+    (filled_qty, assumed_cost - actual_cost)
+}
+
+#[test]
+fn a_partial_fill_cuts_the_simulator_position_to_match() {
+    // The real KO order.
+    let (shares, cash) = restate_buy(8.539820, 88.31, 3.000000, 88.31);
+    assert!((shares - 3.0).abs() < 1e-9,
+        "the simulator must hold what the account holds, got {shares}");
+    // The unbought 5.5398 shares come back as cash.
+    assert!((cash - 5.539820 * 88.31).abs() < 0.01,
+        "the cash for shares never bought must be returned, got {cash}");
+}
+
+#[test]
+fn a_full_fill_at_a_different_price_behaves_exactly_as_before() {
+    // The pre-existing case must not change: same quantity, price restated.
+    let (shares, cash) = restate_buy(2.0, 100.0, 2.0, 100.05);
+    assert!((shares - 2.0).abs() < 1e-9);
+    assert!((cash - (-0.10)).abs() < 1e-9,
+        "paying 0.05 more on 2 shares costs 0.10, got {cash}");
+}
+
+#[test]
+fn a_fill_cheaper_than_assumed_returns_cash() {
+    let (_, cash) = restate_buy(2.0, 100.0, 2.0, 99.90);
+    assert!(cash > 0.0, "a cheaper fill must credit cash, got {cash}");
+}
+
+#[test]
+fn position_and_cash_cannot_disagree_after_restatement() {
+    // The old code took quantity from the position and cash from the fill.
+    // The property that prevents it: both come from the same filled_qty.
+    let sim_shares = 10.0;
+    let (shares, cash) = restate_buy(sim_shares, 50.0, 4.0, 50.0);
+    let returned_shares = cash / 50.0;
+    assert!((shares + returned_shares - sim_shares).abs() < 1e-9,
+        "shares held plus shares refunded must equal shares originally booked; \
+         got {shares} + {returned_shares} vs {sim_shares}");
+}
