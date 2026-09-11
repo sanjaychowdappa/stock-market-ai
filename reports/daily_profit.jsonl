@@ -53,3 +53,6 @@
 {"basis":"simulator cash, mirrored to a live broker","capital":3000.0,"cumulative_pnl":-101.01,"date":"2026-09-09","day_pnl":14.72,"kind":"skim","timestamp":"2026-09-09T19:55:00.263014710+00:00","unfilled_today":0}
 {"basis":"alpaca /v2/account","broker_day_pnl":-21.51,"date":"2026-09-09","kind":"broker","timestamp":"2026-09-09T19:55:00.739002741+00:00"}
 {"accum_contributed":7565.0,"accum_value":7522.18,"basis":"long-term SPY holding, excluded from the trader's result","date":"2026-09-09","kind":"accumulator","timestamp":"2026-09-09T19:55:01.032677966+00:00"}
+{"basis":"simulator cash, mirrored to a live broker","capital":3000.0,"cumulative_pnl":-110.78,"date":"2026-09-10","day_pnl":-9.77,"kind":"skim","timestamp":"2026-09-10T19:55:00.122834604+00:00","unfilled_today":0}
+{"basis":"alpaca /v2/account","broker_day_pnl":-55.1,"date":"2026-09-10","kind":"broker","timestamp":"2026-09-10T19:55:00.624013093+00:00"}
+{"accum_contributed":8065.0,"accum_value":7979.75,"basis":"long-term SPY holding, excluded from the trader's result","date":"2026-09-10","kind":"accumulator","timestamp":"2026-09-10T19:55:01.000397547+00:00"}

@@ -247,4 +247,27 @@ time="2026-09-09T16:10:01-04:00" level=warning msg="C:\\Users\\sanja\\stock-mark
  Container stock-market-ai-backend-1 Stopping 
  Container stock-market-ai-backend-1 Error Error while Stopping
 
-^C
+^C[10-09-2026 16:10:00.66] === AUTO STOP === 
+[10-09-2026 16:10:00.66] Fetching final EOD report... 
+[10-09-2026 16:10:00.74] EOD report saved to reports/ 
+[10-09-2026 16:10:00.74] Final daily status: 
+{"data_collected":{"AMD":{"predictions":20628,"ticks":20628,"trades":0},"AMZN":{"predictions":20640,"ticks":20640,"trades":0},"BAC":{"predictions":20638,"ticks":20638,"trades":0},"COP":{"predictions":20621,"ticks":20621,"trades":0},"EQIX":{"predictions":20384,"ticks":20384,"trades":0},"FCX":{"predictions":20619,"ticks":20619,"trades":0},"KO":{"predictions":20634,"ticks":20634,"trades":0},"META":{"predictions":20637,"ticks":20637,"trades":0},"MRK":{"predictions":20592,"ticks":20592,"trades":0},"UNP":{"predictions":20561,"ticks":20561,"trades":0}},"date":"2026-09-10","finetune_triggered":true,"portfolio":{"current_value":3000.0,"pnl":0.0,"profitable":false,"start_value":2990.23},"running":true,"snapshots_count":20650} 
+[10-09-2026 16:10:00.78] Stopping containers... 
+time="2026-09-10T16:10:00-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-frontend-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopping 
+ Container stock-market-ai-frontend-1 Stopped 
+ Container stock-market-ai-frontend-1 Removing 
+ Container stock-market-ai-finetune-sidecar-1 Stopped 
+ Container stock-market-ai-finetune-sidecar-1 Removing 
+ Container stock-market-ai-frontend-1 Removed 
+ Container stock-market-ai-backend-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Removed 
+ Container stock-market-ai-backend-1 Stopped 
+ Container stock-market-ai-backend-1 Removing 
+ Container stock-market-ai-backend-1 Removed 
+ Network stock-market-ai_default Removing 
+ Network stock-market-ai_default Removed 
+[10-09-2026 16:10:13.96] All containers stopped 
+[10-09-2026 16:10:13.97] === SESSION COMPLETE === 
+ 

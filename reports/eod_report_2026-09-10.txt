@@ -1,0 +1,46 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-09-10
+  Generated:  2026-09-10T20:10:00.725645627+00:00
+  Uptime:     5h 44m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $112.71
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     592
+  Winning Trades:   256
+  Win Rate:         43.2%
+  Avg Hold Time:    0s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $503.80     bullish     0.263    —
+  MRK      $144.69     bullish     0.265    —
+  BAC      $62.58      bullish     0.109    —
+  COP      $137.07     bullish     0.245    —
+  FCX      $71.21      neutral     0.023    —
+  KO       $87.84      bearish     -0.260   —
+  META     $644.36     bullish     0.203    —
+  UNP      $285.73     bearish     -0.192   —
+  AMZN     $251.79     bearish     -0.117   —
+  EQIX     $1023.82    neutral     -0.001   —
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

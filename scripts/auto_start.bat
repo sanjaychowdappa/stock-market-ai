@@ -37,7 +37,8 @@ setlocal enabledelayedexpansion
 
 set ROOT=%~dp0..
 if not exist "%ROOT%\logs" mkdir "%ROOT%\logs"
-set LOGFILE=%ROOT%\logs\auto_%date:~-4%%date:~4,2%%date:~7,2%.log
+for /f %%d in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd"') do set TODAY=%%d
+set LOGFILE=%ROOT%\logs\auto_%TODAY%.log
 
 echo [%date% %time%] === AUTO START === >> "%LOGFILE%"
 
@@ -57,6 +58,22 @@ docker compose -f "%ROOT%\docker-compose.yml" down >> "%LOGFILE%" 2>&1
 exit /b 0
 
 :not_weekend
+
+:: -- Market-hours guard --
+:: This script now also runs AT LOGON, because the 09:25 trigger silently
+:: failed to fire on 2026-09-10 and 2026-09-11 and the stack sat idle for two
+:: hours each day until started by hand. A logon at 19:00 must not start it.
+:: Window: 09:00 to 15:30 local (machine runs on ET).
+for /f %%h in ('powershell -NoProfile -Command "(Get-Date).Hour*60+(Get-Date).Minute"') do set NOWMIN=%%h
+if %NOWMIN% LSS 540 goto outside_hours
+if %NOWMIN% GTR 930 goto outside_hours
+goto in_hours
+
+:outside_hours
+echo [%date% %time%] Outside 09:00-15:30 (minute %NOWMIN%) - not starting >> "%LOGFILE%"
+exit /b 0
+
+:in_hours
 
 :: -- Docker Desktop --
 tasklist /FI "IMAGENAME eq Docker Desktop.exe" 2>NUL | find /I "Docker Desktop.exe" >NUL
