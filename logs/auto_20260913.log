@@ -1,0 +1,4 @@
+[13-09-2026 14:48:02.75] === AUTO START === 
+[13-09-2026 14:48:02.91] Weekend (DayOfWeek=0) - the market is shut; not starting 
+time="2026-09-13T14:48:03-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.

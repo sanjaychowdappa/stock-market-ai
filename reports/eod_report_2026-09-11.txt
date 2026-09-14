@@ -1,0 +1,71 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-09-11
+  Generated:  2026-09-11T20:10:01.143455446+00:00
+  Uptime:     4h 36m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $103.54
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     603
+  Winning Trades:   261
+  Win Rate:         43.3%
+  Avg Hold Time:    8053s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $516.12     neutral     -0.028   —
+  MRK      $143.91     neutral     -0.055   —
+  BAC      $62.69      neutral     -0.014   —
+  COP      $137.41     neutral     -0.030   —
+  FCX      $71.12      neutral     0.067    —
+  META     $647.97     bearish     -0.122   —
+  KO       $88.26      bearish     -0.355   —
+  UNP      $284.40     bearish     -0.355   —
+  AMZN     $256.80     neutral     0.060    —
+  EQIX     $1037.46    neutral     -0.094   —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:50:00  SELL   META     $647.46    $462.10  $-0.9921   DAMAGE_CONTROL_FLATTEN
+  19:50:00  SELL   UNP      $284.65    $93.89   $0.1639    DAMAGE_CONTROL_FLATTEN
+  19:50:00  SELL   KO       $88.37     $752.39  $2.6394    DAMAGE_CONTROL_FLATTEN
+  19:50:00  SELL   AMD      $515.37    $748.72  $-0.6392   DAMAGE_CONTROL_FLATTEN
+  19:50:00  SELL   AMZN     $256.75    $745.46  $-1.4517   DAMAGE_CONTROL_FLATTEN
+  19:50:00  SELL   COP      $136.66    $188.28  $0.8336    DAMAGE_CONTROL_FLATTEN
+  19:32:29  BUY    AMZN     $257.25    $746.91  $0.0000    ENTRY(s=0.107,K~,1of7)
+  19:29:41  SELL   FCX      $71.07     $746.73  $-4.4129   TRAIL_STOP(-0.76% from peak,pnl=-0.59%)
+  19:23:51  BUY    AMD      $515.73    $749.24  $0.0000    ENTRY(s=0.105,K~,2of7)
+  19:18:31  SELL   EQIX     $1038.88   $749.79  $0.5081    TRAIL_STOP(-0.80% from peak,pnl=0.07%)
+  18:15:39  BUY    FCX      $71.48     $751.04  $0.0000    ENTRY(s=0.108,K~,1of7)
+  18:13:45  SELL   MRK      $144.44    $751.71  $1.2490    TRAIL_STOP(-0.83% from peak,pnl=0.17%)
+  17:13:51  BUY    META     $648.65    $462.95  $0.0000    ENTRY(s=0.123,K~,1of7)
+  16:29:12  SELL   META     $649.51    $373.25  $-1.6803   TRAIL_STOP(-0.77% from peak,pnl=-0.45%)
+  15:47:34  BUY    EQIX     $1038.35   $749.41  $0.0000    ENTRY(s=0.604,K+,2of7)
+  15:42:41  SELL   AMD      $514.69    $745.52  $-4.5048   TRAIL_STOP(-0.78% from peak,pnl=-0.60%)
+  15:35:52  BUY    UNP      $284.06    $93.69   $0.0000    ENTRY(s=0.085,K-,1of7)
+  15:33:52  BUY    COP      $136.03    $187.41  $0.0000    ENTRY(s=0.388,K-,1of7)
+  15:33:37  BUY    META     $652.35    $374.88  $0.0000    ENTRY(s=0.120,K~,2of7)
+  15:33:14  BUY    KO       $88.06     $749.75  $0.0000    ENTRY(s=0.216,K-,2of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════
