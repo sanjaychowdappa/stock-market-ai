@@ -135,14 +135,42 @@ impl AppState {
                         let price = *closes.last().unwrap();
                         let risk_on = price >= sma;
                         regime.store(risk_on, Ordering::Relaxed);
+                        // The text used to say "new longs paused" on risk-off.
+                        // It has not been true since REGIME_FILTER_ENABLED went
+                        // false; say what the flags actually do.
                         tracing::info!("[REGIME] QQQ ${:.2} vs 50d SMA ${:.2} → {}",
                             price, sma,
-                            if risk_on { "RISK-ON (day-trading active)" } else { "RISK-OFF (new longs paused)" });
+                            if risk_on {
+                                "RISK-ON"
+                            } else if crate::config::REGIME_FILTER_ENABLED {
+                                "RISK-OFF (new longs paused)"
+                            } else {
+                                "RISK-OFF (entries still allowed: filter off; positions opened \
+                                 risk-on will exit on the transition)"
+                            });
                     }
                 }
                 tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
             }
         });
+
+        // ── Skim watchdog: the 3:55pm skim, driven by the clock ──
+        // The skim itself is tick-driven (see PaperTrader::watchdog_skim for
+        // the 2026-09-14 day it silently never ran). This asks every 30s and
+        // is a no-op on any day the tick path did its job.
+        {
+            let state3 = state.clone();
+            tokio::spawn(async move {
+                loop {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+                    let fired = state3.trader.lock().watchdog_skim();
+                    if fired {
+                        tracing::warn!("[SKIM_WATCHDOG] fired — the tick-driven skim did not run; \
+                                        investigate logs/backend_<date>.log for why");
+                    }
+                }
+            });
+        }
 
         // ── Spawn momentum portfolio (daily rebalance, QQQ-benchmarked) ──
         let mom2 = momentum.clone();

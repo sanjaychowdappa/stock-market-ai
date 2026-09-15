@@ -1,0 +1,59 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-09-14 16:28   |   Report date: 2026-09-14   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-09-14) ===
+  Trades:       35   (W 14 / L 21)
+  Win rate:     40%
+  Gross P/L:    $-5.7113
+  Avg win:      $1.9009    Avg loss: $-1.5393
+  Expectancy:   $-0.1632/trade gross  ->  ~$-0.2757/trade after est. fees
+  Per symbol:
+    AMD     5 trades  W4   $6.1488
+    FCX     5 trades  W2   $2.8927
+    TMO     3 trades  W2   $-0.0897
+    BAC     5 trades  W1   $-1.0299
+    AMZN    6 trades  W2   $-2.0207
+    COP     1 trades  W0   $-3.1345
+    EQIX    5 trades  W2   $-3.9328
+    UNP     5 trades  W1   $-4.5451
+  Exit reasons:
+    REGIME_EXIT        32
+    TRAIL_STOP         2
+    DAMAGE_CONTROL_FLATTEN 1
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       84   (W 32 / L 52)
+  Win rate:     38.1%
+  Gross P/L:    $6.1053
+  Avg win:      $2.5771    Avg loss: $-1.4685
+  Expectancy:   $0.0727/trade gross  ->  ~$-0.0398/trade after est. fees
+  Per symbol:
+    BAC    10 trades  W3   $8.4868
+    EQIX   10 trades  W5   $7.8406
+    KO      4 trades  W3   $7.1381
+    DIS     4 trades  W2   $5.0799
+    UNP    11 trades  W4   $1.3002
+    TMO     3 trades  W2   $-0.0897
+    AMD     9 trades  W5   $-0.823
+    MRK     5 trades  W1   $-2.2667
+    COP     3 trades  W1   $-2.8771
+    META    4 trades  W0   $-4.6967
+    FCX     8 trades  W2   $-5.3954
+    AMZN   13 trades  W4   $-7.5918
+  Exit reasons:
+    REGIME_EXIT        35
+    DAMAGE_CONTROL_FLATTEN 30
+    TRAIL_STOP         15
+    EOD_DAILY_SKIM     4
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $0.0727/trade  (84 trades)
+  r5_concentrate           expectancy $-0.1371/trade  (74 trades)
+  r1_kronos_sectors        expectancy $0.0683/trade  (57 trades)
+  r4_legacy                expectancy $-0.0447/trade  (40 trades)
+  r2_max_forecast          expectancy $6.3252/trade  (14 trades)
+  (not enough random-baseline trades yet to judge)
+
+LIVE: backend not reachable (Docker stopped?) - analysis above is from logs.

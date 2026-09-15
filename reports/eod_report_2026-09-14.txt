@@ -1,0 +1,79 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-09-14
+  Generated:  2026-09-14T20:10:00.830747777+00:00
+  Uptime:     6h 11m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $2991.65
+  Cash:             $-0.26
+  Positions Value:  $2991.90
+  Total P&L:        -8.35 (-0.28%)
+  Realized P&L:     $87.88
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     643
+  Winning Trades:   275
+  Win Rate:         42.8%
+  Avg Hold Time:    700s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $495.62     bullish     0.148    OPEN
+  TMO      $613.09     bearish     -0.134   OPEN
+  BAC      $59.42      bearish     -0.269   OPEN
+  COP      $136.38     bearish     -0.228   —
+  FCX      $69.43      neutral     0.042    —
+  META     $667.86     neutral     -0.062   —
+  AMZN     $253.68     bullish     0.171    —
+  KO       $89.25      bullish     0.117    OPEN
+  UNP      $284.58     bearish     -0.158   OPEN
+  EQIX     $996.83     bullish     0.297    —
+
+─────────────── OPEN POSITIONS ───────────────
+
+  BAC — 6.2986 shares @ $59.21 → $59.42  P&L: $1.3542 (0.36%)
+  TMO — 1.2290 shares @ $608.04 → $613.09  P&L: $6.2063 (0.83%)
+  KO — 8.3955 shares @ $88.99 → $89.25  P&L: $2.1828 (0.29%)
+  UNP — 2.6111 shares @ $285.05 → $284.58  P&L: $-1.2272 (-0.16%)
+  AMD — 0.7501 shares @ $497.24 → $495.62  P&L: $-1.2167 (-0.33%)
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  18:58:45  BUY    AMD      $497.25    $373.00  $0.0000    ENTRY(s=0.216,K+,2of7)
+  18:58:45  BUY    BAC      $59.22     $373.00  $0.0000    ENTRY(s=0.427,K+,3of7)
+  18:58:45  SELL   AMZN     $253.98    $746.24  $-0.0588   TRAIL_STOP(-0.76% from peak,pnl=-0.01%)
+  16:48:46  BUY    UNP      $284.96    $744.05  $0.0000    ENTRY(s=0.122,K~,1of7)
+  16:48:25  SELL   COP      $137.69    $744.12  $-3.1345   TRAIL_STOP(-0.80% from peak,pnl=-0.42%)
+  15:52:42  BUY    AMZN     $253.95    $746.15  $0.0000    ENTRY(s=0.086,K-,1of7)
+  15:49:53  BUY    COP      $138.26    $747.20  $0.0000    ENTRY(s=0.131,K~,2of7)
+  15:44:49  BUY    KO       $89.00     $747.24  $0.0000    ENTRY(s=0.108,K~,2of7)
+  15:41:45  BUY    TMO      $607.78    $746.95  $0.0000    ENTRY(s=0.061,K-,1of7)
+  15:38:18  SELL   UNP      $283.79    $747.29  $-0.4477   REGIME_EXIT(risk-off,pnl=-0.06%)
+  15:37:15  SELL   EQIX     $1014.89   $747.73  $0.5629    REGIME_EXIT(risk-off,pnl=0.08%)
+  15:33:19  BUY    UNP      $283.85    $747.45  $0.0000    ENTRY(s=0.402,K~,2of7)
+  15:32:19  SELL   AMD      $487.06    $748.83  $0.8610    REGIME_EXIT(risk-off,pnl=0.12%)
+  15:32:17  SELL   AMZN     $252.94    $746.54  $-1.2544   REGIME_EXIT(risk-off,pnl=-0.17%)
+  15:32:17  SELL   FCX      $68.97     $746.82  $-1.1828   REGIME_EXIT(risk-off,pnl=-0.16%)
+  15:32:17  BUY    EQIX     $1014.04   $747.11  $0.0000    ENTRY(s=0.544,K+,3of7)
+  15:32:17  SELL   BAC      $61.81     $747.49  $-0.3023   REGIME_EXIT(risk-off,pnl=-0.04%)
+  15:27:19  BUY    BAC      $61.84     $747.79  $0.0000    ENTRY(s=0.508,K+,2of7)
+  15:27:19  BUY    AMD      $486.38    $747.79  $0.0000    ENTRY(s=0.604,K+,2of7)
+  15:27:18  BUY    AMZN     $253.36    $747.79  $0.0000    ENTRY(s=0.388,K~,1of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

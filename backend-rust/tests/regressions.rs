@@ -2152,3 +2152,139 @@ fn an_exact_fill_at_the_exact_price_is_correctly_skipped() {
     assert!(!correction_matters(88.31, 88.31, 3.0, 3.0),
         "nothing to restate; skipping is the fast path and must stay");
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 2026-09-15: damage control halted a FLAT book, three times.
+//
+// The first halt was right: the day peaked at 0.94%, the profit lock set the
+// floor at 0.79%, P&L touched it, the book flattened. The cooldown then
+// re-based the floor's baseline to the current book — but the peak the lock
+// was computed from stayed in the day frame. Against the new baseline the
+// book read 0.00% and the floor still read 0.79%, so it halted three
+// milliseconds after resuming. Twice more it resumed, bought, and flattened
+// within the same second. Three real round trips on Alpaca for nothing, and
+// a log line reading "halt 4/3 today".
+//
+// Two rules follow. The lock and the floor share ONE frame, the baseline's,
+// so a re-base restarts the peak too. And a profit-lock halt does not resume
+// at all: the replay that chose the 0.15% giveback treats it as the end of
+// the day's trading, and each resume would hand out a fresh -0.30%
+// allowance against a gain the lock exists to keep.
+
+
+use stock_market_ai::services::paper_trader::{damage_floor, resume_allowed};
+
+/// What the old code did after a resume: floor from the DAY peak, P&L from
+/// the re-based baseline. Kept here so the test fails against it.
+fn old_floor_after_resume(day_peak_pct: f64) -> f64 {
+    if day_peak_pct >= PROFIT_LOCK_TRIGGER_PCT {
+        CAPITAL_FLOOR_PCT.max(day_peak_pct - PROFIT_LOCK_GIVEBACK_PCT)
+    } else { CAPITAL_FLOOR_PCT }
+}
+
+#[test]
+fn a_resume_does_not_halt_the_book_it_just_resumed() {
+    // 2026-09-15 numbers: day peak 0.94%, resumed at 0.00% in the new frame.
+    let day_peak = 0.94;
+    let pnl_after_rebase = 0.0;
+    assert!(pnl_after_rebase <= old_floor_after_resume(day_peak),
+        "sanity: the old frame mix DID halt here — that is the bug");
+    // New rule: the peak restarts with the baseline, so the floor is the
+    // hard floor and a flat book is above it.
+    let (locked, floor) = damage_floor(0.0);
+    assert!(!locked);
+    assert!(pnl_after_rebase > floor,
+        "a book at 0.00% in a fresh frame must not be under the floor ({floor})");
+}
+
+#[test]
+fn the_profit_lock_still_arms_in_the_floors_own_frame() {
+    let (locked, floor) = damage_floor(0.94);
+    assert!(locked);
+    assert!((floor - (0.94 - PROFIT_LOCK_GIVEBACK_PCT)).abs() < 1e-9,
+        "giveback is measured from the frame's peak, got {floor}");
+    let (locked, floor) = damage_floor(PROFIT_LOCK_TRIGGER_PCT - 0.01);
+    assert!(!locked && (floor - CAPITAL_FLOOR_PCT).abs() < 1e-9,
+        "below the trigger the floor is the hard floor");
+}
+
+#[test]
+fn a_profit_lock_halt_does_not_resume() {
+    assert!(!resume_allowed(true, 0, true),
+        "cooldown over, no resumes used, and it must still not resume: the \
+         gain is what the lock is for");
+}
+
+#[test]
+fn a_hard_floor_halt_resumes_until_the_cap() {
+    assert!(resume_allowed(true, 0, false));
+    assert!(resume_allowed(true, MAX_HALTS_PER_DAY - 1, false));
+    assert!(!resume_allowed(true, MAX_HALTS_PER_DAY, false),
+        "the counter read 4/3 on 2026-09-15; the cap is the cap");
+    assert!(!resume_allowed(false, 0, false), "and never before the cooldown");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 2026-09-15: REGIME_EXIT was a fixed five-minute hold.
+//
+// QQQ sat under its 50-day SMA from the open, so the regime flag read
+// risk-off all day. The entry filter is off by design (more filtering tested
+// monotonically worse), so positions were opened into that tape — and then
+// every one was closed the second it cleared MIN_HOLD_SECS: ten exits, all
+// "REGIME_EXIT(risk-off)", all at exactly 300s. The rule's own comment says
+// it is for a tape that TURNS risk-off. It now requires the transition.
+
+use stock_market_ai::services::paper_trader::regime_exit_due;
+use stock_market_ai::models::Position;
+
+#[test]
+fn a_position_opened_into_a_risk_off_tape_is_not_a_regime_change() {
+    assert!(!regime_exit_due(true, false, false),
+        "risk-off at entry and risk-off now: nothing changed, no regime exit");
+}
+
+#[test]
+fn a_tape_that_turns_risk_off_still_exits() {
+    assert!(regime_exit_due(true, false, true));
+    assert!(!regime_exit_due(true, true, true), "risk-on now: hold");
+    assert!(!regime_exit_due(false, false, true), "disabled: never");
+}
+
+#[test]
+fn positions_persisted_before_the_field_default_to_risk_on_at_entry() {
+    // A position saved by the previous build has no entry_risk_on key. It
+    // must load, and it must keep the old behaviour (eligible for the exit)
+    // rather than become un-exitable.
+    let json = r#"{"symbol":"KO","shares":8.4,"entry_price":88.99,"entry_time":"15:44:49",
+                   "current_price":89.25,"high_price":89.3,"hold_seconds":100,"partial_taken":false}"#;
+    let p: Position = serde_json::from_str(json).expect("old state must still load");
+    assert!(p.entry_risk_on);
+    assert!(Position::new("KO".into(), 1.0, 1.0, "x".into()).entry_risk_on,
+        "and a fresh position starts risk-on until the trader stamps it");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 2026-09-14: the 3:55pm skim did not run, and nothing noticed until morning.
+//
+// The process was alive at 16:10 (it served the EOD report) with five
+// positions open and no ledger row. The skim is tick-driven, so it needed a
+// tick to arrive in the 15:55 window and pass every gate above it; whatever
+// stopped that was in a log `docker compose down` deleted ten minutes later.
+// A clock-driven watchdog now runs the skim if the tick path has not by
+// 15:57, and the stop script saves the backend log before taking it down.
+
+use stock_market_ai::services::paper_trader::skim_watchdog_due;
+
+#[test]
+fn the_watchdog_fires_only_when_the_skim_is_actually_outstanding() {
+    let m = |h: u32, mi: u32| h * 60 + mi;
+    assert!(skim_watchdog_due(false, true, m(15, 57)), "the 09-14 case");
+    assert!(skim_watchdog_due(false, true, m(16, 09)), "still worth banking late");
+    assert!(!skim_watchdog_due(true, true, m(15, 58)), "the tick path did its job");
+    assert!(!skim_watchdog_due(false, true, m(15, 56)),
+        "the tick path gets its full window first");
+    assert!(!skim_watchdog_due(false, true, m(16, 10)),
+        "past that the morning carryover owns it");
+    assert!(!skim_watchdog_due(false, false, m(15, 58)),
+        "a weekend or holiday: NEW_DAY never ran, there is nothing to bank");
+}

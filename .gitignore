@@ -38,3 +38,8 @@ reports/momentum_state.json
 # target/ on the host (1.7GB) — this must never reach the repo.
 target/
 backend-rust/target/
+
+# Container log archives written by scripts/auto_stop.bat: ~10 MB/day of
+# tracing output, kept locally for post-mortems, not for the public repo.
+logs/backend_*.log
+logs/sidecar_*.log

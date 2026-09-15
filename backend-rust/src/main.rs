@@ -41,6 +41,10 @@ async fn main() {
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| "stock_market_ai=info,tower_http=info".into()),
         )
+        // No TTY in the container, and auto_stop.bat now archives this log
+        // to logs/backend_<date>.log for post-mortems; colour codes there are
+        // noise that every grep has to strip first.
+        .with_ansi(false)
         .init();
 
     info!("Stock Market AI — Rust Engine starting...");

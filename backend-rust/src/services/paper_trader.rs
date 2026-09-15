@@ -109,6 +109,12 @@ struct PersistedState {
     floor_baseline: f64,
     #[serde(default)]
     recovery_pnl: f64,
+    /// Peak P&L (%) against `floor_baseline` since the last re-base.
+    #[serde(default)]
+    floor_peak_pct: f64,
+    /// A profit-lock halt fired today: no resume until tomorrow.
+    #[serde(default)]
+    profit_locked_today: bool,
     /// The system-wide daily log of what each symbol has actually returned.
     /// Persisted because r4_legacy is worthless if it forgets every restart:
     /// a rule about track records needs the track record to outlive the process.
@@ -180,6 +186,12 @@ pub struct PaperTrader {
     /// resume lands with day P&L still under the floor and re-halts on the very
     /// next tick, consuming the day's only allowance for nothing.
     floor_baseline: f64,
+    /// Highest `floor_pnl_pct` since `floor_baseline` was last set. The
+    /// profit lock arms and measures giveback from THIS, not from the day
+    /// peak, so the lock and the floor share a frame (see `damage_floor`).
+    floor_peak_pct: f64,
+    /// A profit-lock halt has fired today. Terminal: see `resume_allowed`.
+    profit_locked_today: bool,
     /// When the current halt started. NOT persisted â€” after a restart the
     /// elapsed clock is meaningless, and `damage_halted` keeps the book shut
     /// until a fresh timestamp is set, so a restart can never shorten a halt.
@@ -320,6 +332,64 @@ pub fn book_policy(halted: bool) -> BookPolicy {
         sim_may_enter: !halted,
         broker_mirrors: true,
     }
+}
+
+/// The damage-control floor, as a % of the SAME baseline the peak was
+/// measured against. Returns (profit_locked, floor_pct).
+///
+/// One frame, deliberately. The peak used to be the day's peak (against
+/// $3,000) while the P&L it gated was measured against `floor_baseline`,
+/// which a resume re-bases to the current book. On 2026-09-15 the day
+/// peaked at 0.94%, the lock set the floor at 0.79%, and the first halt was
+/// correct. The resume then re-based the baseline to the current book — so
+/// P&L read 0.00% against a floor still at 0.79%, and the book halted again
+/// three milliseconds later. Twice more it resumed, bought, and flattened
+/// within the same second: three real round trips on Alpaca for nothing,
+/// and a counter reading "halt 4/3".
+///
+/// Measuring the peak in the floor's own frame closes that gap. Until the
+/// first resume both frames are the day frame, so nothing else changes.
+pub fn damage_floor(floor_peak_pct: f64) -> (bool, f64) {
+    let locked = floor_peak_pct >= PROFIT_LOCK_TRIGGER_PCT;
+    let floor = if locked {
+        CAPITAL_FLOOR_PCT.max(floor_peak_pct - PROFIT_LOCK_GIVEBACK_PCT)
+    } else {
+        CAPITAL_FLOOR_PCT
+    };
+    (locked, floor)
+}
+
+/// May a halted book resume after its cooldown?
+///
+/// A hard-floor halt (the book lost its allowance) gets a cooldown and a
+/// re-based floor, up to MAX_HALTS_PER_DAY. A PROFIT-LOCK halt does not:
+/// the lock exists so a winning day cannot round-trip into a losing one,
+/// and every resume hands out a fresh -0.30% allowance from a re-based
+/// floor — three of them could give back 0.9% of a 0.8% day. The replay
+/// that chose the 0.15% giveback (New_ideas/giveback.py) treats a lock
+/// halt as the end of the day's trading; this makes the live rule match
+/// the rule that was measured.
+pub fn resume_allowed(cooldown_over: bool, resumes_today: u32, profit_locked_today: bool) -> bool {
+    cooldown_over && resumes_today < MAX_HALTS_PER_DAY && !profit_locked_today
+}
+
+/// Should a held position be closed on the market regime?
+///
+/// Only on a TRANSITION: the tape was risk-on when the position was opened
+/// and is risk-off now. A position opened into an already risk-off tape
+/// (the entry filter is off by design) is not a regime change, and closing
+/// it at MIN_HOLD_SECS was a fixed five-minute hold, not a regime rule.
+pub fn regime_exit_due(exit_enabled: bool, risk_on_now: bool, risk_on_at_entry: bool) -> bool {
+    exit_enabled && !risk_on_now && risk_on_at_entry
+}
+
+/// Should the clock-driven skim watchdog fire? See `PaperTrader::watchdog_skim`.
+///
+/// `trader_day_is_today`: the trader's NEW_DAY has run for today's ET date.
+/// On a weekend or holiday no tick reaches NEW_DAY, so this is false and the
+/// watchdog stays quiet; the morning carryover handles anything left over.
+pub fn skim_watchdog_due(did_daily_skim: bool, trader_day_is_today: bool, et_mins: u32) -> bool {
+    !did_daily_skim && trader_day_is_today && (15 * 60 + 57..16 * 60 + 10).contains(&et_mins)
 }
 
 /// Layer weights every rule book scores with: the LIVE production weights,
@@ -594,6 +664,8 @@ impl PaperTrader {
             recovery_trades: 0,
             halt_baseline_value: 0.0,
             floor_baseline: INITIAL_CASH,
+            floor_peak_pct: 0.0,
+            profit_locked_today: false,
             recovery_pnl: 0.0,
             halted_at: None,
             day_open_price: HashMap::new(),
@@ -652,6 +724,8 @@ impl PaperTrader {
             trader.halt_baseline_value = ps.halt_baseline_value;
             if ps.floor_baseline > 0.0 { trader.floor_baseline = ps.floor_baseline; }
             trader.recovery_pnl = ps.recovery_pnl;
+            trader.floor_peak_pct = ps.floor_peak_pct;
+            trader.profit_locked_today = ps.profit_locked_today;
             for psh in ps.shadows {
                 if let Some(sh) = trader.shadow_traders.iter_mut().find(|s| s.model_id == psh.model_id) {
                     sh.cash = psh.cash;
@@ -708,6 +782,8 @@ impl PaperTrader {
             halt_baseline_value: self.halt_baseline_value,
             floor_baseline: self.floor_baseline,
             recovery_pnl: self.recovery_pnl,
+            floor_peak_pct: self.floor_peak_pct,
+            profit_locked_today: self.profit_locked_today,
             legacy_pnl: self.legacy_pnl.clone(),
             legacy_trades: self.legacy_trades.clone(),
             shadows,
@@ -766,6 +842,8 @@ impl PaperTrader {
             halt_baseline_value: self.halt_baseline_value,
             floor_baseline: self.floor_baseline,
             recovery_pnl: self.recovery_pnl,
+            floor_peak_pct: self.floor_peak_pct,
+            profit_locked_today: self.profit_locked_today,
             legacy_pnl: self.legacy_pnl.clone(),
             legacy_trades: self.legacy_trades.clone(),
             shadows,
@@ -1156,6 +1234,8 @@ impl PaperTrader {
             // A resume re-bases the floor; that re-basing must not survive the
             // night or tomorrow would measure its floor against yesterday's book.
             self.floor_baseline = INITIAL_CASH;
+            self.floor_peak_pct = 0.0;
+            self.profit_locked_today = false;
             self.daily_trades = 0;
             for shadow in &mut self.shadow_traders { shadow.daily_trades = 0; }
             self.day_open_price.clear();
@@ -1191,6 +1271,60 @@ impl PaperTrader {
         // At 3:55pm ET: flatten everything, bank the day's P&L to the profit
         // ledger, and reset working capital to the fixed budget. Runs once/day.
         if eod_liquidation && !self.did_daily_skim {
+            self.run_daily_skim(&et_date, false);
+            return;
+        }
+        // After the skim, do nothing else for the rest of the day.
+        if self.did_daily_skim { return; }
+
+        self.manage_position(symbol);
+
+        self.after_skim_tick(symbol, et_mins);
+    }
+
+    /// Wall-clock (ET) date and minute-of-day, the way `tick` computes them.
+    fn et_clock() -> (String, u32) {
+        let utc_now = chrono::Utc::now();
+        let month = utc_now.month();
+        let offset_hours: i64 = if month >= 3 && month <= 10 { 4 } else { 5 };
+        let et = utc_now - chrono::Duration::hours(offset_hours);
+        (et.date_naive().to_string(), et.hour() * 60 + et.minute())
+    }
+
+    /// Time-driven safety net for the tick-driven skim.
+    ///
+    /// The 3:55pm skim runs inside `tick`, so it needs a price tick to arrive
+    /// between 15:55 and 16:00 AND to get past every gate above it. On
+    /// 2026-09-14 the process was alive at 16:10 — it served the EOD report —
+    /// and the skim had not run: no ledger row, five positions still open,
+    /// and `docker compose down` then deleted the only log that could have
+    /// said why. The morning carryover banked the day late, correctly, but a
+    /// day's banking must not depend on one code path having no bug.
+    ///
+    /// Called every 30s from a scheduler task. Fires once, in the window
+    /// 15:57–16:09 ET, on a day the trader has actually seen (NEW_DAY has
+    /// run) whose skim is still outstanding. Returns whether it fired.
+    pub fn watchdog_skim(&mut self) -> bool {
+        let (et_date, et_mins) = Self::et_clock();
+        if !skim_watchdog_due(self.did_daily_skim, self.last_trading_date == et_date, et_mins) {
+            return false;
+        }
+        warn!("[SKIM_WATCHDOG] {} — the 3:55pm skim has not run by {:02}:{:02} ET; \
+               running it now ({} open position(s))",
+            et_date, et_mins / 60, et_mins % 60, self.positions.len());
+        self.run_daily_skim(&et_date, et_mins >= 16 * 60);
+        true
+    }
+
+    /// The 3:55pm skim: flatten everything, bank the day's P&L to the
+    /// profit ledger, reset working capital to the fixed budget.
+    ///
+    /// `after_close`: the broker's own day figure is read from
+    /// /v2/account, and Alpaca rolls `last_equity` forward once the session
+    /// is over — after 16:00 that row would bank a zero. A late run skips
+    /// it rather than record a number that is known to be wrong.
+    fn run_daily_skim(&mut self, et_date: &str, after_close: bool) {
+        {
             // Flatten all real positions.
             let syms: Vec<String> = self.positions.keys().cloned().collect();
             for s in &syms { self.sell(s, "EOD_DAILY_SKIM"); }
@@ -1262,10 +1396,14 @@ impl PaperTrader {
             // the day is over â€” after which the figure reads 0.00. The skim
             // fires at 15:55 ET, before the 16:00 close, so it reads the real
             // number. Moving the skim later would silently start banking zeros.
-            let date_for_broker = et_date.clone();
+            let date_for_broker = et_date.to_string();
+            if after_close {
+                warn!("[DAILY_SKIM] {} — skim ran after the close; Alpaca's day figure has \
+                       rolled over, so no broker row is written for this date", et_date);
+            }
             tokio::spawn(async move {
                 let pnl = crate::services::alpaca_broker::equity_pnl().await;
-                if let Some(today) = pnl["today_pnl"].as_f64() {
+                if let (false, Some(today)) = (after_close, pnl["today_pnl"].as_f64()) {
                     Self::bank_day(&date_for_broker, "broker", 0.0, json!({
                         "broker_day_pnl": (today * 100.0).round() / 100.0,
                         "basis": "alpaca /v2/account",
@@ -1304,12 +1442,13 @@ impl PaperTrader {
             // killed right after the skim, which would let the reset vanish and
             // yesterday's profit compound into tomorrow's capital.
             self.save_state_sync();
-            return;
         }
-        // After the skim, do nothing else for the rest of the day.
-        if self.did_daily_skim { return; }
+    }
 
-        self.manage_position(symbol);
+    /// The rest of `tick` after position management: damage control and
+    /// entries. Split out so the skim body could become `run_daily_skim`
+    /// without re-indenting two hundred lines.
+    fn after_skim_tick(&mut self, symbol: &str, et_mins: u32) {
 
         // The -4% circuit breaker that used to live here is removed. Damage
         // control now stops real orders at -1%, which is strictly tighter, so
@@ -1328,18 +1467,12 @@ impl PaperTrader {
         // it cannot eliminate it â€” a stop fills below its trigger and every exit
         // pays a round trip.
         if DAMAGE_CONTROL_ENABLED {
+            // The day peak is kept for reporting only. The RULE runs in the
+            // floor's own frame below — see `damage_floor` for the 2026-09-15
+            // resume/re-halt loop that mixing the two frames produced.
             if day_pnl_pct > self.day_peak_pnl_pct {
                 self.day_peak_pnl_pct = day_pnl_pct;
             }
-
-            // Effective floor: the hard floor, raised once the peak clears the
-            // profit-lock trigger. max() means the floor only ever ratchets up.
-            let locked = self.day_peak_pnl_pct >= PROFIT_LOCK_TRIGGER_PCT;
-            let floor = if locked {
-                CAPITAL_FLOOR_PCT.max(self.day_peak_pnl_pct - PROFIT_LOCK_GIVEBACK_PCT)
-            } else {
-                CAPITAL_FLOOR_PCT
-            };
 
             // Measure the floor against its own baseline, not the day's start.
             // After a resume the baseline is the book at that moment, so a
@@ -1348,6 +1481,13 @@ impl PaperTrader {
             if self.floor_baseline <= 0.0 { self.floor_baseline = self.day_start_value; }
             let floor_pnl_pct =
                 (self.total_value() - self.floor_baseline) / self.floor_baseline * 100.0;
+            if floor_pnl_pct > self.floor_peak_pct {
+                self.floor_peak_pct = floor_pnl_pct;
+            }
+
+            // Effective floor: the hard floor, raised once the peak clears the
+            // profit-lock trigger. max() means the floor only ever ratchets up.
+            let (locked, floor) = damage_floor(self.floor_peak_pct);
 
             if !self.damage_halted && floor_pnl_pct <= floor {
                 self.damage_halted = true;
@@ -1355,8 +1495,20 @@ impl PaperTrader {
                 self.recovery_trades = 0;
                 self.recovery_pnl = 0.0;
                 self.halt_baseline_value = self.total_value();
+                if locked { self.profit_locked_today = true; }
                 let syms: Vec<String> = self.positions.keys().cloned().collect();
                 for s in &syms { self.sell(s, "DAMAGE_CONTROL_FLATTEN"); }
+                let what_next = if locked {
+                    "BOTH books are done for the day: the gain is kept, and a \
+                     profit-lock halt does not resume".to_string()
+                } else if resume_allowed(true, self.resumes_today, false) {
+                    format!("BOTH books stop for {}m (halt {}/{} today)",
+                        RECOVERY_MIN_SECS / 60, self.resumes_today + 1, MAX_HALTS_PER_DAY)
+                } else {
+                    // This read "halt 4/3 today" on 2026-09-15.
+                    format!("BOTH books are done for the day: all {} resumes used",
+                        MAX_HALTS_PER_DAY)
+                };
                 // Report the number the floor was ACTUALLY measured against.
                 // This printed day_pnl_pct against a floor measured from
                 // floor_baseline, and after a resume those are different
@@ -1365,14 +1517,12 @@ impl PaperTrader {
                 // sentence was nonsense; anyone auditing it would conclude the
                 // reverse.
                 warn!("[DAMAGE_CONTROL] {:.2}% against the ${:.2} baseline breached the \
-                       {:.2}% floor{} — flattened {} position(s). BOTH books stop for \
-                       {}m (halt {}/{} today). Day P&L {:.2}%. Capital ${:.2}.",
+                       {:.2}% floor{} — flattened {} position(s). {}. Day P&L {:.2}%. \
+                       Capital ${:.2}.",
                     floor_pnl_pct, self.floor_baseline, floor,
-                    if locked { format!(" (profit-locked from peak {:.2}%)", self.day_peak_pnl_pct) }
+                    if locked { format!(" (profit-locked from peak {:.2}% in this frame)", self.floor_peak_pct) }
                     else { String::new() },
-                    syms.len(), RECOVERY_MIN_SECS / 60,
-                    self.resumes_today + 1, MAX_HALTS_PER_DAY,
-                    day_pnl_pct, self.total_value());
+                    syms.len(), what_next, day_pnl_pct, self.total_value());
                 self.save_state_sync();
                 // Both books are flat and both stay out until the cooldown
                 // passes. The simulator no longer trades on alone: that
@@ -1428,15 +1578,18 @@ impl PaperTrader {
                 //
                 // So: flatten, wait, both resume. The protection is the flatten
                 // and the daily halt cap, not a cleverer re-entry test.
-                if waited && self.resumes_today < MAX_HALTS_PER_DAY {
+                if resume_allowed(waited, self.resumes_today, self.profit_locked_today) {
                     self.damage_halted = false;
                     self.halted_at = None;
                     self.resumes_today += 1;
                     // Re-base the floor on the book we are actually resuming
                     // with. Without this the next tick sees the day still under
                     // the floor and re-halts immediately, spending the day's
-                    // only allowance on nothing.
+                    // only allowance on nothing. The peak restarts with it:
+                    // a re-based floor measured from an un-re-based peak is
+                    // exactly the instant re-halt this was meant to prevent.
                     self.floor_baseline = self.total_value();
+                    self.floor_peak_pct = 0.0;
                     info!("[DAMAGE_CONTROL] COOLDOWN COMPLETE — BOTH books resuming \
                            (halt {}/{} today); floor re-based to ${:.2}. Day P&L {:.2}%. \
                            Book moved ${:.2} while out, net of ${:.2} modeled cost.",
@@ -1653,7 +1806,17 @@ impl PaperTrader {
                 // REGIME_EXIT_ENABLED, not REGIME_FILTER_ENABLED: closing a
                 // position into a risk-off tape and refusing to open one are
                 // different decisions with different costs.
-                let regime_off = REGIME_EXIT_ENABLED && !self.market_risk_on.load(Ordering::Relaxed);
+                //
+                // And only on a TRANSITION since entry. With the entry filter
+                // off, positions open into a tape that is already risk-off;
+                // exiting those at MIN_HOLD_SECS was a fixed five-minute hold
+                // (ten of ten exits on 2026-09-15, all at 300s). See
+                // `regime_exit_due` and `Position::entry_risk_on`.
+                let regime_off = regime_exit_due(
+                    REGIME_EXIT_ENABLED,
+                    self.market_risk_on.load(Ordering::Relaxed),
+                    pos.entry_risk_on,
+                );
 
                 // === ATR-SCALED EXIT LADDER ===
                 // 1. HARD STOP â€” protect capital, IMMEDIATE (ATR-scaled)
@@ -2210,6 +2373,7 @@ impl PaperTrader {
                     Local::now().format("%H:%M:%S").to_string());
                 pos.entry_prediction = Some(prediction.clone());
                 pos.entry_atr_pct = self.market_data[best_sym].atr_pct;
+                pos.entry_risk_on = self.market_risk_on.load(Ordering::Relaxed);
                 self.positions.insert(best_sym.clone(), pos);
 
                 // Mirror to the Alpaca paper account. Suppressed while halted:
@@ -2923,10 +3087,12 @@ impl PaperTrader {
         let day_pnl_pct_now = if self.day_start_value > 0.0 {
             (total - self.day_start_value) / self.day_start_value * 100.0
         } else { 0.0 };
-        let lock_armed = self.day_peak_pnl_pct >= PROFIT_LOCK_TRIGGER_PCT;
-        let effective_floor = if lock_armed {
-            CAPITAL_FLOOR_PCT.max(self.day_peak_pnl_pct - PROFIT_LOCK_GIVEBACK_PCT)
-        } else { CAPITAL_FLOOR_PCT };
+        // The rule's frame, not the day frame (see `damage_floor`).
+        let (lock_armed, effective_floor) = damage_floor(self.floor_peak_pct);
+        let floor_base = if self.floor_baseline > 0.0 { self.floor_baseline } else { self.day_start_value };
+        let floor_pnl_pct_now = if floor_base > 0.0 {
+            (total - floor_base) / floor_base * 100.0
+        } else { 0.0 };
 
         json!({
             "market_open": self.market_open,
@@ -2935,10 +3101,13 @@ impl PaperTrader {
                 "halted": self.damage_halted,
                 "day_pnl_pct": (day_pnl_pct_now * 100.0).round() / 100.0,
                 "day_peak_pnl_pct": (self.day_peak_pnl_pct * 100.0).round() / 100.0,
+                "floor_peak_pnl_pct": (self.floor_peak_pct * 100.0).round() / 100.0,
+                "floor_pnl_pct": (floor_pnl_pct_now * 100.0).round() / 100.0,
                 "floor_pct": (effective_floor * 100.0).round() / 100.0,
-                "floor_value": ((self.day_start_value * (1.0 + effective_floor / 100.0)) * 100.0).round() / 100.0,
-                "headroom_pct": ((day_pnl_pct_now - effective_floor) * 100.0).round() / 100.0,
+                "floor_value": ((floor_base * (1.0 + effective_floor / 100.0)) * 100.0).round() / 100.0,
+                "headroom_pct": ((floor_pnl_pct_now - effective_floor) * 100.0).round() / 100.0,
                 "profit_lock_armed": lock_armed,
+                "profit_locked_today": self.profit_locked_today,
                 "profit_lock_trigger_pct": PROFIT_LOCK_TRIGGER_PCT,
                 "resumes_used": self.resumes_today,
                 "halts_allowed": MAX_HALTS_PER_DAY,

@@ -59,3 +59,4 @@
 {"basis":"simulator cash, mirrored to a live broker","capital":3000.0,"cumulative_pnl":-119.95,"date":"2026-09-11","day_pnl":-9.17,"kind":"skim","timestamp":"2026-09-11T19:55:00.671133195+00:00","unfilled_today":0}
 {"basis":"alpaca /v2/account","broker_day_pnl":61.07,"date":"2026-09-11","kind":"broker","timestamp":"2026-09-11T19:55:01.134116653+00:00"}
 {"accum_contributed":8565.0,"accum_value":8547.94,"basis":"long-term SPY holding, excluded from the trader's result","date":"2026-09-11","kind":"accumulator","timestamp":"2026-09-11T19:55:01.473131560+00:00"}
+{"capital":3000.0,"cumulative_pnl":-127.63,"date":"2026-09-14","day_pnl":-7.68,"kind":"carryover","note":"late banking for a day whose 3:55pm skim never ran","recovered_late":true,"timestamp":"2026-09-15T15:00:42.761288059+00:00"}

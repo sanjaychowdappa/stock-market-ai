@@ -1,0 +1,71 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-09-15
+  Generated:  2026-09-15T17:35:31.708277190+00:00
+  Uptime:     2h 2m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3022.98
+  Cash:             $3022.98
+  Positions Value:  $-0.00
+  Total P&L:        +22.98 (+0.77%)
+  Realized P&L:     $118.83
+  Target:           $3000 → $4500 (23.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     657
+  Winning Trades:   286
+  Win Rate:         43.5%
+  Avg Hold Time:    2615s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $504.25     neutral     0.024    —
+  TMO      $637.39     bearish     -0.215   —
+  COP      $141.34     bullish     0.425    —
+  V        $374.99     bullish     0.227    —
+  META     $666.01     neutral     -0.086   —
+  KO       $88.48      bearish     -0.245   —
+  AMZN     $248.62     bullish     0.237    —
+  FCX      $68.88      bullish     0.253    —
+  UNP      $284.61     bullish     0.252    —
+  BAC      $59.42      bullish     0.268    —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  16:17:49  SELL   BAC      $58.92     $755.78  $0.0000    DAMAGE_CONTROL_FLATTEN
+  16:17:49  BUY    BAC      $58.92     $755.78  $0.0000    ENTRY(s=0.067,K-,1of7)
+  16:02:48  SELL   META     $669.12    $755.88  $0.0000    DAMAGE_CONTROL_FLATTEN
+  16:02:48  SELL   AMZN     $249.53    $755.88  $0.0000    DAMAGE_CONTROL_FLATTEN
+  16:02:48  BUY    META     $669.12    $755.88  $0.0000    ENTRY(s=0.262,K+,2of7)
+  16:02:48  BUY    AMZN     $249.53    $755.88  $0.0000    ENTRY(s=0.360,K~,1of7)
+  15:32:46  SELL   FCX      $68.54     $755.33  $-1.1322   DAMAGE_CONTROL_FLATTEN
+  15:32:33  SELL   META     $666.44    $754.53  $-2.3436   REGIME_EXIT(risk-off,pnl=-0.31%)
+  15:31:58  SELL   V        $374.12    $756.62  $0.6269    REGIME_EXIT(risk-off,pnl=0.08%)
+  15:31:24  BUY    FCX      $68.61     $756.16  $0.0000    ENTRY(s=0.082,K-,1of7)
+  15:31:04  SELL   AMZN     $248.84    $756.63  $0.4409    REGIME_EXIT(risk-off,pnl=0.06%)
+  15:27:35  BUY    META     $668.34    $756.68  $0.0000    ENTRY(s=0.180,K+,1of7)
+  15:27:30  SELL   KO       $88.54     $757.50  $0.8555    REGIME_EXIT(risk-off,pnl=0.11%)
+  15:27:20  SELL   UNP      $283.95    $757.56  $0.3735    REGIME_EXIT(risk-off,pnl=0.05%)
+  15:26:58  BUY    V        $373.77    $755.91  $0.0000    ENTRY(s=0.419,K-,2of7)
+  15:26:23  SELL   BAC      $59.21     $755.94  $-0.8937   REGIME_EXIT(risk-off,pnl=-0.12%)
+  15:26:05  BUY    AMZN     $248.68    $756.16  $0.0000    ENTRY(s=0.350,K~,1of7)
+  15:22:30  BUY    KO       $88.44     $756.69  $0.0000    ENTRY(s=0.362,K-,1of7)
+  15:22:21  BUY    UNP      $283.66    $756.79  $0.0000    ENTRY(s=0.370,K-,1of7)
+  15:21:23  BUY    BAC      $59.27     $756.71  $0.0000    ENTRY(s=0.065,K-,1of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

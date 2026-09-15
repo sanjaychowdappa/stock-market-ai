@@ -14,9 +14,9 @@
     .\analyze.ps1 -Days 14        # today + last 14 days
     .\analyze.ps1 -Date 2026-06-22
 
-  Schedule it (optional): Windows Task Scheduler -> daily at 4:10pm ET ->
-    Program:  powershell.exe
-    Args:     -ExecutionPolicy Bypass -File "C:\Users\sanja\stock-market-ai\analyze.ps1"
+  Scheduled: scripts\setup_scheduler.ps1 registers "StockAI Daily Analysis"
+  at 16:15 ET Mon-Fri (after the 16:10 stop), run windowless through
+  scripts\run_hidden.vbs. Re-run that script if the schedule needs changing.
 #>
 param(
     [int]$Days = 7,

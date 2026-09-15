@@ -34,9 +34,25 @@ pub struct Position {
     /// volatility-scaled exit thresholds for this position.
     #[serde(default)]
     pub entry_atr_pct: f64,
+    /// The market regime (QQQ vs its 50d SMA) at the moment of entry.
+    ///
+    /// REGIME_EXIT is meant for a tape that TURNS risk-off while a position
+    /// is held. With the entry filter deliberately off, positions are opened
+    /// into a tape that is already risk-off — and on 2026-09-15, with QQQ
+    /// under its SMA from the open, every one of them was dumped the second
+    /// it cleared MIN_HOLD_SECS: ten exits, all "REGIME_EXIT(risk-off)", all
+    /// at exactly 300s. That is a fixed five-minute hold wearing a regime
+    /// rule's name. The exit now needs a transition since entry.
+    ///
+    /// Defaults to true for positions persisted before the field existed,
+    /// which keeps the old behaviour for them (they may still be exited).
+    #[serde(default = "default_true")]
+    pub entry_risk_on: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub entry_prediction: Option<EntryPrediction>,
 }
+
+fn default_true() -> bool { true }
 
 impl Position {
     pub fn new(symbol: String, shares: f64, entry_price: f64, entry_time: String) -> Self {
@@ -50,6 +66,7 @@ impl Position {
             hold_seconds: 0,
             partial_taken: false,
             entry_atr_pct: 0.0,
+            entry_risk_on: true,
             entry_prediction: None,
         }
     }
