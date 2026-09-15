@@ -943,7 +943,19 @@ async fn reconcile_inner(
         shadow_order(sym, qty, side, px, "RECONCILE".to_string()).await;
     }
     for sym in &deferred {
-        info!("[RECONCILE] {} has an order in flight — deferring to next cycle", sym);
+        // Three reasons share the deferred list; the plan checks them in this
+        // order. The line used to say "order in flight" for all three, and on
+        // 2026-09-15 it said so for seven symbols that had no orders at all —
+        // they were dust from earlier universes with no price to value.
+        let why = if busy.contains(sym) {
+            "an order is in flight".to_string()
+        } else if prices.get(sym).copied().unwrap_or(0.0) <= 0.0 {
+            "no live price to value the gap (not in today's universe)".to_string()
+        } else {
+            format!("the simulator opened it under {}s ago",
+                crate::config::RECONCILE_MIN_AGE_SECS)
+        };
+        info!("[RECONCILE] {} deferred to next cycle: {}", sym, why);
     }
 
     if actions.is_empty() && deferred.is_empty() {
