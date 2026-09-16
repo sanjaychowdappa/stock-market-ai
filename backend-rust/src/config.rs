@@ -409,6 +409,28 @@ pub fn is_market_holiday(date: &str) -> bool {
     MARKET_HOLIDAYS.contains(&date)
 }
 
+/// The trading day before `date` (YYYY-MM-DD): skips weekends and the
+/// holidays above. Returns `date` itself if it cannot be parsed.
+///
+/// Exists so a "day change" between two ledger rows can be checked for
+/// actually spanning one day. On 2026-09-16 the divergence check netted the
+/// accumulator's drift between its 09-11 and 09-15 rows — two trading days,
+/// because 09-14's skim never ran — against a single day of broker P&L, and
+/// reported a $40 gap that was entirely the missing row.
+pub fn previous_trading_day(date: &str) -> String {
+    use chrono::Datelike;
+    let Ok(mut d) = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d") else {
+        return date.to_string();
+    };
+    loop {
+        d -= chrono::Duration::days(1);
+        let s = d.format("%Y-%m-%d").to_string();
+        if d.weekday().num_days_from_monday() <= 4 && !is_market_holiday(&s) {
+            return s;
+        }
+    }
+}
+
 /// The last date MARKET_HOLIDAYS covers. Past this the list is stale and the
 /// system is silently back to weekday-and-clock, so it is worth surfacing
 /// rather than discovering on the next holiday.

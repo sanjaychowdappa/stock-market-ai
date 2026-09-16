@@ -2288,3 +2288,40 @@ fn the_watchdog_fires_only_when_the_skim_is_actually_outstanding() {
     assert!(!skim_watchdog_due(false, false, m(15, 58)),
         "a weekend or holiday: NEW_DAY never ran, there is nothing to bank");
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 2026-09-16: the divergence check invented a $40 gap from a missing row.
+//
+// 09-14's skim never ran, so the accumulator ledger has rows for 09-11 and
+// 09-15 and nothing between. accumulator_day_pnl took "the row before" as
+// "the day before" and netted two trading days of SPY drift (-87.73) against
+// one day of broker P&L, then reported the simulator and the account
+// disagreeing by $40 on a day they agreed. A change is a day's drift only if
+// the rows are consecutive trading days.
+
+use stock_market_ai::config::previous_trading_day;
+
+#[test]
+fn previous_trading_day_skips_weekends_and_holidays() {
+    assert_eq!(previous_trading_day("2026-09-15"), "2026-09-14", "Tue -> Mon");
+    assert_eq!(previous_trading_day("2026-09-14"), "2026-09-11", "Mon -> Fri");
+    assert_eq!(previous_trading_day("2026-09-08"), "2026-09-04",
+        "Tue after Labor Day -> the Friday before it");
+}
+
+#[test]
+fn accumulator_drift_across_a_missing_day_is_not_netted() {
+    let rows = vec![
+        arow("2026-09-11", 8547.94, 8565.0),
+        arow("2026-09-15", 9460.21, 9565.0),
+    ];
+    assert_eq!(accumulator_day_pnl(&rows, "2026-09-15"), None,
+        "two trading days of drift are not one day's drift; the check must \
+         say the figure is unknown rather than net -87.73 against one day");
+    let rows = vec![
+        arow("2026-09-14", 9500.0, 9565.0),
+        arow("2026-09-15", 9460.21, 9565.0),
+    ];
+    assert!((accumulator_day_pnl(&rows, "2026-09-15").unwrap() - (-39.79)).abs() < 1e-6,
+        "consecutive trading days net as before");
+}

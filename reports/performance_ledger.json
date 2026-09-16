@@ -912,8 +912,8 @@
     },
     {
       "date": "2026-09-14",
-      "gross_pnl": -2.842170943040401e-14,
-      "cumulative_pnl": 254.79999999999998,
+      "gross_pnl": -2.8421709430404014e-14,
+      "cumulative_pnl": 254.8,
       "daily_reliable": true,
       "total_trades": 643,
       "winning_trades": 275,
@@ -928,7 +928,7 @@
       "pfof_cost": 0.0,
       "total_fees": 0.0,
       "tax": 0.0,
-      "net_pnl": -2.842170943040401e-14,
+      "net_pnl": -2.8421709430404014e-14,
       "strategy_params": {
         "min_buy_signal": 0.2,
         "strong_buy_signal": 0.35,
@@ -944,6 +944,41 @@
       },
       "efficiency_score": 48.55365474339025,
       "portfolio_value": 2991.65
+    },
+    {
+      "date": "2026-09-15",
+      "gross_pnl": 15.299999999999955,
+      "cumulative_pnl": 270.09999999999997,
+      "daily_reliable": true,
+      "total_trades": 657,
+      "winning_trades": 286,
+      "win_rate": 43.531202435312025,
+      "avg_hold_seconds": 0,
+      "avg_pnl_per_trade": 0.0,
+      "total_shares_traded": 0.0,
+      "total_sell_value": 0.0,
+      "spread_cost": 0.0,
+      "sec_fee": 0.0,
+      "taf_fee": 0.0,
+      "pfof_cost": 0.0,
+      "total_fees": 0.0,
+      "tax": 3.671999999999989,
+      "net_pnl": 11.627999999999965,
+      "strategy_params": {
+        "min_buy_signal": 0.2,
+        "strong_buy_signal": 0.35,
+        "sell_signal_threshold": -0.1,
+        "trailing_stop_pct": 0.75,
+        "hard_stop_pct": -3.0,
+        "take_profit_pct": 4.0,
+        "trade_cooldown_secs": 10800,
+        "flat_exit_secs": 117000,
+        "max_concurrent_positions": 11,
+        "max_daily_trades": 5,
+        "min_predicted_move_pct": 0.012
+      },
+      "efficiency_score": 58.7062404870624,
+      "portfolio_value": 3000.0
     }
   ],
   "cost_model": {

@@ -154,3 +154,109 @@ time="2026-09-15T13:31:53-04:00" level=warning msg="C:\\Users\\sanja\\stock-mark
 [15-09-2026 13:35:31.73] All containers stopped 
 [15-09-2026 13:35:31.73] === SESSION COMPLETE === 
  
+[15-09-2026 13:40:00.79] === AUTO START === 
+[15-09-2026 13:40:01.38] Docker daemon ready after 0 attempts 
+[15-09-2026 13:40:01.38] Starting containers... 
+time="2026-09-15T13:40:01-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-backend-1 Running 
+ Container stock-market-ai-finetune-sidecar-1 Running 
+ Container stock-market-ai-frontend-1 Running 
+[15-09-2026 13:40:01.58] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","TMO","COP","V","META","KO","UNP","FCX","AMZN"],"version":"claude_1"} 
+[15-09-2026 13:40:01.59] Auto start complete 
+[15-09-2026 13:55:01.00] === AUTO START === 
+[15-09-2026 13:55:05.53] Docker daemon ready after 0 attempts 
+[15-09-2026 13:55:05.53] Starting containers... 
+time="2026-09-15T13:55:05-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-backend-1 Running 
+ Container stock-market-ai-finetune-sidecar-1 Running 
+ Container stock-market-ai-frontend-1 Running 
+[15-09-2026 13:55:05.84] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","TMO","COP","V","META","KO","UNP","FCX","AMZN"],"version":"claude_1"} 
+[15-09-2026 13:55:05.85] Auto start complete 
+[15-09-2026 14:10:00.97] === AUTO START === 
+[15-09-2026 14:10:08.51] Docker daemon ready after 0 attempts 
+[15-09-2026 14:10:08.51] Starting containers... 
+time="2026-09-15T14:10:08-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-frontend-1 Running 
+ Container stock-market-ai-backend-1 Running 
+ Container stock-market-ai-finetune-sidecar-1 Running 
+[15-09-2026 14:10:09.18] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","TMO","COP","V","META","KO","UNP","FCX","AMZN"],"version":"claude_1"} 
+[15-09-2026 14:10:09.38] Auto start complete 
+[15-09-2026 14:25:01.11] === AUTO START === 
+[15-09-2026 14:25:02.32] Docker daemon ready after 0 attempts 
+[15-09-2026 14:25:02.32] Starting containers... 
+time="2026-09-15T14:25:02-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-frontend-1 Running 
+ Container stock-market-ai-backend-1 Running 
+ Container stock-market-ai-finetune-sidecar-1 Running 
+[15-09-2026 14:25:02.82] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","TMO","COP","V","META","KO","UNP","FCX","AMZN"],"version":"claude_1"} 
+[15-09-2026 14:25:02.84] Auto start complete 
+[15-09-2026 14:40:00.85] === AUTO START === 
+[15-09-2026 14:40:01.56] Docker daemon ready after 0 attempts 
+[15-09-2026 14:40:01.56] Starting containers... 
+time="2026-09-15T14:40:01-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-finetune-sidecar-1 Running 
+ Container stock-market-ai-frontend-1 Running 
+ Container stock-market-ai-backend-1 Running 
+[15-09-2026 14:40:01.83] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","TMO","COP","V","META","KO","UNP","FCX","AMZN"],"version":"claude_1"} 
+[15-09-2026 14:40:01.84] Auto start complete 
+[15-09-2026 14:55:00.83] === AUTO START === 
+[15-09-2026 14:55:01.57] Docker daemon ready after 0 attempts 
+[15-09-2026 14:55:01.57] Starting containers... 
+time="2026-09-15T14:55:01-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-frontend-1 Running 
+ Container stock-market-ai-backend-1 Running 
+ Container stock-market-ai-finetune-sidecar-1 Running 
+[15-09-2026 14:55:01.82] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","TMO","COP","V","META","KO","UNP","FCX","AMZN"],"version":"claude_1"} 
+[15-09-2026 14:55:01.83] Auto start complete 
+[15-09-2026 15:10:00.96] === AUTO START === 
+[15-09-2026 15:10:03.01] Docker daemon ready after 0 attempts 
+[15-09-2026 15:10:03.01] Starting containers... 
+time="2026-09-15T15:10:03-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-backend-1 Running 
+ Container stock-market-ai-finetune-sidecar-1 Running 
+ Container stock-market-ai-frontend-1 Running 
+[15-09-2026 15:10:03.47] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","TMO","COP","V","META","KO","UNP","FCX","AMZN"],"version":"claude_1"} 
+[15-09-2026 15:10:03.50] Auto start complete 
+[15-09-2026 15:25:00.91] === AUTO START === 
+[15-09-2026 15:25:01.66] Docker daemon ready after 0 attempts 
+[15-09-2026 15:25:01.66] Starting containers... 
+time="2026-09-15T15:25:01-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-finetune-sidecar-1 Running 
+ Container stock-market-ai-frontend-1 Running 
+ Container stock-market-ai-backend-1 Running 
+[15-09-2026 15:25:01.92] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","TMO","COP","V","META","KO","UNP","FCX","AMZN"],"version":"claude_1"} 
+[15-09-2026 15:25:01.93] Auto start complete 
+[15-09-2026 16:10:02.13] === AUTO STOP === 
+[15-09-2026 16:10:02.19] Saving container logs... 
+[15-09-2026 16:10:08.17] Container logs saved to logs\backend_20260915.log 
+[15-09-2026 16:10:08.17] Fetching final EOD report... 
+[15-09-2026 16:10:08.27] EOD report saved to reports/ 
+[15-09-2026 16:10:08.27] Final daily status: 
+{"data_collected":{"AMD":{"predictions":8773,"ticks":8773,"trades":0},"AMZN":{"predictions":8803,"ticks":8803,"trades":0},"COP":{"predictions":8760,"ticks":8760,"trades":0},"FCX":{"predictions":8785,"ticks":8785,"trades":0},"KO":{"predictions":8812,"ticks":8812,"trades":0},"META":{"predictions":8810,"ticks":8810,"trades":0},"TMO":{"predictions":8715,"ticks":8715,"trades":0},"UNP":{"predictions":8778,"ticks":8778,"trades":0},"V":{"predictions":8775,"ticks":8775,"trades":0}},"date":"2026-09-15","finetune_triggered":true,"portfolio":{"current_value":3000.0,"pnl":0.0,"profitable":false,"start_value":3022.98},"running":true,"snapshots_count":8821} 
+[15-09-2026 16:10:08.33] Stopping containers... 
+time="2026-09-15T16:10:08-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-frontend-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopped 
+ Container stock-market-ai-finetune-sidecar-1 Removing 
+ Container stock-market-ai-frontend-1 Stopped 
+ Container stock-market-ai-frontend-1 Removing 
+ Container stock-market-ai-finetune-sidecar-1 Removed 
+ Container stock-market-ai-frontend-1 Removed 
+ Container stock-market-ai-backend-1 Stopping 
+ Container stock-market-ai-backend-1 Stopped 
+ Container stock-market-ai-backend-1 Removing 
+ Container stock-market-ai-backend-1 Removed 
+ Network stock-market-ai_default Removing 
+ Network stock-market-ai_default Removed 
+[15-09-2026 16:10:22.74] All containers stopped 
+[15-09-2026 16:10:22.74] === SESSION COMPLETE === 
+ 

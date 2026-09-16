@@ -1,301 +1,75 @@
 {
   "data_quality": {
     "finetune_triggered": true,
-    "snapshots": 7320,
+    "snapshots": 8821,
     "tracker": {
       "AMD": {
-        "predictions": 7294,
-        "ticks": 7294,
-        "trades": 1
+        "predictions": 8773,
+        "ticks": 8773,
+        "trades": 0
       },
       "AMZN": {
-        "predictions": 7314,
-        "ticks": 7314,
-        "trades": 5
-      },
-      "BAC": {
-        "predictions": 7296,
-        "ticks": 7296,
-        "trades": 4
+        "predictions": 8803,
+        "ticks": 8803,
+        "trades": 0
       },
       "COP": {
-        "predictions": 7286,
-        "ticks": 7286,
+        "predictions": 8760,
+        "ticks": 8760,
         "trades": 0
       },
       "FCX": {
-        "predictions": 7279,
-        "ticks": 7279,
-        "trades": 4
+        "predictions": 8785,
+        "ticks": 8785,
+        "trades": 0
       },
       "KO": {
-        "predictions": 7313,
-        "ticks": 7313,
-        "trades": 3
+        "predictions": 8812,
+        "ticks": 8812,
+        "trades": 0
       },
       "META": {
-        "predictions": 7308,
-        "ticks": 7308,
-        "trades": 5
+        "predictions": 8810,
+        "ticks": 8810,
+        "trades": 0
       },
       "TMO": {
-        "predictions": 7264,
-        "ticks": 7264,
-        "trades": 1
+        "predictions": 8715,
+        "ticks": 8715,
+        "trades": 0
       },
       "UNP": {
-        "predictions": 7177,
-        "ticks": 7177,
-        "trades": 3
+        "predictions": 8778,
+        "ticks": 8778,
+        "trades": 0
       },
       "V": {
-        "predictions": 7277,
-        "ticks": 7277,
-        "trades": 4
+        "predictions": 8775,
+        "ticks": 8775,
+        "trades": 0
       }
     }
   },
   "portfolio": {
-    "cash": 3022.98,
+    "cash": 3000.0,
     "drawdown_pct": 0.0,
     "initial_capital": 3000.0,
     "positions_value": -0.0,
     "realized_pnl": 118.8337,
     "target": {
       "goal": "$500 → $600 challenge",
-      "progress_pct": 22.98,
+      "progress_pct": 0.0,
       "target_value": 3100.0
     },
-    "total_pnl": 22.9804,
-    "total_pnl_pct": 0.77,
-    "total_value": 3022.98
+    "total_pnl": 0.0,
+    "total_pnl_pct": 0.0,
+    "total_value": 3000.0
   },
   "positions": [],
-  "recent_trades": [
-    {
-      "action": "SELL",
-      "pnl": 0.0,
-      "pnl_pct": 0.0,
-      "price": 58.925,
-      "reason": "DAMAGE_CONTROL_FLATTEN",
-      "shares": 12.826087,
-      "symbol": "BAC",
-      "time": "16:17:49",
-      "total": 755.78
-    },
-    {
-      "action": "BUY",
-      "pnl": null,
-      "pnl_pct": null,
-      "price": 58.925,
-      "reason": "ENTRY(s=0.067,K-,1of7)",
-      "shares": 12.826086829949572,
-      "symbol": "BAC",
-      "time": "16:17:49",
-      "total": 755.78
-    },
-    {
-      "action": "SELL",
-      "pnl": 0.0,
-      "pnl_pct": 0.0,
-      "price": 669.12,
-      "reason": "DAMAGE_CONTROL_FLATTEN",
-      "shares": 1.129661,
-      "symbol": "META",
-      "time": "16:02:48",
-      "total": 755.88
-    },
-    {
-      "action": "SELL",
-      "pnl": 0.0,
-      "pnl_pct": 0.0,
-      "price": 249.53,
-      "reason": "DAMAGE_CONTROL_FLATTEN",
-      "shares": 3.029211,
-      "symbol": "AMZN",
-      "time": "16:02:48",
-      "total": 755.88
-    },
-    {
-      "action": "BUY",
-      "pnl": null,
-      "pnl_pct": null,
-      "price": 669.12,
-      "reason": "ENTRY(s=0.262,K+,2of7)",
-      "shares": 1.1296613787878957,
-      "symbol": "META",
-      "time": "16:02:48",
-      "total": 755.88
-    },
-    {
-      "action": "BUY",
-      "pnl": null,
-      "pnl_pct": null,
-      "price": 249.53,
-      "reason": "ENTRY(s=0.360,K~,1of7)",
-      "shares": 3.0292110037853437,
-      "symbol": "AMZN",
-      "time": "16:02:48",
-      "total": 755.88
-    },
-    {
-      "action": "SELL",
-      "pnl": -1.1322,
-      "pnl_pct": -0.15,
-      "price": 68.54,
-      "reason": "DAMAGE_CONTROL_FLATTEN",
-      "shares": 11.020303,
-      "symbol": "FCX",
-      "time": "15:32:46",
-      "total": 755.33
-    },
-    {
-      "action": "SELL",
-      "pnl": -2.3436,
-      "pnl_pct": -0.31,
-      "price": 666.44,
-      "reason": "REGIME_EXIT(risk-off,pnl=-0.31%)",
-      "shares": 1.132182,
-      "symbol": "META",
-      "time": "15:32:33",
-      "total": 754.53
-    },
-    {
-      "action": "SELL",
-      "pnl": 0.6269,
-      "pnl_pct": 0.08,
-      "price": 374.12,
-      "reason": "REGIME_EXIT(risk-off,pnl=0.08%)",
-      "shares": 2.022396,
-      "symbol": "V",
-      "time": "15:31:58",
-      "total": 756.62
-    },
-    {
-      "action": "BUY",
-      "pnl": null,
-      "pnl_pct": null,
-      "price": 68.615,
-      "reason": "ENTRY(s=0.082,K-,1of7)",
-      "shares": 11.020302764428335,
-      "symbol": "FCX",
-      "time": "15:31:24",
-      "total": 756.16
-    },
-    {
-      "action": "SELL",
-      "pnl": 0.4409,
-      "pnl_pct": 0.06,
-      "price": 248.835,
-      "reason": "REGIME_EXIT(risk-off,pnl=0.06%)",
-      "shares": 3.040706,
-      "symbol": "AMZN",
-      "time": "15:31:04",
-      "total": 756.63
-    },
-    {
-      "action": "BUY",
-      "pnl": null,
-      "pnl_pct": null,
-      "price": 668.34,
-      "reason": "ENTRY(s=0.180,K+,1of7)",
-      "shares": 1.1321824411452253,
-      "symbol": "META",
-      "time": "15:27:35",
-      "total": 756.68
-    },
-    {
-      "action": "SELL",
-      "pnl": 0.8555,
-      "pnl_pct": 0.11,
-      "price": 88.54,
-      "reason": "REGIME_EXIT(risk-off,pnl=0.11%)",
-      "shares": 8.555453,
-      "symbol": "KO",
-      "time": "15:27:30",
-      "total": 757.5
-    },
-    {
-      "action": "SELL",
-      "pnl": 0.3735,
-      "pnl_pct": 0.05,
-      "price": 283.95,
-      "reason": "REGIME_EXIT(risk-off,pnl=0.05%)",
-      "shares": 2.667937,
-      "symbol": "UNP",
-      "time": "15:27:20",
-      "total": 757.56
-    },
-    {
-      "action": "BUY",
-      "pnl": null,
-      "pnl_pct": null,
-      "price": 373.77,
-      "reason": "ENTRY(s=0.419,K-,2of7)",
-      "shares": 2.0223958224576615,
-      "symbol": "V",
-      "time": "15:26:58",
-      "total": 755.91
-    },
-    {
-      "action": "SELL",
-      "pnl": -0.8937,
-      "pnl_pct": -0.12,
-      "price": 59.21,
-      "reason": "REGIME_EXIT(risk-off,pnl=-0.12%)",
-      "shares": 12.767122,
-      "symbol": "BAC",
-      "time": "15:26:23",
-      "total": 755.94
-    },
-    {
-      "action": "BUY",
-      "pnl": null,
-      "pnl_pct": null,
-      "price": 248.68,
-      "reason": "ENTRY(s=0.350,K~,1of7)",
-      "shares": 3.0407056571425874,
-      "symbol": "AMZN",
-      "time": "15:26:05",
-      "total": 756.16
-    },
-    {
-      "action": "BUY",
-      "pnl": null,
-      "pnl_pct": null,
-      "price": 88.445,
-      "reason": "ENTRY(s=0.362,K-,1of7)",
-      "shares": 8.555452862167519,
-      "symbol": "KO",
-      "time": "15:22:30",
-      "total": 756.69
-    },
-    {
-      "action": "BUY",
-      "pnl": null,
-      "pnl_pct": null,
-      "price": 283.66,
-      "reason": "ENTRY(s=0.370,K-,1of7)",
-      "shares": 2.6679373131068,
-      "symbol": "UNP",
-      "time": "15:22:21",
-      "total": 756.79
-    },
-    {
-      "action": "BUY",
-      "pnl": null,
-      "pnl_pct": null,
-      "price": 59.27,
-      "reason": "ENTRY(s=0.065,K-,1of7)",
-      "shares": 12.767121612696133,
-      "symbol": "BAC",
-      "time": "15:21:23",
-      "total": 756.71
-    }
-  ],
+  "recent_trades": [],
   "report": {
     "date": "2026-09-15",
-    "generated_at": "2026-09-15T17:35:31.708277190+00:00",
+    "generated_at": "2026-09-15T20:10:08.257327069+00:00",
     "market_session": {
       "close": "16:00 ET",
       "open": "09:30 ET",
@@ -305,115 +79,88 @@
   },
   "symbols": [
     {
-      "direction": "neutral",
+      "direction": "bullish",
       "in_position": false,
       "last_price": 504.25,
       "position_pnl": 0.0,
-      "signal_strength": 0.02394219819279871,
+      "signal_strength": 0.13470662297141794,
       "symbol": "AMD"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 641.53,
+      "position_pnl": 0.0,
+      "signal_strength": 0.13201660587673872,
+      "symbol": "TMO"
     },
     {
       "direction": "bearish",
       "in_position": false,
-      "last_price": 637.39,
+      "last_price": 141.22,
       "position_pnl": 0.0,
-      "signal_strength": -0.21495153068525216,
-      "symbol": "TMO"
-    },
-    {
-      "direction": "bullish",
-      "in_position": false,
-      "last_price": 141.34,
-      "position_pnl": 0.0,
-      "signal_strength": 0.4254647068342815,
+      "signal_strength": -0.27314234965134615,
       "symbol": "COP"
     },
     {
-      "direction": "bullish",
+      "direction": "neutral",
       "in_position": false,
-      "last_price": 374.99,
+      "last_price": 375.425,
       "position_pnl": 0.0,
-      "signal_strength": 0.22656978365380284,
+      "signal_strength": -0.017240690499119977,
       "symbol": "V"
     },
     {
       "direction": "neutral",
       "in_position": false,
-      "last_price": 666.015,
+      "last_price": 670.49,
       "position_pnl": 0.0,
-      "signal_strength": -0.08593870162699863,
+      "signal_strength": -0.06202745360650774,
       "symbol": "META"
     },
     {
       "direction": "bearish",
       "in_position": false,
-      "last_price": 88.48,
+      "last_price": 88.69,
       "position_pnl": 0.0,
-      "signal_strength": -0.24503868736179601,
+      "signal_strength": -0.19408750871446984,
       "symbol": "KO"
     },
     {
-      "direction": "bullish",
+      "direction": "bearish",
       "in_position": false,
-      "last_price": 248.62,
+      "last_price": 283.95,
       "position_pnl": 0.0,
-      "signal_strength": 0.2367029576361226,
-      "symbol": "AMZN"
+      "signal_strength": -0.2951834533884614,
+      "symbol": "UNP"
     },
     {
-      "direction": "bullish",
+      "direction": "neutral",
       "in_position": false,
-      "last_price": 68.88,
+      "last_price": 69.36,
       "position_pnl": 0.0,
-      "signal_strength": 0.2528307516705474,
+      "signal_strength": -0.0520497809318107,
       "symbol": "FCX"
     },
     {
       "direction": "bullish",
       "in_position": false,
-      "last_price": 284.61,
+      "last_price": 248.45,
       "position_pnl": 0.0,
-      "signal_strength": 0.2516686763657272,
-      "symbol": "UNP"
-    },
-    {
-      "direction": "bullish",
-      "in_position": false,
-      "last_price": 59.425,
-      "position_pnl": 0.0,
-      "signal_strength": 0.268426928887405,
-      "symbol": "BAC"
+      "signal_strength": 0.3459044048948238,
+      "symbol": "AMZN"
     }
   ],
   "trading_stats": {
-    "avg_hold_seconds": 2615,
+    "avg_hold_seconds": 0,
     "open_positions": 0,
     "total_trades": 657,
-    "uptime_seconds": 7329,
+    "uptime_seconds": 8830,
     "win_rate": 43.53,
     "winning_trades": 286
   },
   "value_history": [
     3000.0,
-    2999.37588352,
-    3004.92471016,
-    3005.838007885,
-    3008.440604515,
-    3007.9706135349998,
-    3008.2745593349996,
-    3008.9623201145946,
-    3011.8379734945947,
-    3014.154905804595,
-    3013.2612072645948,
-    3013.634718444595,
-    3014.490263744595,
-    3014.931166114595,
-    3015.558108874595,
-    3013.214492134595,
-    3012.082255184072,
-    3012.082255184072,
-    3012.082255184072,
-    3012.082255184072,
-    3022.9804154043354
+    3000.0
   ]
 }

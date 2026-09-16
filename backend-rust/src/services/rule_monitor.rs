@@ -179,8 +179,10 @@ pub fn check_divergence(day: &str, sim: f64, broker: f64, accum: Option<f64>) ->
             "broker {:+.2} less accumulator {:+.2} = {:+.2} from trading",
             broker, a, traded),
         None => format!(
-            "broker {:+.2}, accumulator drift UNKNOWN for this day so it is not \
-             netted out — treat the gap as an upper bound", broker),
+            "broker {:+.2}, accumulator drift UNKNOWN for this day (no accumulator \
+             row for the previous trading day — usually a skim that did not run) \
+             so it is not netted out — the gap below is an UPPER BOUND that \
+             includes the SPY move, not a trading divergence", broker),
     };
 
     finding("sim_vs_broker", sev, format!(
@@ -457,6 +459,13 @@ pub fn accumulator_day_pnl(rows: &[Value], day: &str) -> Option<f64> {
     }
     let cur = accum[idx];
     let prev = accum[idx - 1];
+    // The change is a DAY's drift only if the previous row is the previous
+    // trading day. Across a gap (a skim that never ran) it is several days'
+    // drift, and netting it against one day of broker P&L invents a
+    // divergence — $40 on 2026-09-16, for a day the books actually agreed.
+    if prev["date"].as_str() != Some(crate::config::previous_trading_day(day).as_str()) {
+        return None;
+    }
     let (v, vp) = (cur["accum_value"].as_f64()?, prev["accum_value"].as_f64()?);
     let (c, cp) = (cur["accum_contributed"].as_f64()?,
                    prev["accum_contributed"].as_f64()?);
