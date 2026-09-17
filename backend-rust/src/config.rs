@@ -711,9 +711,17 @@ pub const PROFIT_LOCK_GIVEBACK_PCT: f64 = 0.15;
 ///
 /// The books now move together — see DAMAGE_CONTROL in paper_trader. A halt
 /// flattens both and stops both entering for RECOVERY_MIN_SECS, then both
-/// resume. Three is enough to survive a choppy morning and few enough that a
-/// genuinely bad day still ends.
-pub const MAX_HALTS_PER_DAY: u32 = 3;
+/// resume.
+///
+/// BACK TO ONE on 2026-09-17. Three was set with the note "few enough that a
+/// genuinely bad day still ends". On 2026-09-16 it did not: every resume
+/// re-bases the floor and hands out a fresh -0.30%, so the day went
+/// -0.30%, -0.61%, -0.98% through three halts and closed at -1.12%, $33.71 —
+/// three times the worst day the replay ever produced (-$11.93), because the
+/// replay treats a halt as ending the day and its caveat allowed for ONE
+/// resume. The bound with N resumes is (N+1) x CAPITAL_FLOOR_PCT; a test now
+/// pins that bound so this cannot drift upward again without saying so.
+pub const MAX_HALTS_PER_DAY: u32 = 1;
 
 // ── RECOVERY GATE ────────────────────────────────────────────────────────
 //

@@ -1,0 +1,62 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-09-16 16:15   |   Report date: 2026-09-16   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-09-16) ===
+  Trades:       25   (W 7 / L 18)
+  Win rate:     28%
+  Gross P/L:    $-28.1049
+  Avg win:      $3.1803    Avg loss: $-2.7982
+  Expectancy:   $-1.1242/trade gross  ->  ~$-1.2367/trade after est. fees
+  Per symbol:
+    TMO     3 trades  W3   $19.0443
+    UNP     4 trades  W2   $-0.1584
+    KO      2 trades  W1   $-0.8006
+    AMD     1 trades  W0   $-1.4659
+    META    2 trades  W0   $-4.1824
+    AMZN    3 trades  W1   $-4.3553
+    FCX     2 trades  W0   $-6.8747
+    V       3 trades  W0   $-12.9438
+    COP     5 trades  W0   $-16.368
+  Exit reasons:
+    TRAIL_STOP         10
+    DAMAGE_CONTROL_FLATTEN 9
+    EOD_DAILY_SKIM     4
+    REGIME_EXIT        2
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       98   (W 38 / L 60)
+  Win rate:     38.8%
+  Gross P/L:    $-38.803
+  Avg win:      $1.9076    Avg loss: $-1.8548
+  Expectancy:   $-0.3959/trade gross  ->  ~$-0.5084/trade after est. fees
+  Per symbol:
+    TMO     7 trades  W6   $24.5034
+    KO      5 trades  W4   $5.2969
+    MRK     2 trades  W1   $1.0036
+    BAC     9 trades  W2   $-1.0581
+    AMD    10 trades  W4   $-3.4893
+    EQIX    7 trades  W3   $-4.7852
+    UNP    13 trades  W5   $-4.8539
+    AMZN   14 trades  W6   $-6.4102
+    META    8 trades  W1   $-7.7568
+    FCX    11 trades  W3   $-10.9554
+    V       5 trades  W2   $-11.6291
+    COP     7 trades  W1   $-18.6689
+  Exit reasons:
+    REGIME_EXIT        47
+    DAMAGE_CONTROL_FLATTEN 25
+    TRAIL_STOP         17
+    CARRYOVER_FLATTEN  5
+    EOD_DAILY_SKIM     4
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $-0.3959/trade  (98 trades)
+  r5_concentrate           expectancy $-0.1134/trade  (64 trades)
+  r4_legacy                expectancy $-0.4163/trade  (36 trades)
+  r1_kronos_sectors        expectancy $-0.1652/trade  (51 trades)
+  r2_max_forecast          expectancy $-0.8328/trade  (22 trades)
+  (not enough random-baseline trades yet to judge)
+
+LIVE: backend not reachable (Docker stopped?) - analysis above is from logs.

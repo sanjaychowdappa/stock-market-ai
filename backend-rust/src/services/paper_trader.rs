@@ -888,13 +888,15 @@ impl PaperTrader {
     /// within about a dollar of slippage, while the two days with heavy
     /// non-fills diverged by $11.64 and $13.56.
     fn unfilled_count_today(date: &str) -> usize {
-        std::fs::read_to_string(crate::services::alpaca_broker::FILL_LOG)
+        // Per ORDER, by final outcome. Counting rows double-counted every
+        // late fill (a "pending" row and its later "filled" row) — see
+        // rule_monitor::final_order_rows.
+        let rows: Vec<serde_json::Value> = std::fs::read_to_string(crate::services::alpaca_broker::FILL_LOG)
             .map(|c| c.lines()
                 .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
-                .filter(|v| v["timestamp"].as_str().map(|t| t.starts_with(date)).unwrap_or(false))
-                .filter(|v| v["outcome"].as_str() != Some("filled"))
-                .count())
-            .unwrap_or(0)
+                .collect())
+            .unwrap_or_default();
+        crate::services::rule_monitor::orders_not_filled(&rows, date)
     }
 
     /// Every parsed row of the daily profit ledger, in file order.

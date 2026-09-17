@@ -2325,3 +2325,63 @@ fn accumulator_drift_across_a_missing_day_is_not_netted() {
     assert!((accumulator_day_pnl(&rows, "2026-09-15").unwrap() - (-39.79)).abs() < 1e-6,
         "consecutive trading days net as before");
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 2026-09-16: the "-0.30% floor" let a day lose 1.12%.
+//
+// Each cooldown resume re-bases the floor to the current book, which is the
+// only way a resume can work — but it also means each resume is a fresh
+// -0.30% allowance. With three resumes a day can lose four floors. The replay
+// that chose the floor treats a halt as the end of the day (worst day
+// -$11.93) and its caveat allowed for one resume. Pin the bound.
+
+#[test]
+fn the_worst_day_the_resumes_can_construct_stays_near_the_modeled_floor() {
+    let bound_pct = (MAX_HALTS_PER_DAY + 1) as f64 * CAPITAL_FLOOR_PCT.abs();
+    assert!(bound_pct <= 0.60 + 1e-9,
+        "with {} resume(s) a day can lose {:.2}%; 2026-09-16 lost 1.12% under \
+         three. One resume (0.60%) is the documented design",
+        MAX_HALTS_PER_DAY, bound_pct);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 2026-09-16: every late fill was counted as one fill AND one non-fill.
+//
+// The fill log is append-only; the backfill repair appends a "filled" row
+// for an order rather than rewriting its "pending" row. Both counters walked
+// rows, so the four opening buys — all filled within a minute — were reported
+// as "4 orders did not fill" by the skim and "10 of 14 filled (71%)" by the
+// monitor, and the divergence check then blamed them.
+
+use stock_market_ai::services::rule_monitor::{final_order_rows, orders_not_filled};
+
+fn frow(ts: &str, sym: &str, outcome: &str, id: Option<&str>) -> serde_json::Value {
+    let mut v = serde_json::json!({"timestamp": ts, "symbol": sym, "side": "buy", "outcome": outcome});
+    if let Some(i) = id { v["order_id"] = serde_json::Value::String(i.into()); }
+    v
+}
+
+#[test]
+fn a_pending_row_superseded_by_a_filled_row_is_one_filled_order() {
+    let rows = vec![
+        frow("2026-09-16T13:31:10+00:00", "UNP", "pending", Some("fb0b")),
+        frow("2026-09-16T13:32:22Z",      "UNP", "filled",  Some("fb0b")),
+        frow("2026-09-16T13:35:21Z",      "COP", "filled",  Some("c0c0")),
+    ];
+    let finals = final_order_rows(&rows, "2026-09-16");
+    assert_eq!(finals.len(), 2, "two orders, not three rows");
+    assert_eq!(orders_not_filled(&rows, "2026-09-16"), 0,
+        "the skim reported 4 unfilled on a day with a 100% fill rate");
+}
+
+#[test]
+fn an_order_that_never_filled_is_still_counted() {
+    let rows = vec![
+        frow("2026-09-16T13:31:10Z", "UNP", "pending", Some("fb0b")),
+        frow("2026-09-16T13:31:12Z", "V",   "rejected", None),
+        frow("2026-09-15T13:31:12Z", "KO",  "pending", Some("old")),
+    ];
+    assert_eq!(orders_not_filled(&rows, "2026-09-16"), 2,
+        "a still-pending order and an anonymous rejection both count; \
+         yesterday's row does not");
+}

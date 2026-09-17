@@ -449,6 +449,44 @@ fn read_lines(path: &str) -> Vec<Value> {
 /// None when there is no prior row to difference against — the first logged day
 /// has no yesterday, and reporting an unknown as zero would silently attribute
 /// a whole day of index drift to the trader.
+/// The final row for every order on `day`: one row per order_id, the last
+/// one written. Rows with no order_id (a rejection before an id existed, a
+/// drop) stand on their own.
+///
+/// The fill log is append-only and the backfill repair APPENDS a "filled"
+/// row rather than rewriting the "pending" one, so an order that filled a
+/// minute late has two rows. Counting rows counted it twice: on 2026-09-16
+/// the four opening buys all filled by 13:32 and the day was still reported
+/// as "4 orders did not fill" by the skim and "10 of 14 filled (71%)" by the
+/// monitor. The simulator-vs-broker check then blamed unfilled orders for a
+/// divergence they had nothing to do with.
+pub fn final_order_rows<'a>(rows: &'a [Value], day: &str) -> Vec<&'a Value> {
+    let mut by_id: std::collections::HashMap<&str, &Value> = std::collections::HashMap::new();
+    let mut order: Vec<&str> = Vec::new();
+    let mut anonymous: Vec<&Value> = Vec::new();
+    for row in rows {
+        if !row["timestamp"].as_str().map(|t| t.starts_with(day)).unwrap_or(false) {
+            continue;
+        }
+        match row["order_id"].as_str().filter(|id| !id.is_empty()) {
+            Some(id) => {
+                if by_id.insert(id, row).is_none() { order.push(id); }
+            }
+            None => anonymous.push(row),
+        }
+    }
+    let mut out: Vec<&Value> = order.into_iter().map(|id| by_id[id]).collect();
+    out.extend(anonymous);
+    out
+}
+
+/// Orders on `day` whose FINAL outcome is not "filled".
+pub fn orders_not_filled(rows: &[Value], day: &str) -> usize {
+    final_order_rows(rows, day).iter()
+        .filter(|r| r["outcome"].as_str() != Some("filled"))
+        .count()
+}
+
 pub fn accumulator_day_pnl(rows: &[Value], day: &str) -> Option<f64> {
     let accum: Vec<&Value> = rows.iter()
         .filter(|r| r["kind"].as_str() == Some("accumulator"))
@@ -489,9 +527,9 @@ pub fn run_from_logs() -> Vec<Value> {
     let fills = read_lines(FILL_LOG);
     let (mut f, mut r, mut u, mut p, mut dropped) = (0u32, 0u32, 0u32, 0u32, 0u32);
     let mut recon: Vec<(String, String, i64)> = Vec::new();
-    for row in &fills {
+    // One row per ORDER (its last), not one per log line — see final_order_rows.
+    for row in final_order_rows(&fills, &today) {
         let ts = row["timestamp"].as_str().unwrap_or("");
-        if !ts.starts_with(&today) { continue; }
         match row["outcome"].as_str() {
             Some("filled") => f += 1,
             Some("rejected") => r += 1,

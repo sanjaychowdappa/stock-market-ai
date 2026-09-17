@@ -1,0 +1,70 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-09-16
+  Generated:  2026-09-16T20:10:02.632849823+00:00
+  Uptime:     4h 42m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $85.13
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     682
+  Winning Trades:   293
+  Win Rate:         43.0%
+  Avg Hold Time:    2880s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $512.78     bearish     -0.125   —
+  TMO      $648.49     bearish     -0.148   —
+  COP      $132.56     bearish     -0.245   —
+  V        $370.98     bullish     0.475    —
+  META     $673.59     neutral     -0.000   —
+  KO       $87.85      neutral     -0.053   —
+  FCX      $69.25      bullish     0.546    —
+  UNP      $280.99     neutral     -0.090   —
+  AMZN     $245.99     bullish     0.213    —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   KO       $87.92     $740.58  $-1.0108   EOD_DAILY_SKIM
+  19:55:00  SELL   META     $673.42    $739.16  $-3.5234   EOD_DAILY_SKIM
+  19:55:00  SELL   UNP      $281.23    $741.66  $2.0834    EOD_DAILY_SKIM
+  19:55:00  SELL   TMO      $650.18    $745.37  $2.6253    EOD_DAILY_SKIM
+  19:25:30  BUY    UNP      $280.37    $739.38  $0.0000    ENTRY(s=0.352,K-,1of7)
+  19:25:30  SELL   FCX      $67.91     $739.34  $-3.3697   TRAIL_STOP(-0.81% from peak,pnl=-0.45%)
+  19:12:12  BUY    KO       $88.05     $741.63  $0.0000    ENTRY(s=0.403,K-,2of7)
+  19:12:02  BUY    META     $676.41    $742.44  $0.0000    ENTRY(s=0.117,K+,1of7)
+  19:12:02  BUY    TMO      $647.62    $742.44  $0.0000    ENTRY(s=0.123,K~,1of7)
+  19:12:02  BUY    FCX      $68.19     $742.44  $0.0000    ENTRY(s=0.508,K+,2of7)
+  18:57:01  SELL   COP      $133.71    $743.31  $-0.8071   DAMAGE_CONTROL_FLATTEN
+  18:57:01  SELL   V        $370.51    $742.36  $-2.5947   DAMAGE_CONTROL_FLATTEN
+  18:57:01  SELL   AMZN     $246.02    $741.80  $-3.2263   DAMAGE_CONTROL_FLATTEN
+  18:57:01  SELL   UNP      $282.21    $743.14  $-2.3568   DAMAGE_CONTROL_FLATTEN
+  18:52:03  BUY    COP      $133.86    $744.14  $0.0000    ENTRY(s=0.065,K-,1of7)
+  18:50:39  BUY    V        $371.70    $744.74  $0.0000    ENTRY(s=0.388,K-,1of7)
+  18:50:34  BUY    AMZN     $247.05    $744.91  $0.0000    ENTRY(s=0.377,K-,2of7)
+  18:50:33  BUY    UNP      $282.88    $744.91  $0.0000    ENTRY(s=0.388,K-,1of7)
+  18:35:28  SELL   KO       $88.25     $742.07  $0.2102    DAMAGE_CONTROL_FLATTEN
+  18:35:28  SELL   META     $676.76    $743.37  $-0.6591   DAMAGE_CONTROL_FLATTEN
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════
