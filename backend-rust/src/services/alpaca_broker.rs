@@ -950,7 +950,7 @@ async fn reconcile_inner(
         let why = if busy.contains(sym) {
             "an order is in flight".to_string()
         } else if prices.get(sym).copied().unwrap_or(0.0) <= 0.0 {
-            "no live price to value the gap (not in today's universe)".to_string()
+            "no live price to value the gap (feed still warming up after a start,              or not in today's universe)".to_string()
         } else {
             format!("the simulator opened it under {}s ago",
                 crate::config::RECONCILE_MIN_AGE_SECS)

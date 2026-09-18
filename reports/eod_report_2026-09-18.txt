@@ -1,0 +1,53 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-09-18
+  Generated:  2026-09-18T17:54:36.725432283+00:00
+  Uptime:     0h 2m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $2992.75
+  Cash:             $-0.59
+  Positions Value:  $2993.34
+  Total P&L:        -7.25 (-0.24%)
+  Realized P&L:     $74.12
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     710
+  Winning Trades:   304
+  Win Rate:         42.8%
+  Avg Hold Time:    0s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $545.95     neutral     -0.072   OPEN
+  TMO      $0.00       neutral     0.000    —
+  META     $671.09     bullish     0.267    OPEN
+  V        $369.09     bullish     0.228    —
+  FCX      $71.44      bearish     -0.132   OPEN
+  COP      $131.90     bullish     0.349    —
+  KO       $87.86      neutral     -0.051   OPEN
+  UNP      $279.73     bearish     -0.195   OPEN
+  AMZN     $253.03     neutral     0.063    —
+
+─────────────── OPEN POSITIONS ───────────────
+
+  AMD — 1.3780 shares @ $542.59 → $545.95  P&L: $4.6299 (0.62%)
+  FCX — 10.5860 shares @ $70.65 → $71.44  P&L: $8.4159 (1.13%)
+  KO — 8.4576 shares @ $87.86 → $87.86  P&L: $0.0000 (0.00%)
+  META — 0.5524 shares @ $671.59 → $671.09  P&L: $-0.2762 (-0.07%)
+  UNP — 1.3261 shares @ $279.82 → $279.73  P&L: $-0.1193 (-0.03%)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════
