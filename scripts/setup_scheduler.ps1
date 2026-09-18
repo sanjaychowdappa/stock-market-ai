@@ -10,7 +10,9 @@
                                own weekend and market-hours guards).
     StockMarketAI_Stop         Mon-Fri 16:10 ET.   scripts\auto_stop.bat
     StockMarketAI_WeekendStop  Sat 00:05.          scripts\auto_stop.bat
-    StockAI Daily Analysis     Mon-Fri 16:15 ET.   analyze.ps1
+    StockAI Daily Analysis     Mon-Fri 16:15 ET.   analyze.ps1 -Scheduled
+                               (-Scheduled: a catch-up run after a missed
+                               16:15 reports on the last day that traded)
 
 .DESCRIPTION
     Rewritten 2026-09-15. The previous version registered only Start and
@@ -164,7 +166,7 @@ Register-Task 'StockMarketAI_WeekendStop' `
 # -- StockAI Daily Analysis ------------------------------------------------
 Write-Host "Creating StockAI Daily Analysis..." -ForegroundColor Yellow
 Register-Task 'StockAI Daily Analysis' `
-    (New-HiddenAction ('powershell.exe -NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $Analyze)) `
+    (New-HiddenAction ('powershell.exe -NoProfile -ExecutionPolicy Bypass -File "{0}" -Scheduled' -f $Analyze)) `
     (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At '16:15') `
     (New-Settings (New-TimeSpan -Minutes 30) 0) `
     'Standalone daily/weekly analysis from the prediction log, after the 16:10 stop has fetched the final EOD report.'

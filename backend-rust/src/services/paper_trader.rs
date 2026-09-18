@@ -388,6 +388,12 @@ pub fn regime_exit_due(exit_enabled: bool, risk_on_now: bool, risk_on_at_entry: 
 /// `trader_day_is_today`: the trader's NEW_DAY has run for today's ET date.
 /// On a weekend or holiday no tick reaches NEW_DAY, so this is false and the
 /// watchdog stays quiet; the morning carryover handles anything left over.
+/// Is an allocation big enough to be a position rather than a residue?
+/// See MIN_ENTRY_NOTIONAL.
+pub fn entry_size_ok(alloc_dollars: f64) -> bool {
+    alloc_dollars >= MIN_ENTRY_NOTIONAL
+}
+
 pub fn skim_watchdog_due(did_daily_skim: bool, trader_day_is_today: bool, et_mins: u32) -> bool {
     !did_daily_skim && trader_day_is_today && (15 * 60 + 57..16 * 60 + 10).contains(&et_mins)
 }
@@ -2363,7 +2369,7 @@ impl PaperTrader {
             let alloc = (per_slot * confidence_scale).min(self.cash);
 
             let shares = alloc / price;
-            if shares * price >= 1.0 {
+            if entry_size_ok(shares * price) {
                 let bias_tag = if bias > 0.05 { "K+" } else if bias > -0.02 { "K~" } else { "K-" };
                 info!(
                     "PAPER: BUY {:.4} {} @ ${:.2} = ${:.2} (score={:.3}, conf={:.0}%, bias={:.3}% [{}])",
@@ -2656,7 +2662,7 @@ impl PaperTrader {
                 let shadow_conf = 1.0;
                 let alloc = (per_slot * shadow_conf).min(shadow.cash);
                 let shares = alloc / price;
-                if shares * price >= 1.0 {
+                if entry_size_ok(shares * price) {
                     shadow.cash -= shares * price;
                     shadow.total_trades += 1;
                     shadow.daily_trades += 1;

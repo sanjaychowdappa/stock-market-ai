@@ -20,7 +20,14 @@
 #>
 param(
     [int]$Days = 7,
-    [string]$Date = (Get-Date -Format 'yyyy-MM-dd')
+    [string]$Date = (Get-Date -Format 'yyyy-MM-dd'),
+    # Set by the scheduled task. A catch-up run (the machine was off at 16:15
+    # and Task Scheduler ran this at the next boot) must report on the last
+    # day that TRADED, not on the calendar day it happens to be running in.
+    # On 2026-09-17 Windows Update rebooted the laptop at 16:13; the task
+    # caught up at 00:17 and wrote analysis_2026-09-18.txt for a day with no
+    # data, and 09-17 got no report at all.
+    [switch]$Scheduled
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,6 +48,18 @@ $lines = Get-Content $jsonl -Encoding utf8 | Where-Object { $_.Trim() -ne '' }
 $objs = foreach ($l in $lines) { try { $l | ConvertFrom-Json } catch { } }
 
 $realTrades = $objs | Where-Object { $null -ne $_.pnl -and $_.exit_reason -and -not $_.type }
+
+if ($Scheduled) {
+    # Latest date with a real trade, no later than today. Data-driven on
+    # purpose: a calendar copy here would be the fourth in this repo.
+    $today = Get-Date -Format 'yyyy-MM-dd'
+    $latest = $realTrades | ForEach-Object { $_.timestamp.Substring(0, 10) } |
+        Where-Object { $_ -le $today } | Sort-Object -Unique | Select-Object -Last 1
+    if ($latest -and $latest -ne $Date) {
+        Write-Host "Scheduled run: reporting on $latest (last day with trades), not $Date" -ForegroundColor Yellow
+        $Date = $latest
+    }
+}
 $shadowSells = $objs | Where-Object { $_.type -eq 'shadow_trade' -and $_.action -eq 'SELL' }
 
 function Summarize($trades, $label) {

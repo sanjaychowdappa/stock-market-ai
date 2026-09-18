@@ -2385,3 +2385,20 @@ fn an_order_that_never_filled_is_still_counted() {
         "a still-pending order and an anonymous rejection both count; \
          yesterday's row does not");
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 2026-09-17: a $3.03 position.
+//
+// Four $750 slots were full and a fifth name qualified, so it was bought
+// with the $3 left over — the guard was Alpaca's $1 notional minimum. A
+// real order, a real round trip in the kill-criterion count, and a position
+// that cannot make or lose more than a cent.
+
+use stock_market_ai::services::paper_trader::entry_size_ok;
+
+#[test]
+fn leftover_cash_is_not_a_position() {
+    assert!(!entry_size_ok(3.03), "the 2026-09-17 V entry");
+    assert!(entry_size_ok(stock_market_ai::config::MIN_ENTRY_NOTIONAL));
+    assert!(entry_size_ok(747.0), "a normal slot");
+}

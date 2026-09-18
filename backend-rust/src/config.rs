@@ -493,6 +493,17 @@ pub const MAX_EXPOSURE_MODE: bool = true;
 
 pub const MAX_POSITION_PCT: f64 = 0.25;
 
+/// Smallest position worth opening, in dollars.
+///
+/// The entry guard was Alpaca's $1 notional minimum. With four $750 slots
+/// filled, a fifth qualifying name got whatever cash was left: on
+/// 2026-09-17 that was "BUY 0.0082 V @ $371.64 = $3.03" — a real order, a
+/// real fill, a round trip counted toward the 100-trip kill criterion, and
+/// a position whose best possible outcome is a cent. $100 is a third of a
+/// nominal slot; below that the trade cannot express the decision it
+/// represents and only dilutes every statistic it enters.
+pub const MIN_ENTRY_NOTIONAL: f64 = 100.0;
+
 // More selective entries — swing wants conviction, not volume.
 pub const MIN_BUY_SIGNAL: f64 = 0.20;
 pub const STRONG_BUY_SIGNAL: f64 = 0.35;
