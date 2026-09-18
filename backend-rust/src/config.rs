@@ -180,9 +180,13 @@ pub const LIVE_KILL_DAYS: i64 = 20;
 /// in the baseline and subtracted a second time later, understating the trial's
 /// net by that amount for its whole life.
 ///
-/// Readings at 2026-09-09 09:40 ET: account net -$167.58, accumulator -$24.79.
-/// Baseline = -167.58 - (-24.79) = -142.79, so the trial starts at exactly zero.
-pub const LIVE_KILL_BASELINE_NET: f64 = -142.79;
+/// Trial 3 readings at 2026-09-09 09:40 ET: account net -$167.58, accumulator
+/// -$24.79. Baseline = -167.58 - (-24.79) = -142.79.
+///
+/// Trial 4 readings at 2026-09-18 07:20 ET: account net -$249.85, accumulator
+/// -$71.31. Baseline = -249.85 - (-71.31) = -178.54, so trial 4 starts at
+/// exactly zero; trial 3 closed at -$35.75 against its own baseline.
+pub const LIVE_KILL_BASELINE_NET: f64 = -178.54;
 
 /// Broker round trips completed before trial 3 opened.
 ///
@@ -206,8 +210,17 @@ pub const LIVE_KILL_MIN_EXPECTANCY: f64 = 0.0;
 /// Trial 2: opened 2026-08-20, reset 2026-08-24, abandoned at 96/100 trips
 ///          and -$1.3131 when the books-mirrored change landed.
 /// Trial 3: 2026-09-09 — the first window measuring the strategy on execution
-///          machinery that actually works.
-pub const LIVE_KILL_START_DATE: &str = "2026-09-09";
+///          machinery that actually works. FAILED 2026-09-18 at -$0.2576 over
+///          123 trips — but the window straddled three mid-trial changes
+///          (regime exit on transition 09-15, halt cap 3 -> 1 on 09-17,
+///          MIN_ENTRY_NOTIONAL 09-18) that this rule says reset the count and
+///          did not. Split at the fixes by a FIFO match of the fill log:
+///          before, -$0.161/trip over 122; after, -$0.007 over 111, with the
+///          three-resume day 09-16 (-$36, no longer possible) most of it.
+///          Reset as trial 4 at the owner's decision, 2026-09-18.
+/// Trial 4: 2026-09-18 — the system as it stands after those fixes. No
+///          further parameter changes without resetting again.
+pub const LIVE_KILL_START_DATE: &str = "2026-09-18";
 
 
 /// Mirror simulated intraday trades as real orders on the Alpaca PAPER account.
