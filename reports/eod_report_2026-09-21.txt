@@ -1,0 +1,68 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-09-21
+  Generated:  2026-09-21T20:10:16.423302703+00:00
+  Uptime:     6h 21m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $68.76
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     722
+  Winning Trades:   311
+  Win Rate:         43.1%
+  Avg Hold Time:    1708s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $615.36     neutral     0.003    —
+  TMO      $656.84     bullish     0.133    —
+  META     $748.18     bullish     0.199    —
+  FCX      $72.09      bearish     -0.298   —
+  V        $369.87     neutral     0.090    —
+  CVX      $204.11     bullish     0.303    —
+  KO       $87.69      neutral     0.095    —
+  UNP      $269.59     bullish     0.389    —
+  AMZN     $258.63     bearish     -0.178   —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  14:56:30  SELL   AMZN     $255.88    $751.31  $4.2429    DAMAGE_CONTROL_FLATTEN
+  14:56:30  SELL   V        $367.83    $747.78  $0.7929    DAMAGE_CONTROL_FLATTEN
+  14:56:30  SELL   CVX      $205.55    $742.03  $-2.0777   DAMAGE_CONTROL_FLATTEN
+  14:49:05  SELL   FCX      $71.00     $737.87  $-2.5142   TRAIL_STOP(-0.75% from peak,pnl=-0.34%)
+  14:38:22  BUY    CVX      $206.09    $743.96  $0.0000    ENTRY(s=0.388,K-,1of7)
+  14:37:00  SELL   UNP      $271.72    $744.06  $-3.4777   TRAIL_STOP(-0.77% from peak,pnl=-0.47%)
+  14:13:45  BUY    FCX      $71.25     $740.42  $0.0000    ENTRY(s=0.147,K~,2of7)
+  14:12:57  SELL   CVX      $205.46    $741.09  $-5.5187   TRAIL_STOP(-0.76% from peak,pnl=-0.74%)
+  13:53:42  BUY    CVX      $207.04    $746.79  $0.0000    ENTRY(s=0.329,K-,1of7)
+  13:53:42  BUY    V        $367.34    $746.79  $0.0000    ENTRY(s=0.418,K~,2of7)
+  13:53:42  BUY    UNP      $272.71    $746.79  $0.0000    ENTRY(s=0.556,K+,2of7)
+  13:48:55  BUY    AMZN     $254.38    $746.92  $0.0000    ENTRY(s=0.181,K+,1of7)
+  13:33:40  SELL   UNP      $274.31    $739.01  $-10.9918  DAMAGE_CONTROL_FLATTEN
+  13:33:40  SELL   V        $370.01    $751.97  $2.0424    DAMAGE_CONTROL_FLATTEN
+  13:33:40  SELL   CVX      $207.97    $749.37  $-0.5585   DAMAGE_CONTROL_FLATTEN
+  13:30:33  BUY    CVX      $208.13    $749.93  $0.0000    ENTRY(s=0.352,K-,1of7)
+  13:30:28  BUY    V        $369.01    $749.93  $0.0000    ENTRY(s=0.364,K+,1of7)
+  13:30:17  BUY    UNP      $278.39    $750.00  $0.0000    ENTRY(s=0.254,K+,1of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

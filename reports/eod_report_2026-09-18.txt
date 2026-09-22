@@ -3,8 +3,8 @@
 ╚══════════════════════════════════════════════════════════╝
 
   Date:       2026-09-18
-  Generated:  2026-09-18T17:54:36.725432283+00:00
-  Uptime:     0h 2m
+  Generated:  2026-09-18T20:10:08.864983137+00:00
+  Uptime:     1h 55m
 
 ─────────────── PORTFOLIO (SIMULATOR) ───────────────
 
@@ -12,41 +12,49 @@
   They are NOT a record of money made. Real results: GET /api/broker.
 
   Initial Capital:  $3000.00
-  Current Value:    $2992.75
-  Cash:             $-0.59
-  Positions Value:  $2993.34
-  Total P&L:        -7.25 (-0.24%)
-  Realized P&L:     $74.12
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $90.37
   Target:           $3000 → $4500 (0.0% complete)
 
 ─────────────── TRADING STATS ───────────────
 
-  Total Trades:     710
-  Winning Trades:   304
-  Win Rate:         42.8%
-  Avg Hold Time:    0s
+  Total Trades:     713
+  Winning Trades:   308
+  Win Rate:         43.2%
+  Avg Hold Time:    8551s
 
 ─────────────── SYMBOLS ───────────────
 
   Symbol   Price       Direction    Signal   Position
   ──────   ─────────   ─────────   ──────   ────────
-  AMD      $545.95     neutral     -0.072   OPEN
-  TMO      $0.00       neutral     0.000    —
-  META     $671.09     bullish     0.267    OPEN
-  V        $369.09     bullish     0.228    —
-  FCX      $71.44      bearish     -0.132   OPEN
-  COP      $131.90     bullish     0.349    —
-  KO       $87.86      neutral     -0.051   OPEN
-  UNP      $279.73     bearish     -0.195   OPEN
-  AMZN     $253.03     neutral     0.063    —
+  AMD      $558.69     bullish     0.387    —
+  TMO      $651.24     bearish     -0.103   —
+  META     $668.13     bullish     0.189    —
+  FCX      $71.55      bearish     -0.374   —
+  V        $367.63     bearish     -0.198   —
+  CVX      $208.98     bearish     -0.358   —
+  KO       $88.14      neutral     -0.025   —
+  UNP      $279.34     bullish     0.119    —
+  AMZN     $253.65     bearish     -0.228   —
 
-─────────────── OPEN POSITIONS ───────────────
+─────────────── RECENT TRADES (last 20) ───────────────
 
-  AMD — 1.3780 shares @ $542.59 → $545.95  P&L: $4.6299 (0.62%)
-  FCX — 10.5860 shares @ $70.65 → $71.44  P&L: $8.4159 (1.13%)
-  KO — 8.4576 shares @ $87.86 → $87.86  P&L: $0.0000 (0.00%)
-  META — 0.5524 shares @ $671.59 → $671.09  P&L: $-0.2762 (-0.07%)
-  UNP — 1.3261 shares @ $279.82 → $279.73  P&L: $-0.1193 (-0.03%)
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   KO       $88.08     $744.99  $1.9030    EOD_DAILY_SKIM
+  19:55:00  SELL   V        $369.46    $368.79  $-0.3973   EOD_DAILY_SKIM
+  19:55:00  SELL   AMD      $552.79    $761.72  $14.0551   EOD_DAILY_SKIM
+  19:55:00  SELL   TMO      $650.68    $376.59  $0.9446    EOD_DAILY_SKIM
+  19:55:00  SELL   UNP      $279.49    $370.62  $-0.4442   EOD_DAILY_SKIM
+  19:50:01  SELL   CVX      $207.72    $373.64  $-2.2305   TRAIL_STOP(-0.75% from peak,pnl=-0.59%)
+  19:40:56  BUY    V        $369.86    $369.18  $0.0000    ENTRY(s=0.191,K~,2of7)
+  19:40:26  SELL   META     $669.20    $369.65  $-1.3202   TRAIL_STOP(-0.75% from peak,pnl=-0.36%)
+  19:14:03  BUY    CVX      $208.84    $375.67  $0.0000    ENTRY(s=0.328,K~,1of7)
+  19:14:03  BUY    TMO      $649.08    $375.67  $0.0000    ENTRY(s=0.400,K~,2of7)
+  19:14:03  SELL   FCX      $71.03     $751.93  $4.0227    TRAIL_STOP(-0.78% from peak,pnl=0.54%)
 
 ═══════════════════════════════════════════════════════════
   Powered by Stock Market AI — Rust Engine + Kronos ONNX

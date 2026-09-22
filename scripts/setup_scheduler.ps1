@@ -13,6 +13,9 @@
     StockAI Daily Analysis     Mon-Fri 16:15 ET.   analyze.ps1 -Scheduled
                                (-Scheduled: a catch-up run after a missed
                                16:15 reports on the last day that traded)
+    StockMarketAI_KeepAwake    Same triggers as Start.  scripts\keep_awake.ps1
+                               Holds the system out of Modern Standby until
+                               16:20, then releases.
 
 .DESCRIPTION
     Rewritten 2026-09-15. The previous version registered only Start and
@@ -60,9 +63,11 @@ $Launcher    = Join-Path $ProjectDir 'scripts\run_hidden.vbs'
 $StartScript = Join-Path $ProjectDir 'scripts\auto_start.bat'
 $StopScript  = Join-Path $ProjectDir 'scripts\auto_stop.bat'
 $Analyze     = Join-Path $ProjectDir 'analyze.ps1'
+$KeepAwake   = Join-Path $ProjectDir 'scripts\keep_awake.ps1'
 $Username    = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 
-$TaskNames = @('StockMarketAI_Start', 'StockMarketAI_Stop', 'StockMarketAI_WeekendStop', 'StockAI Daily Analysis')
+$TaskNames = @('StockMarketAI_Start', 'StockMarketAI_Stop', 'StockMarketAI_WeekendStop',
+               'StockAI Daily Analysis', 'StockMarketAI_KeepAwake')
 
 function Remove-TaskIfPresent([string]$Name) {
     try {
@@ -91,7 +96,7 @@ Write-Host "  Project:  $ProjectDir"
 Write-Host "  User:     $Username"
 Write-Host ""
 
-foreach ($f in @($Launcher, $StartScript, $StopScript, $Analyze)) {
+foreach ($f in @($Launcher, $StartScript, $StopScript, $Analyze, $KeepAwake)) {
     if (-not (Test-Path $f)) { Write-Error "Required file not found: $f"; exit 1 }
 }
 $LogDir = Join-Path $ProjectDir 'logs'
@@ -132,18 +137,26 @@ function Register-Task([string]$Name, $Action, $Triggers, $Settings, [string]$De
 
 $Weekdays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
 
+# 09:25 weekdays, retried every 15 minutes for six hours, plus 90s after any
+# logon. Built fresh each call: a trigger object cannot be shared between two
+# registered tasks. Used by Start and by KeepAwake, which must cover exactly
+# the same window as the session it protects.
+function New-SessionTriggers {
+    $weekly = New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At '09:25'
+    $repeater = New-ScheduledTaskTrigger -Once -At '09:25' `
+                    -RepetitionInterval (New-TimeSpan -Minutes 15) `
+                    -RepetitionDuration (New-TimeSpan -Hours 6)
+    $weekly.Repetition = $repeater.Repetition
+    $logon = New-ScheduledTaskTrigger -AtLogOn -User $Username
+    $logon.Delay = 'PT1M30S'
+    @($weekly, $logon)
+}
+
 # -- StockMarketAI_Start ---------------------------------------------------
 Write-Host "Creating StockMarketAI_Start..." -ForegroundColor Yellow
-$startWeekly = New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At '09:25'
-$repeater    = New-ScheduledTaskTrigger -Once -At '09:25' `
-                   -RepetitionInterval (New-TimeSpan -Minutes 15) `
-                   -RepetitionDuration (New-TimeSpan -Hours 6)
-$startWeekly.Repetition = $repeater.Repetition
-$startLogon = New-ScheduledTaskTrigger -AtLogOn -User $Username
-$startLogon.Delay = 'PT1M30S'
 Register-Task 'StockMarketAI_Start' `
     (New-HiddenAction ('cmd.exe /c "{0}"' -f $StartScript)) `
-    @($startWeekly, $startLogon) `
+    (New-SessionTriggers) `
     (New-Settings (New-TimeSpan -Minutes 10) 2 -WakeToRun) `
     'Starts Stock Market AI before the open; repeats every 15 min until 15:25 and at logon so a late wake still starts it. The script itself refuses on weekends and outside 09:00-15:30.'
 
@@ -171,6 +184,19 @@ Register-Task 'StockAI Daily Analysis' `
     (New-Settings (New-TimeSpan -Minutes 30) 0) `
     'Standalone daily/weekly analysis from the prediction log, after the 16:10 stop has fetched the final EOD report.'
 
+# -- StockMarketAI_KeepAwake -----------------------------------------------
+# Its own task, NOT a child of Start. Launched from auto_start.bat it would
+# inherit that task's 10-minute ExecutionTimeLimit and be killed mid-session
+# — and it has to outlive its launcher by seven hours to be worth anything.
+# The limit here is 8h; the script releases itself at 16:20 regardless, and
+# its mutex means the 15-minute repetition cannot stack a second holder.
+Write-Host "Creating StockMarketAI_KeepAwake..." -ForegroundColor Yellow
+Register-Task 'StockMarketAI_KeepAwake' `
+    (New-HiddenAction ('powershell.exe -NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $KeepAwake)) `
+    (New-SessionTriggers) `
+    (New-Settings (New-TimeSpan -Hours 8) 0) `
+    'Holds the system out of Modern Standby for the trading session. Without it the laptop suspends after 5 minutes idle on battery: no ticks, no exit rules, no stop can fire. It swallowed the 3:55pm skim on 2026-09-14 and 2026-09-21.'
+
 # -- Verify ----------------------------------------------------------------
 Write-Host ""
 Write-Host "Verifying..." -ForegroundColor Yellow
@@ -190,11 +216,13 @@ foreach ($n in $TaskNames) {
 
 Write-Host ""
 Write-Host "  Daily schedule (Mon-Fri, ET):"
-Write-Host "    09:25  stack starts (retries every 15 min until 15:25, and at logon)"
+Write-Host "    09:25  stack starts, and the machine is held awake (both retry"
+Write-Host "           every 15 min until 15:25, and at logon)"
 Write-Host "    09:30  market opens, paper trading begins"
 Write-Host "    15:55  daily skim banks the day and flattens"
 Write-Host "    16:10  backend log saved, EOD report fetched, containers down"
 Write-Host "    16:15  daily analysis"
+Write-Host "    16:20  keep-awake releases; normal sleep resumes"
 Write-Host "    Sat 00:05  weekend backstop stop"
 Write-Host ""
 Write-Host "  Logs:    $LogDir"

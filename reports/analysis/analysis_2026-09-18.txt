@@ -1,0 +1,61 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-09-18 16:15   |   Report date: 2026-09-18   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-09-18) ===
+  Trades:       19   (W 7 / L 12)
+  Win rate:     36.8%
+  Gross P/L:    $-0.601
+  Avg win:      $3.6209    Avg loss: $-2.1623
+  Expectancy:   $-0.0316/trade gross  ->  ~$-0.1441/trade after est. fees
+  Per symbol:
+    AMD     3 trades  W1   $9.6311
+    FCX     3 trades  W2   $2.0133
+    KO      1 trades  W1   $1.903
+    AMZN    2 trades  W1   $1.048
+    V       2 trades  W1   $-0.0925
+    UNP     1 trades  W0   $-0.4442
+    CVX     1 trades  W0   $-2.2305
+    META    3 trades  W0   $-6.0655
+    TMO     3 trades  W1   $-6.3636
+  Exit reasons:
+    TRAIL_STOP         11
+    EOD_DAILY_SKIM     5
+    DAMAGE_CONTROL_FLATTEN 3
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       110   (W 47 / L 63)
+  Win rate:     42.7%
+  Gross P/L:    $-10.1601
+  Avg win:      $2.4683    Avg loss: $-2.0027
+  Expectancy:   $-0.0924/trade gross  ->  ~$-0.2049/trade after est. fees
+  Per symbol:
+    TMO    11 trades  W8   $18.4612
+    AMD    10 trades  W5   $13.6898
+    KO      7 trades  W5   $3.8032
+    FCX    12 trades  W5   $-0.784
+    BAC     8 trades  W2   $-1.0103
+    CVX     1 trades  W0   $-2.2305
+    EQIX    5 trades  W2   $-3.9328
+    AMZN   14 trades  W6   $-4.5833
+    META   10 trades  W3   $-7.3761
+    UNP    15 trades  W5   $-8.0623
+    V       9 trades  W4   $-8.4089
+    COP     8 trades  W2   $-9.7262
+  Exit reasons:
+    REGIME_EXIT        44
+    TRAIL_STOP         28
+    DAMAGE_CONTROL_FLATTEN 24
+    EOD_DAILY_SKIM     9
+    CARRYOVER_FLATTEN  5
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $-0.0924/trade  (110 trades)
+  r5_concentrate           expectancy $-0.1955/trade  (45 trades)
+  r1_kronos_sectors        expectancy $-0.3751/trade  (35 trades)
+  r4_legacy                expectancy $-0.3156/trade  (18 trades)
+  r2_max_forecast          expectancy $-3.8836/trade  (25 trades)
+  (not enough random-baseline trades yet to judge)
+
+LIVE: backend not reachable (Docker stopped?) - analysis above is from logs.

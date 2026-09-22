@@ -1,0 +1,55 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-09-21 16:15   |   Report date: 2026-09-21   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-09-21) ===
+  Trades:       9   (W 3 / L 6)
+  Win rate:     33.3%
+  Gross P/L:    $-18.0604
+  Avg win:      $2.3594    Avg loss: $-4.1898
+  Expectancy:   $-2.0067/trade gross  ->  ~$-2.1192/trade after est. fees
+  Per symbol:
+    AMZN    1 trades  W1   $4.2429
+    V       2 trades  W2   $2.8353
+    FCX     1 trades  W0   $-2.5142
+    CVX     3 trades  W0   $-8.1548
+    UNP     2 trades  W0   $-14.4695
+  Exit reasons:
+    DAMAGE_CONTROL_FLATTEN 6
+    TRAIL_STOP         3
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       84   (W 36 / L 48)
+  Win rate:     42.9%
+  Gross P/L:    $-22.5091
+  Avg win:      $2.6798    Avg loss: $-2.4788
+  Expectancy:   $-0.268/trade gross  ->  ~$-0.3805/trade after est. fees
+  Per symbol:
+    TMO     8 trades  W6   $18.551
+    AMD     5 trades  W1   $7.541
+    KO      7 trades  W5   $3.8032
+    AMZN    9 trades  W5   $1.6803
+    BAC     3 trades  W1   $0.0196
+    V      11 trades  W6   $-5.5736
+    FCX     8 trades  W3   $-6.1909
+    COP     7 trades  W2   $-6.5917
+    META   10 trades  W3   $-7.3761
+    CVX     4 trades  W0   $-10.3853
+    UNP    12 trades  W4   $-17.9866
+  Exit reasons:
+    TRAIL_STOP         29
+    DAMAGE_CONTROL_FLATTEN 29
+    REGIME_EXIT        12
+    EOD_DAILY_SKIM     9
+    CARRYOVER_FLATTEN  5
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $-0.268/trade  (84 trades)
+  r5_concentrate           expectancy $-0.194/trade  (45 trades)
+  r1_kronos_sectors        expectancy $-0.4885/trade  (35 trades)
+  r2_max_forecast          expectancy $-7.0144/trade  (25 trades)
+  r4_legacy                expectancy $-0.3118/trade  (17 trades)
+  (not enough random-baseline trades yet to judge)
+
+LIVE: backend not reachable (Docker stopped?) - analysis above is from logs.

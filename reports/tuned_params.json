@@ -10,6 +10,6 @@
   "max_concurrent_positions": 11,
   "max_daily_trades": 5,
   "min_predicted_move_pct": 0.015600000000000001,
-  "tuned_at": "2026-09-16T20:05:46.189935680+00:00",
-  "reason": "Diagnosis: Win rate 43.0% below 45% — entering bad trades; Net P&L negative: $-33.7100; Regression: today $-33.7100 < yesterday $11.6280. Actions: Raised entry threshold and min predicted move; Slightly tightened hard stop (floor -0.50%); Blended toward yesterday's better-performing params"
+  "tuned_at": "2026-09-21T20:08:38.177271712+00:00",
+  "reason": "Diagnosis: Win rate 43.1% below 45% — entering bad trades; Net P&L negative: $-21.6100; Regression: today $-21.6100 < yesterday $-3.6500. Actions: Raised entry threshold and min predicted move; Slightly tightened hard stop (floor -0.50%); Blended toward yesterday's better-performing params"
 }
