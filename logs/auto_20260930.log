@@ -1,0 +1,132 @@
+[30-09-2026 13:48:09.26] === AUTO START === 
+[30-09-2026 13:48:09.65] KEEP_AWAKE holding the system awake until 16:20 (previous state 0x80000000)
+[30-09-2026 13:48:09.67] Docker Desktop not running - launching 
+[30-09-2026 13:48:21.15] Docker daemon ready after 0 attempts 
+[30-09-2026 13:48:21.15] Starting containers... 
+time="2026-09-30T13:48:21-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Network stock-market-ai_default Creating 
+ Network stock-market-ai_default Created 
+ Container stock-market-ai-backend-1 Creating 
+ Container stock-market-ai-finetune-sidecar-1 Creating 
+ Container stock-market-ai-backend-1 Created 
+ Container stock-market-ai-frontend-1 Creating 
+ Container stock-market-ai-finetune-sidecar-1 Created 
+ Container stock-market-ai-frontend-1 Created 
+ Container stock-market-ai-finetune-sidecar-1 Starting 
+ Container stock-market-ai-backend-1 Starting 
+ Container stock-market-ai-backend-1 Started 
+ Container stock-market-ai-frontend-1 Starting 
+ Container stock-market-ai-frontend-1 Started 
+ Container stock-market-ai-finetune-sidecar-1 Started 
+[30-09-2026 13:48:25.43] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","META","TMO","FCX","V","CVX","KO","AMZN","CAT","EQIX"],"version":"claude_1"} 
+[30-09-2026 13:48:25.45] Auto start complete 
+[30-09-2026 13:51:53.52] === AUTO START === 
+[30-09-2026 13:51:53.71] KEEP_AWAKE holding the system awake until 16:20 (previous state 0x80000000)
+[30-09-2026 13:51:54.08] Docker Desktop not running - launching 
+[30-09-2026 13:52:20.02] Docker daemon ready after 1 attempts 
+[30-09-2026 13:52:20.02] Starting containers... 
+time="2026-09-30T13:52:20-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-finetune-sidecar-1 Running 
+ Container stock-market-ai-frontend-1 Running 
+ Container stock-market-ai-backend-1 Running 
+[30-09-2026 13:52:22.16] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","META","TMO","FCX","V","CVX","KO","AMZN","CAT","EQIX"],"version":"claude_1"} 
+[30-09-2026 13:52:22.20] Auto start complete 
+[30-09-2026 13:55:00.85] === AUTO START === 
+[30-09-2026 13:55:04.49] Docker daemon ready after 0 attempts 
+[30-09-2026 13:55:04.49] Starting containers... 
+time="2026-09-30T13:55:04-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-finetune-sidecar-1 Running 
+ Container stock-market-ai-frontend-1 Running 
+ Container stock-market-ai-backend-1 Running 
+[30-09-2026 13:55:04.86] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","META","TMO","FCX","V","CVX","KO","AMZN","CAT","EQIX"],"version":"claude_1"} 
+[30-09-2026 13:55:04.88] Auto start complete 
+[30-09-2026 14:10:00.81] === AUTO START === 
+[30-09-2026 14:10:03.84] Docker daemon ready after 0 attempts 
+[30-09-2026 14:10:03.84] Starting containers... 
+time="2026-09-30T14:10:03-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-finetune-sidecar-1 Running 
+ Container stock-market-ai-frontend-1 Running 
+ Container stock-market-ai-backend-1 Running 
+[30-09-2026 14:10:04.11] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","META","TMO","FCX","V","CVX","KO","AMZN","CAT","EQIX"],"version":"claude_1"} 
+[30-09-2026 14:10:04.12] Auto start complete 
+[30-09-2026 14:25:00.85] === AUTO START === 
+[30-09-2026 14:25:03.68] Docker daemon ready after 0 attempts 
+[30-09-2026 14:25:03.68] Starting containers... 
+time="2026-09-30T14:25:03-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-backend-1 Running 
+ Container stock-market-ai-finetune-sidecar-1 Running 
+ Container stock-market-ai-frontend-1 Running 
+[30-09-2026 14:25:03.92] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","META","TMO","FCX","V","CVX","KO","AMZN","CAT","EQIX"],"version":"claude_1"} 
+[30-09-2026 14:25:03.93] Auto start complete 
+[30-09-2026 14:40:01.04] === AUTO START === 
+[30-09-2026 14:40:03.30] Docker daemon ready after 0 attempts 
+[30-09-2026 14:40:03.31] Starting containers... 
+time="2026-09-30T14:40:03-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-backend-1 Running 
+ Container stock-market-ai-finetune-sidecar-1 Running 
+ Container stock-market-ai-frontend-1 Running 
+[30-09-2026 14:40:03.65] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","META","TMO","FCX","V","CVX","KO","AMZN","CAT","EQIX"],"version":"claude_1"} 
+[30-09-2026 14:40:03.67] Auto start complete 
+[30-09-2026 14:55:00.85] === AUTO START === 
+[30-09-2026 14:55:02.31] Docker daemon ready after 0 attempts 
+[30-09-2026 14:55:02.31] Starting containers... 
+time="2026-09-30T14:55:02-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-backend-1 Running 
+ Container stock-market-ai-finetune-sidecar-1 Running 
+ Container stock-market-ai-frontend-1 Running 
+[30-09-2026 14:55:02.52] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","META","TMO","FCX","V","CVX","KO","AMZN","CAT","EQIX"],"version":"claude_1"} 
+[30-09-2026 14:55:02.53] Auto start complete 
+[30-09-2026 15:10:00.81] === AUTO START === 
+[30-09-2026 15:10:01.40] Docker daemon ready after 0 attempts 
+[30-09-2026 15:10:01.40] Starting containers... 
+time="2026-09-30T15:10:01-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-finetune-sidecar-1 Running 
+ Container stock-market-ai-frontend-1 Running 
+ Container stock-market-ai-backend-1 Running 
+[30-09-2026 15:10:01.59] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","META","TMO","FCX","V","CVX","KO","AMZN","CAT","EQIX"],"version":"claude_1"} 
+[30-09-2026 15:10:01.60] Auto start complete 
+[30-09-2026 15:25:01.02] === AUTO START === 
+[30-09-2026 15:25:05.10] Docker daemon ready after 0 attempts 
+[30-09-2026 15:25:05.10] Starting containers... 
+time="2026-09-30T15:25:05-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-finetune-sidecar-1 Running 
+ Container stock-market-ai-frontend-1 Running 
+ Container stock-market-ai-backend-1 Running 
+[30-09-2026 15:25:05.51] Backend healthy - paper trading active 
+{"config_frozen_until":"2026-07-28","engine":"rust","status":"ok","symbols":["AMD","META","TMO","FCX","V","CVX","KO","AMZN","CAT","EQIX"],"version":"claude_1"} 
+[30-09-2026 15:25:05.53] Auto start complete 
+[30-09-2026 16:10:00.94] === AUTO STOP === 
+[30-09-2026 16:10:00.95] Saving container logs... 
+[30-09-2026 16:10:07.74] Container logs saved to logs\backend_20260930.log 
+[30-09-2026 16:10:07.74] Fetching final EOD report... 
+[30-09-2026 16:10:07.79] EOD report saved to reports/ 
+[30-09-2026 16:10:07.79] Final daily status: 
+{"data_collected":{"AMD":{"predictions":8165,"ticks":8165,"trades":0},"AMZN":{"predictions":8244,"ticks":8244,"trades":4},"CAT":{"predictions":8109,"ticks":8109,"trades":0},"CVX":{"predictions":8050,"ticks":8050,"trades":0},"EQIX":{"predictions":7808,"ticks":7808,"trades":0},"FCX":{"predictions":8231,"ticks":8231,"trades":1},"KO":{"predictions":8262,"ticks":8262,"trades":4},"META":{"predictions":8240,"ticks":8240,"trades":3},"TMO":{"predictions":8198,"ticks":8198,"trades":0},"V":{"predictions":8229,"ticks":8229,"trades":0}},"date":"2026-09-30","finetune_triggered":true,"portfolio":{"current_value":3000.0,"pnl":0.0,"profitable":false,"start_value":2999.5},"running":true,"snapshots_count":8267} 
+[30-09-2026 16:10:07.82] Stopping containers... 
+time="2026-09-30T16:10:07-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container stock-market-ai-frontend-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopping 
+ Container stock-market-ai-finetune-sidecar-1 Stopped 
+ Container stock-market-ai-finetune-sidecar-1 Removing 
+ Container stock-market-ai-frontend-1 Stopped 
+ Container stock-market-ai-frontend-1 Removing 
+ Container stock-market-ai-finetune-sidecar-1 Removed 
+ Container stock-market-ai-frontend-1 Removed 
+ Container stock-market-ai-backend-1 Stopping 
+ Container stock-market-ai-backend-1 Stopped 
+ Container stock-market-ai-backend-1 Removing 
+ Container stock-market-ai-backend-1 Removed 
+ Network stock-market-ai_default Removing 
+ Network stock-market-ai_default Removed 
+[30-09-2026 16:10:20.32] All containers stopped 
+[30-09-2026 16:10:20.32] === SESSION COMPLETE === 
+ 
+[30-09-2026 16:21:54.12] KEEP_AWAKE released - normal sleep behaviour resumes

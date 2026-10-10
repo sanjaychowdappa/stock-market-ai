@@ -1,0 +1,63 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-09-30
+  Generated:  2026-09-30T20:10:07.779178310+00:00
+  Uptime:     2h 17m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $51.01
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     774
+  Winning Trades:   332
+  Win Rate:         42.9%
+  Avg Hold Time:    2909s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $611.08     neutral     0.099    —
+  META     $723.62     bearish     -0.393   —
+  TMO      $675.36     bearish     -0.133   —
+  FCX      $70.05      bullish     0.130    —
+  V        $359.58     neutral     0.069    —
+  CVX      $204.18     neutral     -0.070   —
+  KO       $86.07      neutral     0.017    —
+  AMZN     $249.10     bullish     0.242    —
+  CAT      $810.77     bearish     -0.190   —
+  EQIX     $1011.86    bearish     -0.246   —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   KO       $86.23     $747.20  $-0.3033   EOD_DAILY_SKIM
+  19:55:00  SELL   AMZN     $249.03    $744.47  $-3.3631   EOD_DAILY_SKIM
+  19:51:17  SELL   META     $729.12    $743.21  $-4.4850   TRAIL_STOP(-0.76% from peak,pnl=-0.60%)
+  18:57:00  BUY    AMZN     $250.13    $747.76  $0.0000    ENTRY(s=0.055,K+,1of7)
+  18:53:28  BUY    META     $733.38    $747.55  $0.0000    ENTRY(s=0.188,K~,2of7)
+  18:53:28  BUY    KO       $86.28     $747.55  $0.0000    ENTRY(s=0.340,K+,1of7)
+  18:33:28  SELL   META     $732.45    $749.28  $-1.0639   DAMAGE_CONTROL_FLATTEN
+  18:33:28  SELL   FCX      $70.78     $747.72  $-2.2711   DAMAGE_CONTROL_FLATTEN
+  18:33:28  SELL   KO       $86.27     $747.54  $-2.5564   DAMAGE_CONTROL_FLATTEN
+  18:33:28  SELL   AMZN     $250.06    $746.26  $-3.3723   DAMAGE_CONTROL_FLATTEN
+  17:53:22  BUY    AMZN     $251.16    $749.56  $0.0000    ENTRY(s=0.058,K+,1of7)
+  17:52:52  BUY    KO       $86.55     $750.01  $0.0000    ENTRY(s=0.386,K+,2of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

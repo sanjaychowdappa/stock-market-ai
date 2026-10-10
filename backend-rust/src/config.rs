@@ -107,7 +107,13 @@ pub const SHADOW_COST_PCT: f64 = 0.04;
 // ladder may be changed while this trial runs. A parameter changed mid-trial
 // resets the count to zero, because the data before the change describes a
 // different system.
-pub const LIVE_KILL_ENABLED: bool = true;
+/// FALSE from 2026-10-09: trial 4 reached its verdict and the trader it was
+/// judging is retired, so there are no real round trips left to count. The
+/// check would otherwise report 0/100 forever and read like a trial in
+/// progress. Re-arming ALPACA_SHADOW_ORDERS for any future candidate means
+/// re-arming this with a fresh baseline and start date — a new trial, not a
+/// continuation of this one.
+pub const LIVE_KILL_ENABLED: bool = false;
 pub const LIVE_KILL_TRADES: u32 = 100;
 pub const LIVE_KILL_DAYS: i64 = 20;
 
@@ -219,7 +225,17 @@ pub const LIVE_KILL_MIN_EXPECTANCY: f64 = 0.0;
 ///          three-resume day 09-16 (-$36, no longer possible) most of it.
 ///          Reset as trial 4 at the owner's decision, 2026-09-18.
 /// Trial 4: 2026-09-18 — the system as it stands after those fixes. No
-///          further parameter changes without resetting again.
+///          further parameter changes without resetting again, and none were
+///          made. FAILED 2026-10-09 at -$0.55/trip over 192 trips, net
+///          -$106.18. The signal trader was retired on that basis; see
+///          ALPACA_SHADOW_ORDERS. Caveat recorded with the verdict: only
+///          10 of the window's 16 trading days traded at all (the laptop was
+///          off or asleep through six whole sessions), and Modern Standby
+///          blinded roughly five hours INSIDE the ten that did. The verdict
+///          is negative on every basis computable — account curve, simulator
+///          cash, and a FIFO match of our own fill log — but the sample is
+///          holed, and a future trial of anything else should fix the
+///          machine first.
 pub const LIVE_KILL_START_DATE: &str = "2026-09-18";
 
 
@@ -287,7 +303,40 @@ pub const LIVE_KILL_START_DATE: &str = "2026-09-18";
 /// simply paused. The accumulator's drift over that gap is netted out at
 /// evaluation, so the trial's net is unaffected by the pause. Re-baselining
 /// would have been a fourth reset for no measurement reason.
-pub const ALPACA_SHADOW_ORDERS: bool = true;
+/// SET FALSE 2026-10-09 — THE INTRADAY SIGNAL TRADER IS RETIRED.
+///
+/// Trial 4 failed its pre-committed criterion, and this time nothing
+/// contaminated the window: ONE commit landed between 09-18 and 10-09 and it
+/// touched a PowerShell script, no config epoch was recorded after 08-26.
+///
+/// ```text
+/// 192 real round trips (threshold 100)
+/// net -$106.18 on Alpaca's equity curve, accumulator netted out
+/// expectancy -$0.55/trip, against a $0.00 floor
+/// simulator agrees: -$68.23 banked over the same ten days
+/// ```
+///
+/// Four trials now: -$0.29/130, abandoned at 96, -$0.26/123 (reset, mine),
+/// -$0.55/192. It is not converging on profitability; it is getting worse.
+///
+/// Where the loss lives, by exit reason over trial 4: TRAIL_STOP 61 trips
+/// -$97.39 (avg -$1.60) against DAMAGE_CONTROL_FLATTEN +$1.74, EOD skim
+/// +$27.92, RECONCILE -$9.05. Execution is not the cause — 194 of 194
+/// orders filled and median slippage was 0.022%.
+///
+/// The rule said retired, not retuned, and the owner applied it on
+/// 2026-10-09 after being shown these figures and the alternatives.
+///
+/// WHAT KEEPS RUNNING: the simulator and all five rule books, priced on the
+/// same live ticks, so r2_max_forecast (+$120.63 over 105 trades, the only
+/// book in profit) keeps accumulating evidence. The accumulator keeps buying
+/// SPY — +$252.08 and the one thing here that has ever made money.
+///
+/// Flipped on a Saturday with the book flat: the simulator holds nothing and
+/// the account holds only SPY plus 18 dust positions worth $0.00 in total, so
+/// no position can be stranded by the change. That constraint is not
+/// optional; see the note above.
+pub const ALPACA_SHADOW_ORDERS: bool = false;
 
 // == LONG-TERM ACCUMULATOR ===============================================
 //

@@ -1,0 +1,71 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-09-23
+  Generated:  2026-09-23T20:10:03.392839290+00:00
+  Uptime:     5h 33m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $60.78
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     740
+  Winning Trades:   319
+  Win Rate:         43.1%
+  Avg Hold Time:    2827s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $614.48     bearish     -0.146   —
+  META     $744.44     bullish     0.398    —
+  TMO      $665.40     bearish     -0.120   —
+  FCX      $72.58      neutral     0.039    —
+  V        $361.44     neutral     0.051    —
+  AMZN     $249.59     neutral     -0.015   —
+  KO       $88.10      neutral     0.051    —
+  CVX      $205.51     bullish     0.268    —
+  UNP      $275.35     bullish     0.101    —
+  EQIX     $1037.66    bullish     0.205    —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  16:50:13  SELL   FCX      $72.06     $744.45  $-1.4981   DAMAGE_CONTROL_FLATTEN
+  16:50:13  SELL   AMD      $612.06    $750.14  $2.7699    DAMAGE_CONTROL_FLATTEN
+  16:50:13  SELL   EQIX     $1039.90   $737.30  $-1.5953   DAMAGE_CONTROL_FLATTEN
+  16:50:13  SELL   TMO      $658.90    $748.41  $0.4543    DAMAGE_CONTROL_FLATTEN
+  16:45:29  BUY    FCX      $72.18     $745.74  $0.0000    ENTRY(s=0.055,K-,0of7)
+  16:44:26  SELL   AMZN     $249.01    $746.33  $-0.6993   TRAIL_STOP(-0.75% from peak,pnl=-0.09%)
+  16:03:07  BUY    EQIX     $1042.16   $738.90  $0.0000    ENTRY(s=0.531,K+,3of7)
+  16:03:07  SELL   KO       $88.07     $738.98  $-4.4810   TRAIL_STOP(-0.76% from peak,pnl=-0.60%)
+  14:53:52  BUY    KO       $88.59     $743.39  $0.0000    ENTRY(s=0.130,K~,2of7)
+  14:47:55  SELL   EQIX     $1042.76   $743.10  $-4.1062   TRAIL_STOP(-0.77% from peak,pnl=-0.55%)
+  14:33:51  BUY    EQIX     $1048.84   $747.43  $0.0000    ENTRY(s=0.386,K~,2of7)
+  14:33:07  BUY    AMZN     $249.27    $747.11  $0.0000    ENTRY(s=0.392,K+,2of7)
+  14:30:32  BUY    AMD      $609.75    $747.32  $0.0000    ENTRY(s=0.458,K+,2of7)
+  14:29:31  BUY    TMO      $658.05    $747.45  $0.0000    ENTRY(s=0.208,K-,2of7)
+  14:13:50  SELL   V        $363.01    $749.96  $0.2479    DAMAGE_CONTROL_FLATTEN
+  14:13:50  SELL   KO       $88.57     $753.10  $3.1460    DAMAGE_CONTROL_FLATTEN
+  14:13:50  SELL   EQIX     $1050.40   $743.71  $-2.4923   DAMAGE_CONTROL_FLATTEN
+  14:13:50  SELL   FCX      $72.02     $745.13  $0.6434    DAMAGE_CONTROL_FLATTEN
+  14:13:20  BUY    EQIX     $1052.26   $745.03  $0.0000    ENTRY(s=0.056,K-,0of7)
+  14:13:06  SELL   AMZN     $248.78    $745.12  $-4.9718   TRAIL_STOP(-0.76% from peak,pnl=-0.66%)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

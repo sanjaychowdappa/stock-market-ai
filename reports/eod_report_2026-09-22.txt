@@ -1,0 +1,60 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-09-22
+  Generated:  2026-09-22T20:10:10.373197508+00:00
+  Uptime:     6h 55m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $80.83
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     727
+  Winning Trades:   314
+  Win Rate:         43.2%
+  Avg Hold Time:    285s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $622.93     bearish     -0.293   —
+  TMO      $658.87     bullish     0.232    —
+  META     $736.02     bearish     -0.150   —
+  FCX      $74.35      neutral     0.075    —
+  V        $362.10     bearish     -0.286   —
+  COP      $125.33     neutral     -0.055   —
+  KO       $88.62      bearish     -0.319   —
+  AMZN     $255.00     bullish     0.239    —
+  UNP      $274.42     bearish     -0.147   —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  13:36:09  SELL   AMZN     $257.01    $756.89  $7.8776    DAMAGE_CONTROL_FLATTEN
+  13:36:09  SELL   AMD      $615.82    $759.56  $9.5589    DAMAGE_CONTROL_FLATTEN
+  13:36:09  SELL   KO       $87.98     $752.32  $2.0095    DAMAGE_CONTROL_FLATTEN
+  13:36:09  SELL   TMO      $652.40    $745.37  $-0.9711   DAMAGE_CONTROL_FLATTEN
+  13:35:51  BUY    TMO      $652.40    $745.37  $0.0000    ENTRY(s=0.332,K+,3of7)
+  13:35:51  SELL   COP      $124.84    $745.37  $-5.3138   TRAIL_STOP(-0.84% from peak,pnl=-0.71%)
+  13:30:23  BUY    AMZN     $254.34    $749.01  $0.0000    ENTRY(s=0.345,K-,2of7)
+  13:30:14  BUY    COP      $125.73    $750.69  $0.0000    ENTRY(s=0.508,K+,2of7)
+  13:30:06  BUY    KO       $87.75     $750.31  $0.0000    ENTRY(s=0.604,K+,2of7)
+  13:30:01  BUY    AMD      $608.07    $750.00  $0.0000    ENTRY(s=0.254,K+,1of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

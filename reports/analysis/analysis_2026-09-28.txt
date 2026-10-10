@@ -1,0 +1,52 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-09-28 16:15   |   Report date: 2026-09-28   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-09-28) ===
+  Trades:       5   (W 4 / L 1)
+  Win rate:     80%
+  Gross P/L:    $25.6467
+  Avg win:      $6.4546    Avg loss: $-0.1717
+  Expectancy:   $5.1293/trade gross  ->  ~$5.0168/trade after est. fees
+  Per symbol:
+    AMD     1 trades  W1   $12.8192
+    FCX     1 trades  W1   $4.9867
+    META    1 trades  W1   $4.8308
+    AMZN    1 trades  W1   $3.1817
+    KO      1 trades  W0   $-0.1717
+  Exit reasons:
+    DAMAGE_CONTROL_FLATTEN 5
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       33   (W 17 / L 16)
+  Win rate:     51.5%
+  Gross P/L:    $24.8279
+  Avg win:      $4.2105    Avg loss: $-2.9219
+  Expectancy:   $0.7524/trade gross  ->  ~$0.6399/trade after est. fees
+  Per symbol:
+    AMD     5 trades  W3   $16.6227
+    AMZN    5 trades  W3   $14.1406
+    META    2 trades  W2   $10.7078
+    FCX     5 trades  W4   $7.2968
+    V       1 trades  W1   $0.2479
+    TMO     2 trades  W1   $-0.5168
+    CVX     2 trades  W0   $-2.1098
+    KO      5 trades  W2   $-4.0056
+    UNP     1 trades  W0   $-5.3063
+    COP     1 trades  W0   $-5.3138
+    EQIX    4 trades  W1   $-6.9355
+  Exit reasons:
+    DAMAGE_CONTROL_FLATTEN 17
+    TRAIL_STOP         11
+    EOD_DAILY_SKIM     5
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $0.7524/trade  (33 trades)
+  r5_concentrate           expectancy $-0.3149/trade  (20 trades)
+  r1_kronos_sectors        expectancy $0.0334/trade  (19 trades)
+  r4_legacy                expectancy $-0.2655/trade  (18 trades)
+  r2_max_forecast          expectancy $6.2355/trade  (9 trades)
+  (not enough random-baseline trades yet to judge)
+
+LIVE: backend not reachable (Docker stopped?) - analysis above is from logs.

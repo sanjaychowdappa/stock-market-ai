@@ -1,0 +1,13 @@
+[19-09-2026  0:14:47.61] === AUTO STOP === 
+[19-09-2026  0:14:47.61] Saving container logs... 
+[19-09-2026  0:14:48.63] Container logs saved to logs\backend_20260919.log 
+[19-09-2026  0:14:48.63] Fetching final EOD report... 
+[19-09-2026  0:14:50.69] WARNING: Could not fetch EOD report - backend not answering on 127.0.0.1:8000 
+[19-09-2026  0:14:50.69] Final daily status: 
+ 
+[19-09-2026  0:14:52.74] Stopping containers... 
+time="2026-09-19T00:14:52-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+[19-09-2026  0:14:53.09] All containers stopped 
+[19-09-2026  0:14:53.09] === SESSION COMPLETE === 
+ 

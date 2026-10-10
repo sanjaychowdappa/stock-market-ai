@@ -1,0 +1,71 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-09-24
+  Generated:  2026-09-24T20:10:03.516408947+00:00
+  Uptime:     5h 10m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $63.68
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     750
+  Winning Trades:   324
+  Win Rate:         43.2%
+  Avg Hold Time:    8473s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $628.92     neutral     0.038    —
+  META     $777.73     neutral     0.078    —
+  TMO      $678.57     bearish     -0.162   —
+  FCX      $72.08      bullish     0.317    —
+  AMZN     $249.45     neutral     0.023    —
+  KO       $88.10      neutral     -0.009   —
+  V        $367.89     bearish     -0.270   —
+  CVX      $205.67     bullish     0.268    —
+  UNP      $274.06     bearish     -0.158   —
+  EQIX     $1034.46    bullish     0.267    —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  19:55:00  SELL   AMZN     $249.34    $759.09  $8.7524    EOD_DAILY_SKIM
+  19:55:00  SELL   CVX      $205.78    $742.85  $-0.5376   EOD_DAILY_SKIM
+  19:55:00  SELL   EQIX     $1039.70   $376.12  $1.2582    EOD_DAILY_SKIM
+  19:55:00  SELL   META     $779.05    $378.11  $5.8770    EOD_DAILY_SKIM
+  19:55:00  SELL   FCX      $72.11     $746.84  $2.6408    EOD_DAILY_SKIM
+  19:43:26  BUY    FCX      $71.85     $744.10  $0.0000    ENTRY(s=0.147,K-,1of7)
+  19:37:24  SELL   KO       $88.33     $744.39  $-4.5084   TRAIL_STOP(-0.75% from peak,pnl=-0.60%)
+  18:38:48  BUY    CVX      $205.86    $743.14  $0.0000    ENTRY(s=0.083,K~,1of7)
+  18:28:56  SELL   UNP      $272.51    $743.46  $-5.3063   TRAIL_STOP(-0.76% from peak,pnl=-0.71%)
+  16:32:00  BUY    META     $766.87    $372.19  $0.0000    ENTRY(s=0.105,K~,1of7)
+  16:16:16  SELL   CVX      $206.52    $373.22  $-1.5723   TRAIL_STOP(-0.76% from peak,pnl=-0.42%)
+  15:15:29  BUY    UNP      $274.11    $747.81  $0.0000    ENTRY(s=0.099,K~,1of7)
+  15:13:58  BUY    KO       $88.86     $748.81  $0.0000    ENTRY(s=0.216,K-,2of7)
+  15:13:11  SELL   FCX      $71.67     $751.03  $0.5239    TRAIL_STOP(-0.76% from peak,pnl=0.07%)
+  14:55:08  SELL   AMD      $613.33    $746.28  $-3.4617   TRAIL_STOP(-0.75% from peak,pnl=-0.46%)
+  14:29:05  BUY    EQIX     $1035.58   $374.63  $0.0000    ENTRY(s=0.388,K~,1of7)
+  14:26:01  BUY    CVX      $207.34    $374.71  $0.0000    ENTRY(s=0.105,K~,1of7)
+  14:24:23  BUY    AMD      $616.04    $749.58  $0.0000    ENTRY(s=0.153,K~,2of7)
+  14:23:37  BUY    FCX      $71.58     $750.08  $0.0000    ENTRY(s=0.508,K~,2of7)
+  14:23:02  BUY    AMZN     $246.36    $750.00  $0.0000    ENTRY(s=0.364,K~,1of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

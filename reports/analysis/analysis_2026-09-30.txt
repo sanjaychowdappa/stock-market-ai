@@ -1,0 +1,52 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-10-05 17:04   |   Report date: 2026-09-30   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-09-30) ===
+  Trades:       7   (W 0 / L 7)
+  Win rate:     0%
+  Gross P/L:    $-17.4151
+  Avg win:      $0    Avg loss: $-2.4879
+  Expectancy:   $-2.4879/trade gross  ->  ~$-2.6004/trade after est. fees
+  Per symbol:
+    FCX     1 trades  W0   $-2.2711
+    KO      2 trades  W0   $-2.8596
+    META    2 trades  W0   $-5.5489
+    AMZN    2 trades  W0   $-6.7354
+  Exit reasons:
+    DAMAGE_CONTROL_FLATTEN 4
+    EOD_DAILY_SKIM     2
+    TRAIL_STOP         1
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       34   (W 13 / L 21)
+  Win rate:     38.2%
+  Gross P/L:    $-5.4579
+  Avg win:      $3.832    Avg loss: $-2.6321
+  Expectancy:   $-0.1605/trade gross  ->  ~$-0.273/trade after est. fees
+  Per symbol:
+    AMZN    5 trades  W3   $8.3033
+    AMD     3 trades  W1   $4.7741
+    FCX     5 trades  W3   $4.091
+    EQIX    1 trades  W1   $1.2582
+    V       2 trades  W1   $-0.6492
+    TMO     1 trades  W0   $-1.2763
+    META    6 trades  W2   $-3.9966
+    CVX     3 trades  W0   $-4.5737
+    UNP     2 trades  W1   $-4.8141
+    KO      6 trades  W1   $-8.5745
+  Exit reasons:
+    DAMAGE_CONTROL_FLATTEN 18
+    TRAIL_STOP         9
+    EOD_DAILY_SKIM     7
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $-0.1605/trade  (34 trades)
+  r5_concentrate           expectancy $-0.0618/trade  (23 trades)
+  r1_kronos_sectors        expectancy $-0.3184/trade  (18 trades)
+  r4_legacy                expectancy $-0.3283/trade  (16 trades)
+  r2_max_forecast          expectancy $13.001/trade  (6 trades)
+  (not enough random-baseline trades yet to judge)
+
+LIVE: backend not reachable (Docker stopped?) - analysis above is from logs.

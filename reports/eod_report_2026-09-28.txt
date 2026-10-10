@@ -1,0 +1,60 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-09-28
+  Generated:  2026-09-28T20:10:02.176206942+00:00
+  Uptime:     4h 48m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $3000.00
+  Cash:             $3000.00
+  Positions Value:  $-0.00
+  Total P&L:        0.00 (0.00%)
+  Realized P&L:     $88.69
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     755
+  Winning Trades:   328
+  Win Rate:         43.4%
+  Avg Hold Time:    6053s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $608.35     neutral     -0.072   —
+  META     $714.99     bullish     0.264    —
+  TMO      $678.27     neutral     -0.092   —
+  FCX      $72.56      neutral     0.069    —
+  V        $367.86     bullish     0.192    —
+  KO       $87.30      neutral     0.085    —
+  CVX      $206.38     bullish     0.171    —
+  AMZN     $246.03     neutral     -0.068   —
+  UNP      $274.16     neutral     0.005    —
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  16:29:54  SELL   AMD      $609.13    $763.30  $12.8192   DAMAGE_CONTROL_FLATTEN
+  16:29:54  SELL   AMZN     $247.31    $752.96  $3.1817    DAMAGE_CONTROL_FLATTEN
+  16:29:54  SELL   FCX      $72.20     $379.95  $4.9867    DAMAGE_CONTROL_FLATTEN
+  16:29:54  SELL   META     $725.01    $754.83  $4.8308    DAMAGE_CONTROL_FLATTEN
+  16:29:54  SELL   KO       $87.29     $374.70  $-0.1717   DAMAGE_CONTROL_FLATTEN
+  14:49:37  BUY    FCX      $71.23     $374.87  $0.0000    ENTRY(s=0.604,K+,2of7)
+  14:49:04  BUY    KO       $87.33     $374.87  $0.0000    ENTRY(s=0.388,K-,1of7)
+  14:48:48  BUY    AMZN     $246.28    $749.84  $0.0000    ENTRY(s=0.352,K~,1of7)
+  14:48:48  BUY    META     $720.22    $749.84  $0.0000    ENTRY(s=0.413,K~,2of7)
+  14:48:44  BUY    AMD      $598.51    $750.00  $0.0000    ENTRY(s=0.108,K~,1of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

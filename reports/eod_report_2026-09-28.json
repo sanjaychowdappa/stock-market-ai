@@ -1,0 +1,282 @@
+{
+  "data_quality": {
+    "finetune_triggered": true,
+    "snapshots": 17280,
+    "tracker": {
+      "AMD": {
+        "predictions": 17263,
+        "ticks": 17263,
+        "trades": 2
+      },
+      "AMZN": {
+        "predictions": 17267,
+        "ticks": 17267,
+        "trades": 2
+      },
+      "CVX": {
+        "predictions": 17206,
+        "ticks": 17206,
+        "trades": 0
+      },
+      "FCX": {
+        "predictions": 17200,
+        "ticks": 17200,
+        "trades": 2
+      },
+      "KO": {
+        "predictions": 17262,
+        "ticks": 17262,
+        "trades": 2
+      },
+      "META": {
+        "predictions": 17262,
+        "ticks": 17262,
+        "trades": 2
+      },
+      "TMO": {
+        "predictions": 17130,
+        "ticks": 17130,
+        "trades": 0
+      },
+      "UNP": {
+        "predictions": 17164,
+        "ticks": 17164,
+        "trades": 0
+      },
+      "V": {
+        "predictions": 17182,
+        "ticks": 17182,
+        "trades": 0
+      }
+    }
+  },
+  "portfolio": {
+    "cash": 3000.0,
+    "drawdown_pct": 0.0,
+    "initial_capital": 3000.0,
+    "positions_value": -0.0,
+    "realized_pnl": 88.6891,
+    "target": {
+      "goal": "$500 → $600 challenge",
+      "progress_pct": 0.0,
+      "target_value": 3100.0
+    },
+    "total_pnl": 0.0,
+    "total_pnl_pct": 0.0,
+    "total_value": 3000.0
+  },
+  "positions": [],
+  "recent_trades": [
+    {
+      "action": "SELL",
+      "pnl": 12.8192,
+      "pnl_pct": 1.71,
+      "price": 609.13,
+      "reason": "DAMAGE_CONTROL_FLATTEN",
+      "shares": 1.253101,
+      "symbol": "AMD",
+      "time": "16:29:54",
+      "total": 763.3
+    },
+    {
+      "action": "SELL",
+      "pnl": 3.1817,
+      "pnl_pct": 0.42,
+      "price": 247.305,
+      "reason": "DAMAGE_CONTROL_FLATTEN",
+      "shares": 3.044661,
+      "symbol": "AMZN",
+      "time": "16:29:54",
+      "total": 752.96
+    },
+    {
+      "action": "SELL",
+      "pnl": 4.9867,
+      "pnl_pct": 1.33,
+      "price": 72.2,
+      "reason": "DAMAGE_CONTROL_FLATTEN",
+      "shares": 5.262469,
+      "symbol": "FCX",
+      "time": "16:29:54",
+      "total": 379.95
+    },
+    {
+      "action": "SELL",
+      "pnl": 4.8308,
+      "pnl_pct": 0.64,
+      "price": 725.01,
+      "reason": "DAMAGE_CONTROL_FLATTEN",
+      "shares": 1.041125,
+      "symbol": "META",
+      "time": "16:29:54",
+      "total": 754.83
+    },
+    {
+      "action": "SELL",
+      "pnl": -0.1717,
+      "pnl_pct": -0.05,
+      "price": 87.29,
+      "reason": "DAMAGE_CONTROL_FLATTEN",
+      "shares": 4.292591,
+      "symbol": "KO",
+      "time": "16:29:54",
+      "total": 374.7
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 71.235,
+      "reason": "ENTRY(s=0.604,K+,2of7)",
+      "shares": 5.262468658957442,
+      "symbol": "FCX",
+      "time": "14:49:37",
+      "total": 374.87
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 87.33,
+      "reason": "ENTRY(s=0.388,K-,1of7)",
+      "shares": 4.292590804086034,
+      "symbol": "KO",
+      "time": "14:49:04",
+      "total": 374.87
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 246.28,
+      "reason": "ENTRY(s=0.352,K~,1of7)",
+      "shares": 3.0446613016552972,
+      "symbol": "AMZN",
+      "time": "14:48:48",
+      "total": 749.84
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 720.22,
+      "reason": "ENTRY(s=0.413,K~,2of7)",
+      "shares": 1.0411251914299333,
+      "symbol": "META",
+      "time": "14:48:48",
+      "total": 749.84
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 598.515,
+      "reason": "ENTRY(s=0.108,K~,1of7)",
+      "shares": 1.2531014260294229,
+      "symbol": "AMD",
+      "time": "14:48:44",
+      "total": 750.0
+    }
+  ],
+  "report": {
+    "date": "2026-09-28",
+    "generated_at": "2026-09-28T20:10:02.176206942+00:00",
+    "market_session": {
+      "close": "16:00 ET",
+      "open": "09:30 ET",
+      "status": "closed"
+    },
+    "type": "end_of_day"
+  },
+  "symbols": [
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 608.35,
+      "position_pnl": 0.0,
+      "signal_strength": -0.07173963756501137,
+      "symbol": "AMD"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 714.99,
+      "position_pnl": 0.0,
+      "signal_strength": 0.26431674292894336,
+      "symbol": "META"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 678.275,
+      "position_pnl": 0.0,
+      "signal_strength": -0.09177238732061399,
+      "symbol": "TMO"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 72.56,
+      "position_pnl": 0.0,
+      "signal_strength": 0.06913396393579321,
+      "symbol": "FCX"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 367.86,
+      "position_pnl": 0.0,
+      "signal_strength": 0.1923890415707305,
+      "symbol": "V"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 87.3,
+      "position_pnl": 0.0,
+      "signal_strength": 0.08531637921552737,
+      "symbol": "KO"
+    },
+    {
+      "direction": "bullish",
+      "in_position": false,
+      "last_price": 206.38,
+      "position_pnl": 0.0,
+      "signal_strength": 0.171474056991351,
+      "symbol": "CVX"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 246.03,
+      "position_pnl": 0.0,
+      "signal_strength": -0.06785309840349538,
+      "symbol": "AMZN"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 274.16,
+      "position_pnl": 0.0,
+      "signal_strength": 0.005436361398325942,
+      "symbol": "UNP"
+    }
+  ],
+  "trading_stats": {
+    "avg_hold_seconds": 6053,
+    "open_positions": 0,
+    "total_trades": 755,
+    "uptime_seconds": 17289,
+    "win_rate": 43.44,
+    "winning_trades": 328
+  },
+  "value_history": [
+    3000.0,
+    2999.82829636,
+    3004.6591163599996,
+    3009.6458372468687,
+    3012.8275079918685,
+    3025.6467312218683,
+    3000.0
+  ]
+}

@@ -1,0 +1,56 @@
+﻿############################################################
+  STOCK-MARKET-AI  -  SWING ANALYSIS
+  Generated: 2026-09-25 16:50   |   Report date: 2026-09-24   |   Window: last 7 days
+############################################################
+
+=== REAL TRADER - TODAY (2026-09-24) ===
+  Trades:       10   (W 5 / L 5)
+  Win rate:     50%
+  Gross P/L:    $3.6662
+  Avg win:      $3.8105    Avg loss: $-3.0772
+  Expectancy:   $0.3666/trade gross  ->  ~$0.2541/trade after est. fees
+  Per symbol:
+    AMZN    1 trades  W1   $8.7524
+    META    1 trades  W1   $5.877
+    FCX     2 trades  W2   $3.1648
+    EQIX    1 trades  W1   $1.2582
+    CVX     2 trades  W0   $-2.1098
+    AMD     1 trades  W0   $-3.4617
+    KO      1 trades  W0   $-4.5084
+    UNP     1 trades  W0   $-5.3063
+  Exit reasons:
+    EOD_DAILY_SKIM     5
+    TRAIL_STOP         5
+
+=== REAL TRADER - LAST 7 DAYS ===
+  Trades:       56   (W 23 / L 33)
+  Win rate:     41.1%
+  Gross P/L:    $-19.4802
+  Avg win:      $3.3993    Avg loss: $-2.9595
+  Expectancy:   $-0.3479/trade gross  ->  ~$-0.4604/trade after est. fees
+  Per symbol:
+    AMZN    7 trades  W4   $16.2497
+    AMD     7 trades  W3   $13.4346
+    V       5 trades  W4   $2.9907
+    FCX     8 trades  W5   $1.8091
+    META    4 trades  W1   $-0.1885
+    KO      5 trades  W3   $-1.9309
+    COP     1 trades  W0   $-5.3138
+    TMO     5 trades  W2   $-6.8804
+    EQIX    4 trades  W1   $-6.9355
+    CVX     6 trades  W0   $-12.4952
+    UNP     4 trades  W0   $-20.22
+  Exit reasons:
+    TRAIL_STOP         25
+    DAMAGE_CONTROL_FLATTEN 21
+    EOD_DAILY_SKIM     10
+
+=== EDGE TEST: real signals vs random baseline (last 7 days) ===
+  REAL signals             expectancy $-0.3479/trade  (56 trades)
+  r5_concentrate           expectancy $-0.3323/trade  (31 trades)
+  r1_kronos_sectors        expectancy $-0.2188/trade  (25 trades)
+  r2_max_forecast          expectancy $-2.1472/trade  (18 trades)
+  r4_legacy                expectancy $-0.2757/trade  (20 trades)
+  (not enough random-baseline trades yet to judge)
+
+LIVE: backend not reachable (Docker stopped?) - analysis above is from logs.

@@ -1,0 +1,252 @@
+{
+  "data_quality": {
+    "finetune_triggered": false,
+    "snapshots": 452,
+    "tracker": {
+      "AMD": {
+        "predictions": 427,
+        "ticks": 427,
+        "trades": 0
+      },
+      "AMZN": {
+        "predictions": 428,
+        "ticks": 428,
+        "trades": 0
+      },
+      "CVX": {
+        "predictions": 428,
+        "ticks": 428,
+        "trades": 0
+      },
+      "FCX": {
+        "predictions": 423,
+        "ticks": 423,
+        "trades": 1
+      },
+      "KO": {
+        "predictions": 374,
+        "ticks": 374,
+        "trades": 0
+      },
+      "META": {
+        "predictions": 363,
+        "ticks": 363,
+        "trades": 1
+      },
+      "TMO": {
+        "predictions": 308,
+        "ticks": 308,
+        "trades": 0
+      },
+      "UNP": {
+        "predictions": 316,
+        "ticks": 316,
+        "trades": 1
+      },
+      "V": {
+        "predictions": 399,
+        "ticks": 399,
+        "trades": 1
+      }
+    }
+  },
+  "portfolio": {
+    "cash": -0.1,
+    "drawdown_pct": -0.03,
+    "initial_capital": 3000.0,
+    "positions_value": 2999.06,
+    "realized_pnl": 51.005,
+    "target": {
+      "goal": "$500 → $600 challenge",
+      "progress_pct": 0.0,
+      "target_value": 3100.0
+    },
+    "total_pnl": -1.0376,
+    "total_pnl_pct": -0.03,
+    "total_value": 2998.96
+  },
+  "positions": [
+    {
+      "current_price": 72.85,
+      "entry_price": 72.77,
+      "hold_seconds": 422,
+      "market_value": 750.88,
+      "shares": 10.307153,
+      "symbol": "FCX",
+      "unrealized_pnl": 0.8246,
+      "unrealized_pnl_pct": 0.11
+    },
+    {
+      "current_price": 276.06,
+      "entry_price": 276.67,
+      "hold_seconds": 280,
+      "market_value": 748.91,
+      "shares": 2.71287,
+      "symbol": "UNP",
+      "unrealized_pnl": -1.6549,
+      "unrealized_pnl_pct": -0.22
+    },
+    {
+      "current_price": 741.775,
+      "entry_price": 741.87,
+      "hold_seconds": 183,
+      "market_value": 749.98,
+      "shares": 1.011066,
+      "symbol": "META",
+      "unrealized_pnl": -0.0961,
+      "unrealized_pnl_pct": -0.01
+    },
+    {
+      "current_price": 370.805,
+      "entry_price": 370.86,
+      "hold_seconds": 71,
+      "market_value": 749.29,
+      "shares": 2.020709,
+      "symbol": "V",
+      "unrealized_pnl": -0.1111,
+      "unrealized_pnl_pct": -0.01
+    }
+  ],
+  "recent_trades": [
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 370.81,
+      "reason": "ENTRY(s=0.131,K~,2of7)",
+      "shares": 2.0207088644664712,
+      "symbol": "V",
+      "time": "16:34:09",
+      "total": 749.3
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 741.765,
+      "reason": "ENTRY(s=0.072,K-,1of7)",
+      "shares": 1.0110662387156815,
+      "symbol": "META",
+      "time": "16:32:16",
+      "total": 749.97
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 276.46,
+      "reason": "ENTRY(s=0.402,K-,2of7)",
+      "shares": 2.712869843779389,
+      "symbol": "UNP",
+      "time": "16:30:40",
+      "total": 750.0
+    },
+    {
+      "action": "BUY",
+      "pnl": null,
+      "pnl_pct": null,
+      "price": 72.765,
+      "reason": "ENTRY(s=0.156,K~,1of7)",
+      "shares": 10.307153164296022,
+      "symbol": "FCX",
+      "time": "16:28:19",
+      "total": 750.0
+    }
+  ],
+  "report": {
+    "date": "2026-10-06",
+    "generated_at": "2026-10-06T16:35:20.329912279+00:00",
+    "market_session": {
+      "close": "16:00 ET",
+      "open": "09:30 ET",
+      "status": "closed"
+    },
+    "type": "end_of_day"
+  },
+  "symbols": [
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 656.4,
+      "position_pnl": 0.0,
+      "signal_strength": -0.005652078745868568,
+      "symbol": "AMD"
+    },
+    {
+      "direction": "bearish",
+      "in_position": false,
+      "last_price": 660.8,
+      "position_pnl": 0.0,
+      "signal_strength": -0.16108534320039708,
+      "symbol": "TMO"
+    },
+    {
+      "direction": "neutral",
+      "in_position": true,
+      "last_price": 741.775,
+      "position_pnl": -0.0961,
+      "signal_strength": -0.07557101183054539,
+      "symbol": "META"
+    },
+    {
+      "direction": "neutral",
+      "in_position": true,
+      "last_price": 72.85,
+      "position_pnl": 0.8246,
+      "signal_strength": 0.028807712126417036,
+      "symbol": "FCX"
+    },
+    {
+      "direction": "bearish",
+      "in_position": false,
+      "last_price": 208.5,
+      "position_pnl": 0.0,
+      "signal_strength": -0.36366779563050494,
+      "symbol": "CVX"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 255.26,
+      "position_pnl": 0.0,
+      "signal_strength": -0.06961961242356889,
+      "symbol": "AMZN"
+    },
+    {
+      "direction": "neutral",
+      "in_position": false,
+      "last_price": 87.125,
+      "position_pnl": 0.0,
+      "signal_strength": 0.07337762392519548,
+      "symbol": "KO"
+    },
+    {
+      "direction": "bullish",
+      "in_position": true,
+      "last_price": 370.805,
+      "position_pnl": -0.1111,
+      "signal_strength": 0.4134984899078399,
+      "symbol": "V"
+    },
+    {
+      "direction": "bearish",
+      "in_position": true,
+      "last_price": 276.06,
+      "position_pnl": -1.6549,
+      "signal_strength": -0.16479177583836374,
+      "symbol": "UNP"
+    }
+  ],
+  "trading_stats": {
+    "avg_hold_seconds": 0,
+    "open_positions": 4,
+    "total_trades": 778,
+    "uptime_seconds": 461,
+    "win_rate": 42.67,
+    "winning_trades": 332
+  },
+  "value_history": [
+    3000.0,
+    2998.962435695
+  ]
+}

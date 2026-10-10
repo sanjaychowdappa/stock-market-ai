@@ -1,0 +1,91 @@
+[01-10-2026 15:40:51.44] === AUTO START === 
+[01-10-2026 15:40:51.47] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 15:40:51.78] Outside 09:00-15:30 (minute 940) - not starting 
+[01-10-2026 15:48:47.99] === AUTO START === 
+[01-10-2026 15:48:47.99] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 15:48:48.38] Outside 09:00-15:30 (minute 948) - not starting 
+[01-10-2026 16:03:48.50] === AUTO START === 
+[01-10-2026 16:03:48.50] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 16:03:48.84] Outside 09:00-15:30 (minute 963) - not starting 
+[01-10-2026 16:10:01.27] === AUTO STOP === 
+[01-10-2026 16:10:01.27] Saving container logs... 
+[01-10-2026 16:10:02.10] Container logs saved to logs\backend_20261001.log 
+[01-10-2026 16:10:02.10] Fetching final EOD report... 
+[01-10-2026 16:10:04.17] WARNING: Could not fetch EOD report - backend not answering on 127.0.0.1:8000 
+[01-10-2026 16:10:04.17] Final daily status: 
+ 
+[01-10-2026 16:10:06.23] Stopping containers... 
+time="2026-10-01T16:10:06-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+[01-10-2026 16:10:06.53] All containers stopped 
+[01-10-2026 16:10:06.53] === SESSION COMPLETE === 
+ 
+[01-10-2026 16:18:48.46] === AUTO START === 
+[01-10-2026 16:18:48.47] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 16:18:48.80] Outside 09:00-15:30 (minute 978) - not starting 
+[01-10-2026 16:33:48.81] === AUTO START === 
+[01-10-2026 16:33:48.85] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 16:33:49.26] Outside 09:00-15:30 (minute 993) - not starting 
+[01-10-2026 16:48:48.59] === AUTO START === 
+[01-10-2026 16:48:48.60] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 16:48:49.04] Outside 09:00-15:30 (minute 1008) - not starting 
+[01-10-2026 17:03:48.45] === AUTO START === 
+[01-10-2026 17:03:48.45] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 17:03:48.81] Outside 09:00-15:30 (minute 1023) - not starting 
+[01-10-2026 17:18:48.43] === AUTO START === 
+[01-10-2026 17:18:48.46] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 17:18:48.74] Outside 09:00-15:30 (minute 1038) - not starting 
+[01-10-2026 17:33:48.45] === AUTO START === 
+[01-10-2026 17:33:48.45] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 17:33:48.77] Outside 09:00-15:30 (minute 1053) - not starting 
+[01-10-2026 17:48:48.43] === AUTO START === 
+[01-10-2026 17:48:48.44] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 17:48:48.76] Outside 09:00-15:30 (minute 1068) - not starting 
+[01-10-2026 18:03:48.46] === AUTO START === 
+[01-10-2026 18:03:48.50] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 18:03:48.81] Outside 09:00-15:30 (minute 1083) - not starting 
+[01-10-2026 18:18:48.44] === AUTO START === 
+[01-10-2026 18:18:48.44] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 18:18:48.77] Outside 09:00-15:30 (minute 1098) - not starting 
+[01-10-2026 18:33:48.43] === AUTO START === 
+[01-10-2026 18:33:48.45] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 18:33:48.77] Outside 09:00-15:30 (minute 1113) - not starting 
+[01-10-2026 18:48:48.46] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 18:48:48.51] === AUTO START === 
+[01-10-2026 18:48:48.84] Outside 09:00-15:30 (minute 1128) - not starting 
+[01-10-2026 19:03:48.46] === AUTO START === 
+[01-10-2026 19:03:48.46] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 19:03:48.85] Outside 09:00-15:30 (minute 1143) - not starting 
+[01-10-2026 19:18:48.45] === AUTO START === 
+[01-10-2026 19:18:48.45] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 19:18:48.76] Outside 09:00-15:30 (minute 1158) - not starting 
+[01-10-2026 19:33:48.45] === AUTO START === 
+[01-10-2026 19:33:48.46] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 19:33:48.81] Outside 09:00-15:30 (minute 1173) - not starting 
+[01-10-2026 19:48:48.44] === AUTO START === 
+[01-10-2026 19:48:48.46] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 19:48:48.77] Outside 09:00-15:30 (minute 1188) - not starting 
+[01-10-2026 20:03:48.45] === AUTO START === 
+[01-10-2026 20:03:48.45] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 20:03:48.80] Outside 09:00-15:30 (minute 1203) - not starting 
+[01-10-2026 20:18:48.49] === AUTO START === 
+[01-10-2026 20:18:48.50] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 20:18:48.87] Outside 09:00-15:30 (minute 1218) - not starting 
+[01-10-2026 20:33:48.93] === AUTO START === 
+[01-10-2026 20:33:48.95] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 20:33:49.24] Outside 09:00-15:30 (minute 1233) - not starting 
+[01-10-2026 20:48:48.66] === AUTO START === 
+[01-10-2026 20:48:48.68] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 20:48:48.98] Outside 09:00-15:30 (minute 1248) - not starting 
+[01-10-2026 21:03:48.59] === AUTO START === 
+[01-10-2026 21:03:48.61] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 21:03:48.93] Outside 09:00-15:30 (minute 1263) - not starting 
+[01-10-2026 21:18:48.46] === AUTO START === 
+[01-10-2026 21:18:48.49] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 21:18:48.79] Outside 09:00-15:30 (minute 1278) - not starting 
+[01-10-2026 21:33:48.48] === AUTO START === 
+[01-10-2026 21:33:48.49] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 21:33:48.82] Outside 09:00-15:30 (minute 1293) - not starting 
+[01-10-2026 21:48:48.47] === AUTO START === 
+[01-10-2026 21:48:48.47] KEEP_AWAKE outside 09:00-15:30 - not holding
+[01-10-2026 21:48:48.81] Outside 09:00-15:30 (minute 1308) - not starting 

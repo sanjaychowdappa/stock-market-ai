@@ -1,0 +1,61 @@
+[09-10-2026 15:53:05.64] KEEP_AWAKE outside 09:00-15:30 - not holding
+[09-10-2026 15:53:05.65] === AUTO START === 
+[09-10-2026 15:53:05.98] Outside 09:00-15:30 (minute 953) - not starting 
+[09-10-2026 15:57:29.87] === AUTO START === 
+[09-10-2026 15:57:30.20] Outside 09:00-15:30 (minute 957) - not starting 
+[09-10-2026 16:10:01.41] === AUTO STOP === 
+[09-10-2026 16:10:01.41] Saving container logs... 
+[09-10-2026 16:10:02.47] Container logs saved to logs\backend_20261009.log 
+[09-10-2026 16:10:02.47] Fetching final EOD report... 
+[09-10-2026 16:10:04.56] WARNING: Could not fetch EOD report - backend not answering on 127.0.0.1:8000 
+[09-10-2026 16:10:04.56] Final daily status: 
+ 
+[09-10-2026 16:10:06.63] Stopping containers... 
+time="2026-10-09T16:10:06-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+[09-10-2026 16:10:06.99] All containers stopped 
+[09-10-2026 16:10:06.99] === SESSION COMPLETE === 
+ 
+[09-10-2026 16:12:30.57] === AUTO START === 
+[09-10-2026 16:12:31.17] Outside 09:00-15:30 (minute 972) - not starting 
+[09-10-2026 16:27:30.53] === AUTO START === 
+[09-10-2026 16:27:31.01] Outside 09:00-15:30 (minute 987) - not starting 
+[09-10-2026 16:42:30.50] === AUTO START === 
+[09-10-2026 16:42:30.98] Outside 09:00-15:30 (minute 1002) - not starting 
+[09-10-2026 16:57:30.52] === AUTO START === 
+[09-10-2026 16:57:30.97] Outside 09:00-15:30 (minute 1017) - not starting 
+[09-10-2026 17:12:30.57] === AUTO START === 
+[09-10-2026 17:12:31.05] Outside 09:00-15:30 (minute 1032) - not starting 
+[09-10-2026 17:27:30.52] === AUTO START === 
+[09-10-2026 17:27:30.97] Outside 09:00-15:30 (minute 1047) - not starting 
+[09-10-2026 17:42:30.42] === AUTO START === 
+[09-10-2026 17:42:30.82] Outside 09:00-15:30 (minute 1062) - not starting 
+[09-10-2026 17:57:30.40] === AUTO START === 
+[09-10-2026 17:57:30.75] Outside 09:00-15:30 (minute 1077) - not starting 
+[09-10-2026 18:12:30.40] === AUTO START === 
+[09-10-2026 18:12:30.77] Outside 09:00-15:30 (minute 1092) - not starting 
+[09-10-2026 18:27:30.47] === AUTO START === 
+[09-10-2026 18:27:30.84] Outside 09:00-15:30 (minute 1107) - not starting 
+[09-10-2026 18:42:30.41] === AUTO START === 
+[09-10-2026 18:42:30.76] Outside 09:00-15:30 (minute 1122) - not starting 
+[09-10-2026 18:57:30.40] === AUTO START === 
+[09-10-2026 18:57:30.75] Outside 09:00-15:30 (minute 1137) - not starting 
+[09-10-2026 19:12:30.39] === AUTO START === 
+[09-10-2026 19:12:30.75] Outside 09:00-15:30 (minute 1152) - not starting 
+[09-10-2026 19:27:30.42] === AUTO START === 
+[09-10-2026 19:27:30.76] Outside 09:00-15:30 (minute 1167) - not starting 
+[09-10-2026 19:42:30.44] === AUTO START === 
+[09-10-2026 19:42:30.80] Outside 09:00-15:30 (minute 1182) - not starting 
+[09-10-2026 19:57:30.41] === AUTO START === 
+[09-10-2026 19:57:30.76] Outside 09:00-15:30 (minute 1197) - not starting 
+[09-10-2026 20:12:30.39] === AUTO START === 
+[09-10-2026 20:12:30.78] Outside 09:00-15:30 (minute 1212) - not starting 
+[09-10-2026 20:27:30.45] === AUTO START === 
+[09-10-2026 20:27:30.83] Outside 09:00-15:30 (minute 1227) - not starting 
+[09-10-2026 20:42:30.50] === AUTO START === 
+[09-10-2026 20:42:30.86] Outside 09:00-15:30 (minute 1242) - not starting 
+[09-10-2026 20:50:42.37] KEEP_AWAKE holding the system awake until 23:59 (system+display, previous state 0x80000000)
+[09-10-2026 20:50:42.50] KEEP_AWAKE standby holes 2026-10-06: 1 span(s), 1 min of the session blind
+[09-10-2026 20:50:42.50] KEEP_AWAKE standby holes 2026-10-07: 4 span(s), 139 min of the session blind
+[09-10-2026 20:50:42.50] KEEP_AWAKE standby holes 2026-10-09: 1 span(s), 0 min of the session blind
+[09-10-2026 20:51:06.82] KEEP_AWAKE release time 0001 already passed - not holding

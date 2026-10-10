@@ -1,0 +1,31 @@
+[03-10-2026  0:20:28.05] === AUTO STOP === 
+[03-10-2026  0:20:28.05] Saving container logs... 
+[03-10-2026  0:20:31.36] Container logs saved to logs\backend_20261003.log 
+[03-10-2026  0:20:31.36] Fetching final EOD report... 
+[03-10-2026  0:20:37.79] WARNING: Could not fetch EOD report - backend not answering on 127.0.0.1:8000 
+[03-10-2026  0:20:37.79] Final daily status: 
+ 
+[03-10-2026  0:20:39.91] Stopping containers... 
+time="2026-10-03T00:20:40-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+[03-10-2026  0:20:40.24] All containers stopped 
+[03-10-2026  0:20:40.24] === SESSION COMPLETE === 
+ 
+[03-10-2026 12:47:32.16] === AUTO START === 
+[03-10-2026 12:47:32.18] KEEP_AWAKE weekend - not holding
+[03-10-2026 12:47:32.35] Weekend (DayOfWeek=6) - the market is shut; not starting 
+time="2026-10-03T12:47:32-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+[03-10-2026 12:53:48.24] === AUTO STOP === 
+[03-10-2026 12:53:48.24] Saving container logs... 
+[03-10-2026 12:53:48.99] Container logs saved to logs\backend_20261003.log 
+[03-10-2026 12:53:48.99] Fetching final EOD report... 
+[03-10-2026 12:53:51.06] WARNING: Could not fetch EOD report - backend not answering on 127.0.0.1:8000 
+[03-10-2026 12:53:51.06] Final daily status: 
+ 
+[03-10-2026 12:53:53.12] Stopping containers... 
+time="2026-10-03T12:53:53-04:00" level=warning msg="C:\\Users\\sanja\\stock-market-ai\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+[03-10-2026 12:53:53.81] All containers stopped 
+[03-10-2026 12:53:53.81] === SESSION COMPLETE === 
+ 

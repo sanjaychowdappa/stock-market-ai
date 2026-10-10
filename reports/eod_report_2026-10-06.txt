@@ -1,0 +1,61 @@
+╔══════════════════════════════════════════════════════════╗
+║           STOCK MARKET AI — END OF DAY REPORT           ║
+╚══════════════════════════════════════════════════════════╝
+
+  Date:       2026-10-06
+  Generated:  2026-10-06T16:35:20.329912279+00:00
+  Uptime:     0h 7m
+
+─────────────── PORTFOLIO (SIMULATOR) ───────────────
+
+  These are simulator figures: no spread, no slippage, no rejections.
+  They are NOT a record of money made. Real results: GET /api/broker.
+
+  Initial Capital:  $3000.00
+  Current Value:    $2998.96
+  Cash:             $-0.10
+  Positions Value:  $2999.06
+  Total P&L:        -1.04 (-0.03%)
+  Realized P&L:     $51.01
+  Target:           $3000 → $4500 (0.0% complete)
+
+─────────────── TRADING STATS ───────────────
+
+  Total Trades:     778
+  Winning Trades:   332
+  Win Rate:         42.7%
+  Avg Hold Time:    0s
+
+─────────────── SYMBOLS ───────────────
+
+  Symbol   Price       Direction    Signal   Position
+  ──────   ─────────   ─────────   ──────   ────────
+  AMD      $656.40     neutral     -0.006   —
+  TMO      $660.80     bearish     -0.161   —
+  META     $741.77     neutral     -0.076   OPEN
+  FCX      $72.85      neutral     0.029    OPEN
+  CVX      $208.50     bearish     -0.364   —
+  AMZN     $255.26     neutral     -0.070   —
+  KO       $87.12      neutral     0.073    —
+  V        $370.81     bullish     0.413    OPEN
+  UNP      $276.06     bearish     -0.165   OPEN
+
+─────────────── OPEN POSITIONS ───────────────
+
+  FCX — 10.3072 shares @ $72.77 → $72.85  P&L: $0.8246 (0.11%)
+  UNP — 2.7129 shares @ $276.67 → $276.06  P&L: $-1.6549 (-0.22%)
+  META — 1.0111 shares @ $741.87 → $741.77  P&L: $-0.0961 (-0.01%)
+  V — 2.0207 shares @ $370.86 → $370.81  P&L: $-0.1111 (-0.01%)
+
+─────────────── RECENT TRADES (last 20) ───────────────
+
+  Time      Action  Symbol   Price       Total    P&L       Reason
+  ────────  ──────  ──────   ─────────   ──────   ─────     ──────
+  16:34:09  BUY    V        $370.81    $749.30  $0.0000    ENTRY(s=0.131,K~,2of7)
+  16:32:16  BUY    META     $741.76    $749.97  $0.0000    ENTRY(s=0.072,K-,1of7)
+  16:30:40  BUY    UNP      $276.46    $750.00  $0.0000    ENTRY(s=0.402,K-,2of7)
+  16:28:19  BUY    FCX      $72.77     $750.00  $0.0000    ENTRY(s=0.156,K~,1of7)
+
+═══════════════════════════════════════════════════════════
+  Powered by Stock Market AI — Rust Engine + Kronos ONNX
+═══════════════════════════════════════════════════════════

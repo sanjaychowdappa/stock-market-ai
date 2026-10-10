@@ -22,11 +22,29 @@
     battery. On 2026-09-21 at 15:41 the power source changed to battery and
     the machine suspended five minutes later.
 
-    THE FIX. SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED)
-    tells Windows the system must stay in the working state — the same
-    request a media player holds while playing. Deliberately NOT
-    ES_DISPLAY_REQUIRED: the screen may switch off, only the CPU must keep
-    running.
+    THE FIX, SECOND ATTEMPT (2026-10-09). The first version asked for
+    ES_SYSTEM_REQUIRED only, on the reasoning that the screen may switch off
+    so long as the CPU keeps running. MEASURED OVER THREE WEEKS, THAT DID
+    NOTHING:
+
+        before (09-08..09-21)  33 spans, 296 min asleep mid-session
+        after  (09-22..10-09)  24 spans, 298 min asleep mid-session
+        worst span after the "fix": 106 minutes, on 2026-10-07
+
+    On a Modern Standby platform a System power request does not prevent
+    standby entry — standby follows the screen going off, and only a DISPLAY
+    request holds that open. ES_SYSTEM_REQUIRED is the right call on an S3
+    machine and a no-op on this one, which is why it logged success every
+    morning while changing nothing.
+
+    So the request is now ES_CONTINUOUS | ES_SYSTEM_REQUIRED |
+    ES_DISPLAY_REQUIRED. The cost is explicit and was accepted by the owner:
+    the screen stays lit from 09:25 to 16:20 on a trading day, and the
+    battery drains faster for it.
+
+    DO NOT "optimise" the display flag away. It is the only flag here that
+    does the job, and dropping it reproduces three weeks of blind sessions
+    that look exactly like success in the log.
 
     This is preferred over editing the power plan's DC timeout because the
     request DIES WITH THE PROCESS. If this script is killed, or the machine
@@ -95,9 +113,10 @@ public static extern uint SetThreadExecutionState(uint esFlags);
     # Int32, so [uint32]0x80000000 is a cast of -2147483648 and throws
     # "Value was either too large or too small for a UInt32" — which killed
     # this script silently on its first run, holding nothing.
-    $ES_CONTINUOUS      = [uint32]2147483648   # 0x80000000
-    $ES_SYSTEM_REQUIRED = [uint32]1            # 0x00000001
-    $flags = $ES_CONTINUOUS -bor $ES_SYSTEM_REQUIRED
+    $ES_CONTINUOUS       = [uint32]2147483648  # 0x80000000
+    $ES_SYSTEM_REQUIRED  = [uint32]1           # 0x00000001
+    $ES_DISPLAY_REQUIRED = [uint32]2           # 0x00000002 - the one that works here
+    $flags = $ES_CONTINUOUS -bor $ES_SYSTEM_REQUIRED -bor $ES_DISPLAY_REQUIRED
 
     # Returns the PREVIOUS state, or 0 on failure. `powercfg /requests` would
     # show the request but needs elevation, so this return value is the
@@ -107,14 +126,42 @@ public static extern uint SetThreadExecutionState(uint esFlags);
         Say "SetThreadExecutionState FAILED - the machine may still sleep mid-session"
         exit 1
     }
-    Say ("holding the system awake until {0:HH:mm} (previous state 0x{1:X})" -f $until, $prev)
+    Say ("holding the system awake until {0:HH:mm} (system+display, previous state 0x{1:X})" -f $until, $prev)
+
+    # Report the PREVIOUS session's standby holes into today's log. The first
+    # version of this script logged "holding the system awake" every morning
+    # for three weeks while the machine slept for five hours a session, and
+    # nothing in the project measured the thing the script existed to stop.
+    # Now it reports itself, and a non-zero figure here is the signal that
+    # the display request is not doing its job either.
+    try {
+        $since = (Get-Date).Date.AddDays(-4)
+        $ev = Get-WinEvent -FilterHashtable @{LogName='System'; Id=506,507; StartTime=$since} -ErrorAction Stop |
+              Sort-Object TimeCreated
+        $open = $null; $spans = @()
+        foreach ($e in $ev) {
+            if ($e.Id -eq 506) { if (-not $open) { $open = $e.TimeCreated } }
+            elseif ($open) { $spans += [pscustomobject]@{ Start = $open; Secs = [int]($e.TimeCreated - $open).TotalSeconds }; $open = $null }
+        }
+        $sess = $spans | Where-Object {
+            $_.Start.DayOfWeek -notin 'Saturday', 'Sunday' -and
+            (($_.Start.Hour -eq 9 -and $_.Start.Minute -ge 30) -or ($_.Start.Hour -ge 10 -and $_.Start.Hour -lt 16))
+        }
+        foreach ($g in ($sess | Group-Object { $_.Start.ToString('yyyy-MM-dd') } | Sort-Object Name)) {
+            $mins = [int]((($g.Group | Measure-Object Secs -Sum).Sum) / 60)
+            Say ("standby holes {0}: {1} span(s), {2} min of the session blind" -f $g.Name, $g.Count, $mins)
+        }
+        if (-not $sess) { Say "standby holes: none in the last 4 days of sessions" }
+    } catch {
+        Say "could not read standby history: $($_.Exception.Message)"
+    }
 
     # The request lives on THIS thread, so the thread has to stay alive. The
     # loop also re-asserts it every 5 minutes: a request can be lost across
     # some power transitions, and re-asserting is free.
     while ((Get-Date) -lt $until) {
         Start-Sleep -Seconds 300
-        [void]$api::SetThreadExecutionState($ES_CONTINUOUS -bor $ES_SYSTEM_REQUIRED)
+        [void]$api::SetThreadExecutionState($flags)
     }
     Say "released - normal sleep behaviour resumes"
 }

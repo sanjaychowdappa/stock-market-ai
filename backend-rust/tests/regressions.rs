@@ -2402,3 +2402,43 @@ fn leftover_cash_is_not_a_position() {
     assert!(entry_size_ok(stock_market_ai::config::MIN_ENTRY_NOTIONAL));
     assert!(entry_size_ok(747.0), "a normal slot");
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 2026-10-09: the intraday signal trader is retired.
+//
+// A retired trader keeps simulating, and its simulated days must never join
+// the banked running total — that is what skim_simulated exists for, and it
+// is the same failure as a scoreboard row labelled REAL reporting +$185.71
+// against a -$32.45 account. The flag and the ledger kind must agree, so
+// that nobody can flip mirroring off and quietly keep banking hypotheticals.
+
+use stock_market_ai::config::ALPACA_SHADOW_ORDERS;
+
+/// The kind the skim writes, as paper_trader decides it.
+fn skim_kind(mirroring: bool) -> &'static str {
+    if mirroring { "skim" } else { "skim_simulated" }
+}
+
+#[test]
+fn a_retired_trader_banks_nothing_into_the_running_total() {
+    assert!(!is_banking_kind(skim_kind(false)),
+        "with no orders reaching a broker the day is hypothetical and must \
+         not join the cumulative");
+    assert!(is_banking_kind(skim_kind(true)),
+        "and a mirrored day still banks");
+}
+
+#[test]
+fn the_live_flag_and_the_ledger_kind_cannot_disagree() {
+    // Whatever the flag is set to, the kind written must match it.
+    let expected = if ALPACA_SHADOW_ORDERS { "skim" } else { "skim_simulated" };
+    assert_eq!(skim_kind(ALPACA_SHADOW_ORDERS), expected);
+    // And the retirement must be coherent: no real orders means the kill
+    // criterion has nothing to count, so it must not be left armed
+    // reporting 0/100 as though a trial were still running.
+    if !ALPACA_SHADOW_ORDERS {
+        assert!(!stock_market_ai::config::LIVE_KILL_ENABLED,
+            "mirroring is off, so no real round trip can ever close: a live \
+             kill criterion left armed would read as a trial in progress");
+    }
+}
